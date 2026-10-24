@@ -24,6 +24,12 @@ final class MatchStarter {
         return you.isEmpty() ? "You" : you.substring(0, 1).toUpperCase() + you.substring(1);
     }
 
+    static List<String> myDeckNames() {
+        List<String> names = new ArrayList<>(DeckImporter.mine().getItemNames());
+        Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+        return names;
+    }
+
     static List<String> commanderPreconNames() {
         List<String> names = new ArrayList<>(FModel.getDecks().getCommanderPrecons().getItemNames());
         Collections.sort(names);
@@ -39,7 +45,10 @@ final class MatchStarter {
         FModel.getDecks().getCommanderPrecons().forEach(precons::add);
         Collections.shuffle(precons);
 
-        Deck mine = deckName == null ? precons.get(0) : FModel.getDecks().getCommanderPrecons().get(deckName);
+        // The player's own (imported) decks first, then Forge's precons.
+        Deck mine = deckName == null ? precons.get(0)
+                : DeckImporter.mine().contains(deckName) ? DeckImporter.mine().get(deckName)
+                : FModel.getDecks().getCommanderPrecons().get(deckName);
         if (mine == null) {
             throw new IllegalArgumentException("Unknown deck: " + deckName);
         }

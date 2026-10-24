@@ -111,6 +111,16 @@ public final class EngineServer extends WebSocketServer {
         switch (msg.get("type").getAsString()) {
             case "hello" -> c.session.send(engineInfo());
             case "listDecks" -> c.session.send(decks());
+            case "previewDeck" -> c.actions.execute(() -> c.session.send(
+                    DeckImporter.preview(string(msg, "text"), string(msg, "name")).json()));
+            case "saveDeck" -> c.actions.execute(() -> {
+                String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"));
+                c.session.send(problem == null ? decks() : error(problem));
+            });
+            case "deleteDeck" -> c.actions.execute(() -> {
+                DeckImporter.delete(string(msg, "name"));
+                c.session.send(decks());
+            });
             case "setLanguage" -> c.actions.execute(() -> setLanguage(c, msg));
             case "setSkin" -> setSkin(c, msg);
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
@@ -228,10 +238,17 @@ public final class EngineServer extends WebSocketServer {
     private static JsonObject decks() {
         JsonObject o = new JsonObject();
         o.addProperty("type", "decks");
-        JsonArray names = new JsonArray();
-        MatchStarter.commanderPreconNames().forEach(names::add);
-        o.add("commander", names);
+        JsonArray mine = new JsonArray();
+        MatchStarter.myDeckNames().forEach(mine::add);
+        o.add("mine", mine);
+        JsonArray precons = new JsonArray();
+        MatchStarter.commanderPreconNames().forEach(precons::add);
+        o.add("commander", precons);
         return o;
+    }
+
+    private static String string(JsonObject msg, String key) {
+        return msg.has(key) && !msg.get(key).isJsonNull() ? msg.get(key).getAsString() : null;
     }
 
     private static JsonObject error(String message) {

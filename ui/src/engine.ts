@@ -98,14 +98,28 @@ export type Choice = {
   preselected?: number[];
 };
 
-export type Notice = { type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
+export type DeckLists = { mine: string[]; precons: string[] };
+
+export type DeckPreview = {
+  type: 'deckPreview';
+  lines: { text: string; status: 'ok' | 'warning' | 'error'; message?: string }[];
+  unknown: number;
+  name?: string;
+  cards?: number;
+  commanders?: string[];
+  /** Why the deck isn't Commander-legal (still playable against the AI). */
+  problem?: string;
+};
+
+export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
 type EngineMessage =
   | EngineInfo
   | GameState
   | Choice
   | Notice
-  | { type: 'decks'; commander: string[] }
+  | { type: 'decks'; mine: string[]; commander: string[] }
+  | DeckPreview
   | { type: 'error'; message: string };
 
 export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave';
@@ -115,13 +129,17 @@ export type ClientMessage =
   | { type: 'listDecks' }
   | { type: 'setLanguage'; language: string }
   | { type: 'setSkin'; skin: string }
+  | { type: 'previewDeck'; text: string; name?: string }
+  | { type: 'saveDeck'; text: string; name: string }
+  | { type: 'deleteDeck'; name: string }
   | { type: 'startMatch'; deck: string | null; opponents: number }
   | { type: 'action'; action: Action; id?: number }
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null };
 
 export type EngineHandlers = {
   onInfo: (info: EngineInfo) => void;
-  onDecks: (names: string[]) => void;
+  onDecks: (decks: DeckLists) => void;
+  onDeckPreview: (preview: DeckPreview) => void;
   onState: (state: GameState) => void;
   onChoice: (choice: Choice) => void;
   onNotice: (notice: Notice) => void;
@@ -158,7 +176,8 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
     }
     switch (msg.type) {
       case 'engineInfo': h.onInfo(msg); break;
-      case 'decks': h.onDecks(msg.commander); break;
+      case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander }); break;
+      case 'deckPreview': h.onDeckPreview(msg); break;
       case 'state': h.onState(msg); break;
       case 'choice': h.onChoice(msg); break;
       case 'notice': h.onNotice(msg); break;

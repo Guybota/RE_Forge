@@ -27,11 +27,13 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 | `1b867b0` | Idioma escolhido no primeiro arranque; textos do Forge e das cartas traduzidos |
 | `c4c64e5` | 4 skins (Mesa física, Editorial, Retro 1993, Terminal), escolha no primeiro arranque |
 
+| `26b8732` | Combate: cartas acionáveis, alvo do ataque, setas de ataque e bloqueio, paragem após bloqueios |
+
 Ramo `feat/packaging` (`3bca02e`, **não juntado**): instalador Windows em curso — ver passo 6.
 
 ---
 
-## Passo 1 — Combate (em curso, ramo `feat/combat`, por fazer commit)
+## Passo 1 — Combate (feito, `26b8732`)
 
 Feito no ramo:
 - `actionable` por carta (preferência `UI_SHOW_ACTIONABLE_HIGHLIGHTS`), destacado na UI.
@@ -53,7 +55,14 @@ Por fazer:
 
 Critério de feito: atacar, escolher alvo em 4 jogadores, bloquear e distribuir dano funcionam no browser; os três testes de fumo passam.
 
-## Passo 2 — Importar decks
+## Passo 2 — Importar decks (feito no ramo `feat/deck-import`)
+
+Feito: `DeckImporter.java` (pré-visualizar, guardar, apagar; `listDecks` devolve `mine` + `commander`; `MatchStarter`
+procura primeiro nos decks do utilizador), ecrã `ImportDeck.tsx` (pré-visualização linha a linha com motivo em tooltip,
+legalidade, nome), `Home` com grupos "Os meus decks" / "Pré-construídos", apagar deck, e `scripts/smoke-import.mjs`.
+Falta só o ponto 4 (link do Moxfield), opcional.
+
+Plano original:
 
 Objetivo: colar uma lista (Moxfield, Archidekt, MTG Arena, MTGO) e jogar com ela.
 

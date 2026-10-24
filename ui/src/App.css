@@ -100,6 +100,105 @@
   color: var(--accent-ink);
 }
 
+.home__deck {
+  display: flex;
+  gap: 8px;
+}
+.home__deck select { flex: 1; min-width: 0; }
+
+/* Deck import */
+.import {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 32px;
+}
+.import__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.import__head h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: 32px;
+}
+.import__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+@media (max-width: 800px) {
+  .import__body { grid-template-columns: 1fr; }
+}
+.import__paste textarea {
+  height: calc(100vh - 260px);
+  min-height: 240px;
+  padding: 12px;
+  resize: vertical;
+  font-family: ui-monospace, 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.import__preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.import__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 22px 0 8px;
+  font-weight: 600;
+}
+.import__problem {
+  color: var(--danger-text);
+  text-decoration: underline dotted;
+  cursor: help;
+}
+.import__lines {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  border-top: 1px solid var(--table-line);
+}
+.import__line {
+  padding: 4px 0 4px 18px;
+  border-bottom: 1px solid var(--table-line);
+  position: relative;
+}
+.import__line::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--on-table-muted);
+}
+.import__line--warning::before { background: var(--select); }
+.import__line--error { color: var(--danger-text); }
+.import__line--error::before { background: var(--danger); }
+.import__line[title] { cursor: help; }
+.import__save {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.import__save .field-label { width: min(420px, 100%); }
+
 /* Skin picker: each tile carries its own data-skin, so it is drawn in that skin. */
 .skins {
   display: grid;

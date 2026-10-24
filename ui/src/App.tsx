@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Home } from './Home';
+import { ImportDeck } from './ImportDeck';
 import { I18n, translator } from './i18n';
 import { LanguagePicker } from './LanguagePicker';
 import { DEFAULT_SKIN } from './skins';
@@ -10,7 +11,8 @@ import './App.css';
 
 export default function App() {
   const engine = useEngine();
-  const [picking, setPicking] = useState<'language' | 'skin' | null>(null);
+  const [picking, setPicking] = useState<'language' | 'skin' | 'import' | null>(null);
+  const [lastImported, setLastImported] = useState<string | undefined>();
   // Before the engine says which language was chosen, follow the system's.
   const language = engine.info?.language ?? navigator.language;
   const t = useMemo(() => translator(language), [language]);
@@ -36,8 +38,19 @@ export default function App() {
     screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
   } else if (!engine.info?.skin || picking === 'skin') {
     screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} />;
+  } else if (picking === 'import') {
+    screen = (
+      <ImportDeck
+        engine={engine}
+        onDone={(saved) => {
+          if (saved) setLastImported(saved);
+          setPicking(null);
+        }}
+      />
+    );
   } else {
-    screen = <Home engine={engine} onPick={setPicking} />;
+    // key: remount so a just-imported deck becomes the selection.
+    screen = <Home key={lastImported} engine={engine} onPick={setPicking} initialDeck={lastImported} />;
   }
 
   return <I18n.Provider value={t}>{screen}</I18n.Provider>;

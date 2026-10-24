@@ -39,6 +39,7 @@ For a production-style run: `npm run build` then `npm start`.
 npm run engine:smoke          # engine loads the card database
 npm run engine:smoke-match    # plays a passive Commander game through the socket and concedes
 npm run engine:smoke-combat   # plays an active game (lands, spells, targets, attacks, blocks); a few minutes
+npm run engine:smoke-import   # imports scripts/fixtures/riders-of-rohan-arena.txt, plays it, deletes it
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.
@@ -59,7 +60,8 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 
 | Direction | `type` | What |
 |---|---|---|
-| UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); the Commander precon names |
+| UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); `decks` with `mine` (imported) and `commander` (precons) |
+| UI → engine | `previewDeck` / `saveDeck` / `deleteDeck` | Decklist `text` (+ `name`) → `deckPreview` (lines with status, cards, commanders, legality `problem`); save/delete answer `decks` |
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
 | UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
 | UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3 |

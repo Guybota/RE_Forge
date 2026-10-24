@@ -31,10 +31,11 @@ docs/       PLAN.md (roadmap).
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons; sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
 | `Settings` | `<data>/reforge.properties`: chosen `language` and `skin` (missing = first run). |
+| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. |
 
 ### UI (ui/src)
 
-- `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` → `Table`.
+- `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` (→ `ImportDeck`) → `Table`.
 - `useEngine.ts` / `engine.ts` — the socket and every message type (keep in sync with the engine).
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
@@ -57,6 +58,7 @@ npm run dev                   # Vite + Electron; Electron starts the engine
 npm run engine:smoke          # engine loads the card DB (~15 s)
 npm run engine:smoke-match    # passive game through the socket, concedes on turn 4 (SMOKE_OPPONENTS=3 for 4 players)
 npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
+npm run engine:smoke-import   # import a decklist fixture, play it, delete it
 ```
 
 ### Checking the UI in a browser
