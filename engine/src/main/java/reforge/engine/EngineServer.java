@@ -40,6 +40,7 @@ public final class EngineServer extends WebSocketServer {
         });
         volatile WebGuiGame gui;
         volatile HostedMatch match;
+        volatile OnlineLobby online;
 
         Connection(WebSocket socket) {
             session = new Session(socket);
@@ -80,6 +81,11 @@ public final class EngineServer extends WebSocketServer {
         Connection c = conn.getAttachment();
         if (c == null) return;
         c.session.close();
+        if (c.online != null) {
+            c.actions.execute(() -> { c.online.close(); c.online = null; });
+            c.actions.shutdown();
+            return;
+        }
         WebGuiGame gui = c.gui;
         if (gui != null) {
             // Nobody is left to play this side; end the game instead of leaving it waiting forever.
@@ -124,6 +130,9 @@ public final class EngineServer extends WebSocketServer {
             case "setLanguage" -> c.actions.execute(() -> setLanguage(c, msg));
             case "setSkin" -> setSkin(c, msg);
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
+            case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
+            case "setSlot", "setReady", "addSlot", "removeSlot", "startOnlineMatch", "chat", "leaveLobby" ->
+                    c.actions.execute(() -> onlineAction(c, msg));
             case "action" -> c.actions.execute(() -> action(c, msg));
             case "answer" -> c.session.onAnswer(msg);
             default -> c.session.send(error("Unknown type: " + msg.get("type").getAsString()));
@@ -155,6 +164,10 @@ public final class EngineServer extends WebSocketServer {
     }
 
     private static void startMatch(Connection c, JsonObject msg) {
+        if (HeadlessGui.hasOnline()) {
+            c.session.send(error("Leave the online lobby first"));
+            return;
+        }
         if (c.gui != null) {
             if (!c.gui.isFinishedForLocalPlayer()) {
                 c.session.send(error("A match is already running"));
@@ -173,6 +186,39 @@ public final class EngineServer extends WebSocketServer {
             gui.dispose();
             e.printStackTrace();
             c.session.send(error("Could not start the match: " + e.getMessage()));
+        }
+    }
+
+    private static void openOnline(Connection c, JsonObject msg) {
+        if (c.online != null && c.online.isClosed()) c.online = null;
+        if (c.online != null || c.gui != null && !c.gui.isFinishedForLocalPlayer()) {
+            c.session.send(error("A game or lobby is already open"));
+            return;
+        }
+        if (c.gui != null) { c.gui.dispose(); c.gui = null; }
+        OnlineLobby online = new OnlineLobby(c.session, c.actions, gui -> c.gui = gui);
+        try {
+            online.open(msg, msg.get("type").getAsString().equals("hostGame"));
+            c.online = online;
+        } catch (RuntimeException e) {
+            online.close();
+            c.gui = null;
+            c.session.send(error(e.getMessage()));
+        }
+    }
+
+    private static void onlineAction(Connection c, JsonObject msg) {
+        try {
+            if (c.online == null) throw new IllegalStateException("No online lobby is open");
+            if (msg.get("type").getAsString().equals("leaveLobby")) {
+                c.online.close();
+                c.online = null;
+                c.gui = null;
+            } else {
+                c.online.handle(msg.get("type").getAsString(), msg);
+            }
+        } catch (RuntimeException e) {
+            c.session.send(error(e.getMessage()));
         }
     }
 

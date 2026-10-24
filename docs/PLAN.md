@@ -90,6 +90,18 @@ Critério de feito: colar uma exportação do Moxfield de 100 cartas, guardar e 
 
 ## Passo 3 — Multijogador online
 
+Implementado: adaptador `OnlineLobby`, criar/entrar/sair, lugares humanos/IA até 4,
+decks, pronto, chat e ecrã `Lobby.tsx`. `WebGuiGame` usa `NetworkGuiGame` para aplicar os deltas do Forge; cancela o
+temporizador de espera quando chega uma decisão nova. WebSocket e imagens continuam em loopback.
+
+Validação local: motor e UI compilam; `engine:smoke-online` executa dois motores com dados temporários, verifica
+lobby/chat/decks/permissões, privacidade das mãos, avanço até ao turno 4, concessão remota e reutilização da porta.
+O lobby foi verificado no browser. Falta validar em duas máquinas reais na LAN, compatibilidade com Forge desktop,
+reconexão prolongada e abertura de porta por UPnP num router real. O endereço WAN descoberto não confirma acesso externo.
+Também passou a variante com dois humanos + uma IA (`SMOKE_ONLINE_AI=1`), até à vitória da IA após as concessões.
+Regressões: arranque, partida local, importação e combate passaram (combate na repetição; a primeira execução ficou sem
+thread de jogo, sem diagnóstico guardado). Na repetição, o estado incluiu ataques e bloqueadores da IA.
+
 Objetivo: jogar contra outras pessoas (2–4 jogadores, humanos e IAs misturados).
 
 Abordagem: **usar o netplay do Forge**. O Forge tem servidor e cliente (Netty), lobby e sincronização:
@@ -116,6 +128,21 @@ Passos:
    explicar a falha em tooltip. Fase posterior: servidor intermediário (relay) para quem não pode abrir portas — projeto à parte.
 6. Segurança: só aceitar eventos do protocolo do Forge; nunca expor o WebSocket da UI (continua em 127.0.0.1); a porta do
    jogo é a única aberta.
+
+Notas do estudo que orientou a implementação:
+- `NetConnectUtil.join(url, onlineLobby, chat)` chama `GuiBase.getInterface().getNewGuiGame()` → é aí que a
+  `HeadlessGui` deve devolver um `WebGuiGame` da sessão; depois `FGameClient(nome, gui, host, porta).connect()`, e um
+  `ClientGameLobby` recebe o estado por `ILobbyListener.update(GameLobbyData, slot)`. Se o gui for `AbstractGuiGame`,
+  chama `setClientLobby(lobby)`.
+- `NetConnectUtil.host(onlineLobby, chat)` cria `ServerGameLobby`, `FServerManager.startServer(NET_PORT)`; o lobby avisa
+  mudanças via `IUpdateable.update(fullUpdate)` (o nosso `ILobbyView`). Mudanças de slot vão por
+  `UpdateLobbyPlayerEvent` (`deckUpdate`, `isReadyUpdate`, `nameUpdate`, `create(type,...)`) e
+  `GameLobby.applyToSlot(index, event)`; no cliente, `view.setPlayerChangeListener` envia o evento ao servidor.
+- `GameLobby.startGame()` devolve um `Runnable` (ou null + `SOptionPane` se faltar algo: <2 jogadores, slot não pronto,
+  sem deck). Para Commander, aplicar `lobby.applyVariant(GameType.Commander)`. Usa `getGui(slotIndex)` por slot humano.
+- `LobbySlot`: tipo (`LOCAL`/`REMOTE`/`AI`/`OPEN`), nome, equipa, pronto, deck, perfil de IA. `GameLobbyData.slots`.
+- `IOnlineLobby { setLobby(GameLobby) → ILobbyView; setClient(FGameClient); closeConn(msg) }`,
+  `IOnlineChatInterface { setGameClient(IRemote); addMessage(ChatMessage) }`.
 
 Riscos: `ProtocolGuiGame`/`NetworkGuiGame` (lado cliente) chamam métodos que o `WebGuiGame` não sobrepõe (ex.:
 `applyDelta`, `setGameView(view, seq)`); verificar cedo com dois clientes e acrescentar o que faltar. Reconexão.

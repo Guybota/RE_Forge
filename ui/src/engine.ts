@@ -100,6 +100,13 @@ export type Choice = {
 
 export type DeckLists = { mine: string[]; precons: string[] };
 
+export type LobbyState = {
+  type: 'lobby'; host: boolean; localSlot: number; port: number; addresses: string[];
+  slots: { index: number; kind: 'human' | 'ai' | 'open'; name?: string; deck?: string;
+    ready: boolean; editable: boolean; controllable: boolean }[];
+};
+export type ChatMessage = { type: 'chatMessage'; source?: string; text: string; kind: 'player' | 'system' | 'warning' };
+
 export type DeckPreview = {
   type: 'deckPreview';
   lines: { text: string; status: 'ok' | 'warning' | 'error'; message?: string }[];
@@ -118,6 +125,9 @@ type EngineMessage =
   | GameState
   | Choice
   | Notice
+  | LobbyState
+  | ChatMessage
+  | { type: 'lobbyClosed' }
   | { type: 'decks'; mine: string[]; commander: string[] }
   | DeckPreview
   | { type: 'error'; message: string };
@@ -133,6 +143,13 @@ export type ClientMessage =
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'startMatch'; deck: string | null; opponents: number }
+  | { type: 'hostGame'; name: string; port: number; upnp: boolean }
+  | { type: 'joinGame'; name: string; address: string }
+  | { type: 'setSlot'; index: number; slotType?: 'ai' | 'open'; deck?: string }
+  | { type: 'setReady'; ready: boolean }
+  | { type: 'addSlot' | 'startOnlineMatch' | 'leaveLobby' }
+  | { type: 'removeSlot'; index: number }
+  | { type: 'chat'; text: string }
   | { type: 'action'; action: Action; id?: number }
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null };
 
@@ -143,6 +160,8 @@ export type EngineHandlers = {
   onState: (state: GameState) => void;
   onChoice: (choice: Choice) => void;
   onNotice: (notice: Notice) => void;
+  onLobby: (lobby: LobbyState | null) => void;
+  onChat: (message: ChatMessage) => void;
   onError: (message: string) => void;
   onClosed: () => void;
 };
@@ -181,6 +200,9 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'state': h.onState(msg); break;
       case 'choice': h.onChoice(msg); break;
       case 'notice': h.onNotice(msg); break;
+      case 'lobby': h.onLobby(msg); break;
+      case 'lobbyClosed': h.onLobby(null); break;
+      case 'chatMessage': h.onChat(msg); break;
       case 'error': h.onError(msg.message); break;
     }
   };

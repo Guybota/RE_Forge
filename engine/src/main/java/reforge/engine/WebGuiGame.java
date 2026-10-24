@@ -26,7 +26,7 @@ import forge.game.player.DelayedReveal;
 import forge.game.player.IHasIcon;
 import forge.game.player.PlayerView;
 import forge.game.spellability.SpellAbilityView;
-import forge.gamemodes.match.AbstractGuiGame;
+import forge.gamemodes.net.NetworkGuiGame;
 import forge.gamemodes.match.Selection;
 import forge.gui.interfaces.IGuiGame;
 import forge.item.PaperCard;
@@ -42,7 +42,7 @@ import forge.util.Localizer;
  * messages; every decision Forge needs is sent as a "choice" and the game thread waits for the
  * UI's "answer".
  */
-final class WebGuiGame extends AbstractGuiGame {
+final class WebGuiGame extends NetworkGuiGame {
     private static final long PUSH_DELAY_MS = 40;
 
     private final Session session;
@@ -52,6 +52,7 @@ final class WebGuiGame extends AbstractGuiGame {
         return t;
     });
     private final AtomicBoolean pushScheduled = new AtomicBoolean();
+    private volatile boolean disposed;
 
     private volatile GameSnapshot.Prompt prompt = GameSnapshot.Prompt.NONE;
     private volatile GameSnapshot lastSnapshot;
@@ -64,8 +65,11 @@ final class WebGuiGame extends AbstractGuiGame {
 
     /** Schedules one state message for shortly after a burst of changes. */
     void markDirty() {
+        if (disposed) return;
         if (pushScheduled.compareAndSet(false, true)) {
-            pusher.schedule(this::pushState, PUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+            try {
+                pusher.schedule(this::pushState, PUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+            } catch (java.util.concurrent.RejectedExecutionException ignored) { }
         }
     }
 
@@ -79,6 +83,7 @@ final class WebGuiGame extends AbstractGuiGame {
      * game runs, so a concurrent read is expected; if one trips over a change, try again shortly.
      */
     void pushStateNow() {
+        if (disposed) return;
         GameView game = getGameView();
         if (game == null) return;
         try {
@@ -107,12 +112,20 @@ final class WebGuiGame extends AbstractGuiGame {
     }
 
     void dispose() {
+        disposed = true;
+        super.afterGameEnd();
+        session.cancelQuestions();
         pusher.shutdownNow();
     }
 
+    @Override protected void afterDeltaApplied() { markDirty(); }
+
     @Override public void setGameView(GameView gameView) { super.setGameView(gameView); markDirty(); }
     @Override protected void updateCurrentPlayer(PlayerView player) { markDirty(); }
-    @Override public void openView(TrackableCollection<PlayerView> myPlayers) { markDirty(); }
+    @Override public void openView(TrackableCollection<PlayerView> myPlayers) {
+        seedYieldStateOnHost();
+        markDirty();
+    }
     @Override public void showCombat() { markDirty(); }
     @Override public void updatePhase(boolean saveState) { markDirty(); }
     @Override public void updateTurn(PlayerView player) { markDirty(); }
@@ -156,6 +169,9 @@ final class WebGuiGame extends AbstractGuiGame {
 
     @Override
     public void updateButtons(PlayerView owner, String label1, String label2, boolean enable1, boolean enable2, boolean focus1) {
+        // Remote awaitNextInput is delayed by Forge. Cancel it when the next prompt arrives,
+        // otherwise its timer can disable the freshly enabled buttons and stall the match.
+        if (enable1 || enable2) cancelAwaitNextInput();
         GameSnapshot.Prompt p = prompt;
         prompt = new GameSnapshot.Prompt(p.message(), label1, label2, enable1, enable2, p.selection());
         markDirty();
@@ -210,6 +226,7 @@ final class WebGuiGame extends AbstractGuiGame {
 
     /** Sends the current board first so the question never refers to cards the UI hasn't seen. */
     private JsonObject ask(String kind, String title, JsonObject extra) {
+        if (disposed) return null;
         pushStateNow();
         JsonObject q = extra == null ? new JsonObject() : extra;
         q.addProperty("type", "choice");

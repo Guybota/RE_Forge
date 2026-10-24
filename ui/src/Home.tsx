@@ -7,7 +7,7 @@ const RANDOM = '';
 
 type Props = {
   engine: Engine;
-  onPick: (what: 'language' | 'skin' | 'import') => void;
+  onPick: (what: 'language' | 'skin' | 'import' | 'online') => void;
   /** Deck to preselect, e.g. one just imported. */
   initialDeck?: string;
 };
@@ -75,6 +75,7 @@ export function Home({ engine, onPick, initialDeck }: Props) {
         <button type="submit" className="btn btn--primary btn--big" disabled={starting && !engine.error}>
           {starting && !engine.error ? t('shuffling') : t('play')}
         </button>
+        <button type="button" className="btn btn--ghost" onClick={() => onPick('online')}>{t('online')}</button>
         {engine.error && <p className="error">{engine.error}</p>}
       </form>
       <div className="home__corner">

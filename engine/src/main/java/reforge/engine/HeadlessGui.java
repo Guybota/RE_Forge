@@ -26,6 +26,18 @@ import forge.util.ImageFetcher;
  */
 public final class HeadlessGui implements IGuiBase {
     private final String assetsDir;
+    private static OnlineLobby online;
+
+    static synchronized void claimOnline(OnlineLobby lobby) {
+        if (online != null) throw new IllegalStateException("An online session is already open");
+        online = lobby;
+    }
+
+    static synchronized void releaseOnline(OnlineLobby lobby) {
+        if (online == lobby) online = null;
+    }
+
+    static synchronized boolean hasOnline() { return online != null; }
 
     public HeadlessGui(String assetsDir) {
         this.assetsDir = assetsDir.endsWith(File.separator) ? assetsDir : assetsDir + File.separator;
@@ -88,10 +100,14 @@ public final class HeadlessGui implements IGuiBase {
     @Override public void showSpellShop() { }
     @Override public void showBazaar() { }
 
-    // shortcut: no match support yet; the next step adds an IGuiGame that talks to the web UI.
-    @Override public IGuiGame getNewGuiGame() { throw new UnsupportedOperationException("Matches are not implemented yet"); }
+    @Override public IGuiGame getNewGuiGame() {
+        OnlineLobby owner;
+        synchronized (HeadlessGui.class) { owner = online; }
+        if (owner == null) throw new IllegalStateException("No online session is open");
+        return owner.newGui();
+    }
     @Override public HostedMatch hostMatch() { return new HostedMatch(); }
 
-    @Override public UpnpServiceConfiguration getUpnpPlatformService() { return null; }
-    @Override public boolean hasNetGame() { return false; }
+    @Override public UpnpServiceConfiguration getUpnpPlatformService() { return new org.jupnp.DefaultUpnpServiceConfiguration(); }
+    @Override public boolean hasNetGame() { return hasOnline(); }
 }

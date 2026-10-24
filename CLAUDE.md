@@ -23,10 +23,11 @@ docs/       PLAN.md (roadmap).
 | File | Job |
 |---|---|
 | `Main` | Args (`--assets`, `--data`, `--port`, `--exit-with-parent`), writes `forge.profile.properties`, starts Forge, prints `READY <port>`. |
-| `HeadlessGui` | Forge's `IGuiBase` with no windows. `invokeInEdt*` run inline. `getNewGuiGame()` throws (no match support outside `EngineServer` yet). |
+| `HeadlessGui` | Forge's `IGuiBase` with no windows. `invokeInEdt*` run inline. `getNewGuiGame()` creates a `WebGuiGame` for the active online session. |
 | `EngineServer` | WebSocket server. Routes `hello`, `listDecks`, `setLanguage`, `setSkin`, `startMatch`, `action`, `answer`. UI actions run on a per-connection `ui-actions` executor. |
 | `Session` | One UI connection: `send()` and blocking `ask()` (question → answer by id). |
-| `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `AbstractGuiGame`). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
+| `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `NetworkGuiGame`, including remote delta sync). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
+| `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses and cleanup. One online session per process. |
 | `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons; sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
@@ -36,6 +37,7 @@ docs/       PLAN.md (roadmap).
 ### UI (ui/src)
 
 - `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` (→ `ImportDeck`) → `Table`.
+- `Lobby.tsx` — host/join form and online lobby, up to four mixed human/AI seats, deck selection and chat.
 - `useEngine.ts` / `engine.ts` — the socket and every message type (keep in sync with the engine).
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
@@ -59,6 +61,7 @@ npm run engine:smoke          # engine loads the card DB (~15 s)
 npm run engine:smoke-match    # passive game through the socket, concedes on turn 4 (SMOKE_OPPONENTS=3 for 4 players)
 npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
 npm run engine:smoke-import   # import a decklist fixture, play it, delete it
+npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 ```
 
 ### Checking the UI in a browser
@@ -90,7 +93,7 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
   at our data dir; keep it that way.
 - **Forge prefs we set** (in `MatchStarter`/`Settings`): `PLAYER_NAME`, `UI_RECORD_REPLAYS=false`,
   `UI_SHOW_ACTIONABLE_HIGHLIGHTS=true`, `UI_LANGUAGE`. Rules: `warnAboutAICards=false`, `gamesPerMatch=1`.
-- **Git:** work on a `feat/...` branch; the owner approves commits and merges (fast-forward into `main`). There is no remote.
+- **Git:** work on a `feat/...` branch; the owner approves commits and merges (fast-forward into `main`). Remote `origin`: `https://github.com/Guybota/RE_Forge.git`.
 
 ## Gotchas already paid for
 

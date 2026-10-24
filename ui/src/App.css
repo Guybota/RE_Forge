@@ -8,6 +8,36 @@
   padding: 16px;
 }
 
+/* Online table: seats on the felt, conversation alongside. Reuse each skin's materials. */
+.online { min-height: 100vh; padding: 32px; max-width: 1280px; margin: 0 auto; }
+.online__head, .online__seat-head, .online__actions, .online__address, .online__compose, .online__modes { display: flex; align-items: center; gap: 12px; }
+.online__head { justify-content: space-between; margin-bottom: 24px; }
+.online h1, .online h2 { font-family: var(--font-display); font-weight: var(--display-weight); margin: 0; }
+.online h1 { font-size: 40px; }
+.online h2 { font-size: 24px; }
+.online__addresses { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 28px; }
+.online__address .input { width: 235px; }
+.online__body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 40px; }
+.online__seat { border-top: 1px solid var(--table-line); padding: 20px 0; }
+.online__seat-head { flex-wrap: wrap; margin-bottom: 14px; }
+.online__seat-head h2 { flex: 1; }
+.online__seat-head select { width: auto; max-width: 180px; }
+.online__seat > select { width: 100%; }
+.online__actions { flex-wrap: wrap; margin-top: 16px; }
+.online__chat { display: flex; flex-direction: column; gap: 16px; min-width: 0; border-left: 1px solid var(--table-line); padding-left: 28px; }
+.online__messages { flex: 1; min-height: 220px; max-height: 48vh; overflow-y: auto; overflow-wrap: anywhere; }
+.online__messages p { margin: 0 0 14px; line-height: 1.5; white-space: pre-wrap; }
+.online__compose input { flex: 1; min-width: 0; }
+.online__check { min-height: 44px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.online__check input { width: 20px; height: 20px; }
+@media (max-width: 800px) {
+  .online { padding: 20px 16px; }
+  .online__body { grid-template-columns: 1fr; gap: 28px; }
+  .online__chat { border-left: 0; border-top: 1px solid var(--table-line); padding: 20px 0 0; }
+  .online__address { width: 100%; }
+  .online__address .input { flex: 1; min-width: 0; }
+}
+
 .home h1 {
   margin: 0;
   font-family: var(--font-display);

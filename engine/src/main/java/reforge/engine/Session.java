@@ -39,6 +39,7 @@ final class Session {
         int id = nextQuestionId.getAndIncrement();
         CompletableFuture<JsonObject> answer = new CompletableFuture<>();
         pending.put(id, answer);
+        if (closed) answer.complete(null);
         question.addProperty("id", id);
         send(question);
         try {
@@ -62,6 +63,10 @@ final class Session {
     /** Unblocks every waiting question with "no answer" so the game thread can't hang forever. */
     void close() {
         closed = true;
+        cancelQuestions();
+    }
+
+    void cancelQuestions() {
         pending.values().forEach(f -> f.complete(null));
     }
 

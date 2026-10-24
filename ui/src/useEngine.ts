@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MessageKey } from './i18n';
+import type { LobbyState, ChatMessage } from './engine';
 import { setImageBase } from './images';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type DeckLists, type DeckPreview, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
@@ -14,6 +15,8 @@ export type Engine = {
   choice: Choice | null;
   notice: (Notice & { at: number }) | null;
   error: string | null;
+  lobby: LobbyState | null;
+  chat: ChatMessage[];
   send: (m: ClientMessage) => void;
   /** Answers the open choice and closes it locally. */
   answer: (a: Omit<Extract<ClientMessage, { type: 'answer' }>, 'type' | 'id'>) => void;
@@ -31,6 +34,8 @@ export function useEngine(): Engine {
   const [choice, setChoice] = useState<Choice | null>(null);
   const [notice, setNotice] = useState<Engine['notice']>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lobby, setLobby] = useState<LobbyState | null>(null);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
   const conn = useRef<EngineConnection | null>(null);
 
   useEffect(() => {
@@ -46,6 +51,11 @@ export function useEngine(): Engine {
       onState: setGame,
       onChoice: setChoice,
       onNotice: (n) => setNotice({ ...n, at: Date.now() }),
+      onLobby: (l) => {
+        setLobby(l);
+        if (!l) { setGame(null); setChoice(null); setChat([]); }
+      },
+      onChat: (m) => setChat((messages) => [...messages.slice(-199), m]),
       onError: setError,
       onClosed: () => {
         setStatus('failed');
@@ -71,5 +81,5 @@ export function useEngine(): Engine {
 
   const leaveGame = useCallback(() => setGame(null), []);
 
-  return { status, failure, info, decks, deckPreview, game, choice, notice, error, send, answer, leaveGame };
+  return { status, failure, info, decks, deckPreview, game, choice, notice, error, lobby, chat, send, answer, leaveGame };
 }

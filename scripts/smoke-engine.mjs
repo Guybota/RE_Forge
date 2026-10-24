@@ -1,6 +1,8 @@
 // Smoke test: starts the engine jar, connects over WebSocket, checks the card database loaded.
 // Run with: npm run engine:smoke   (after npm run engine:build)
 import { spawn } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import os from 'node:os';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
 const engine = spawn(java, ['-jar', path.join(root, 'engine/target/re-forge-engine.jar'),
-  '--port', '0', '--assets', path.join(root, 'forge/forge-gui'), '--exit-with-parent']);
+  '--port', '0', '--assets', path.join(root, 'forge/forge-gui'),
+  '--data', mkdtempSync(path.join(os.tmpdir(), 'reforge-engine-')), '--exit-with-parent']);
 engine.stderr.pipe(process.stderr);
 
 const timeout = setTimeout(() => fail('engine did not print READY within 120 s'), 120_000);

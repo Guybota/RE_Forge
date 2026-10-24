@@ -175,6 +175,11 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
               type="button"
               className="btn btn--primary"
               onClick={() => {
+                if (engine.lobby) {
+                  send({ type: 'leaveLobby' });
+                  engine.leaveGame();
+                  return;
+                }
                 // In multiplayer the AIs keep playing after we're out; leaving ends the game for them.
                 if (!game.gameOver) send({ type: 'action', action: 'leave' });
                 engine.leaveGame();

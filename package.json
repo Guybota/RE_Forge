@@ -14,7 +14,8 @@
     "start": "npm start -w desktop",
     "engine:smoke-match": "node scripts/smoke-match.mjs",
     "engine:smoke-combat": "node scripts/smoke-combat.mjs",
-    "engine:smoke-import": "node scripts/smoke-import.mjs"
+    "engine:smoke-import": "node scripts/smoke-import.mjs",
+    "engine:smoke-online": "node scripts/smoke-online.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

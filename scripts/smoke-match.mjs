@@ -3,6 +3,8 @@
 // concedes after a few turns. Checks the state messages along the way.
 // Run with: npm run engine:smoke-match   (after npm run engine:build)
 import { spawn } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import os from 'node:os';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +14,8 @@ const OPPONENTS = Number(process.env.SMOKE_OPPONENTS ?? 1);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
 const engine = spawn(java, ['-jar', path.join(root, 'engine/target/re-forge-engine.jar'),
-  '--port', '0', '--assets', path.join(root, 'forge/forge-gui'), '--exit-with-parent']);
+  '--port', '0', '--assets', path.join(root, 'forge/forge-gui'),
+  '--data', mkdtempSync(path.join(os.tmpdir(), 'reforge-match-')), '--exit-with-parent']);
 engine.stderr.on('data', (d) => process.stderr.write(d));
 engine.on('exit', (code, signal) => console.error(`engine exited: code ${code} signal ${signal}`));
 
