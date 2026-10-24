@@ -44,12 +44,18 @@ docs/       PLAN.md (roadmap).
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
 - `table/GameMenu.tsx` — in-game skin, saved phase stops, reset and concede. Escape closes it; a Forge choice takes precedence. Live phase changes use Forge's `YieldUpdate` path for local/remote controllers.
+- Multiplayer table: identical permanents fold into a pile with a count (`groupCards` in `table/cards.ts`; cards in combat,
+  targeted or with attachments stay apart). With 2–3 opponents their boards are compact and flow in one row; clicking an
+  opponent's name enlarges that board and collapses the others (not during combat). Short windows (≤ 820 px) flow every board. The icon next to an opponent's life maximizes that board with large cards;
+  your board shrinks to its header and your hand stays, so spells can target it (Escape or the same icon returns; not
+  during combat). The side panel can be hidden (remembered in `localStorage`); then Menu and the panel toggle sit in the
+  bar, the hovered card floats top-right and the stack floats bottom-left. The stack only shows while it has items.
 - `table/ZoneViewer.tsx` — a player's graveyard or exile (the counters in `PlayerArea` open it). Usable cards, e.g. flashback,
   are cast from here; face-down cards stay hidden.
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
 
 `engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
-fixture (`--scenario suite|combat|images|zones`, fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
+fixture (`--scenario suite|combat|images|zones|table`, `table` = busy four-player board, fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 
 ## Environment (Windows dev machine)
 

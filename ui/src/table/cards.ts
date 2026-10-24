@@ -21,6 +21,22 @@ export function colorKey(card: CardState): string {
 
 export const isLand = (c: CardState) => !!c.typeEn?.includes('Land') && !c.typeEn?.includes('Creature');
 
+/**
+ * Identical permanents (same picture and state, e.g. five untapped Forests or four Zombie tokens) as one
+ * group, in order of first appearance. Cards for which `apart` is true always get their own group.
+ */
+export function groupCards(cards: CardState[], apart: (c: CardState) => boolean, extra: (c: CardState) => unknown = () => null): CardState[][] {
+  const groups = new Map<string, CardState[]>();
+  for (const c of cards) {
+    const key = apart(c) ? `#${c.id}` : JSON.stringify([c.name, c.imageKey, c.tapped, c.sick, c.power, c.toughness, c.loyalty,
+      c.defense, c.damage, c.counters, c.token, c.faceDown, c.commander, c.actionable, extra(c)]);
+    const group = groups.get(key);
+    if (group) group.push(c);
+    else groups.set(key, [c]);
+  }
+  return [...groups.values()];
+}
+
 const PHASES: Record<string, MessageKey> = {
   UNTAP: 'stepUntap',
   UPKEEP: 'phaseUpkeep',

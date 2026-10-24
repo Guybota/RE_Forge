@@ -4,6 +4,7 @@
   grid-template-columns: minmax(0, 1fr) 320px;
   overflow: hidden;
 }
+.table--wide { grid-template-columns: minmax(0, 1fr); }
 
 .table__main {
   position: relative;
@@ -70,6 +71,18 @@
 .player__zone:hover:not(:disabled) { border-color: var(--on-table-muted); }
 .player__zone:disabled { cursor: default; }
 .player__zone.is-selectable { border-color: var(--select); color: var(--on-table); }
+.player__name--button {
+  min-height: 44px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: inherit;
+  cursor: zoom-in;
+}
+.player__name--button:hover { border-color: var(--on-table-muted); }
+.player__name--button[aria-pressed='true'] { border-color: var(--on-table); cursor: zoom-out; }
 .player__command {
   margin-left: auto;
   display: flex;
@@ -116,7 +129,7 @@
   justify-content: center;
   gap: 6px;
   overflow-y: auto;
-  padding-top: 18px;
+  padding-top: 10px;
 }
 .field__row {
   display: flex;
@@ -185,6 +198,24 @@
 .card--back {
   background: var(--card-back);
   cursor: default;
+}
+
+/* A pile of identical permanents: offset edges behind the top card and a count. */
+.card--pile { box-shadow: 3px -3px 0 -1px var(--card-bg), 3px -3px 0 0 var(--card-ink), var(--card-shadow); margin-right: 3px; }
+.card__count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 1;
+  min-width: 22px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--card-shadow);
 }
 
 .card__tag {
@@ -402,8 +433,9 @@
   line-height: 1.35;
 }
 .side__log li { padding: 6px 0; border-bottom: 1px solid var(--panel-line); }
+.side__tools { display: flex; justify-content: flex-end; gap: 8px; }
+.side__icon, .bar__icon { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 0 !important; }
 .side__menu {
-  align-self: flex-end;
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid var(--panel-line);
@@ -599,3 +631,109 @@
 .combat-arrows__line--block { stroke: var(--select); stroke-dasharray: 6 5; }
 .combat-arrows__head--attack { fill: var(--danger); }
 .combat-arrows__head--block { fill: var(--select); }
+
+/* ---------- several opponents: smaller cards so a whole board fits its column */
+
+.player--compact { padding: 6px 12px; gap: 4px; }
+.player--compact .player__head { gap: 8px; }
+.player--compact .player__name { font-size: 16px; }
+.player--compact .life { width: 40px; height: 40px; font-size: 18px; }
+/* One flowing row (permanents, then lands) uses a column's width better than two half-empty rows. */
+.opponents--2 .field, .opponents--3 .field { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-end; gap: 8px 6px; padding-top: 8px; }
+.opponents--2 .field__row, .opponents--3 .field__row { display: contents; }
+.player--compact .card--field { width: 64px; height: 89px; padding: 3px; gap: 2px; }
+.player--compact .card--land { width: 42px; height: 58px; padding: 3px; }
+.player--compact .card--field.is-tapped { margin-inline: 13px; }
+.player--compact .card--land.is-tapped { margin-inline: 8px; }
+.player--compact .card__name { font-size: 8px; }
+.player--compact .card__type, .player--compact .card__tag { display: none; }
+.player--compact .card__pt { font-size: 9px; padding: 0 4px; }
+.player--compact .card__count { font-size: 10px; min-width: 18px; top: -6px; right: -6px; }
+.player--compact .player__command { margin-left: 0; }
+.player--compact .player__command .card--mini { width: 42px; height: 58px; }
+
+/* Another opponent is enlarged: this one shrinks to a narrow column with its header only. */
+.player--collapsed { width: 150px; padding: 8px 10px; }
+.player--collapsed .player__head { flex-direction: column; align-items: flex-start; gap: 6px; }
+.player--collapsed .player__name { font-size: 15px; }
+.player--collapsed .player__stats { flex-wrap: wrap; gap: 0 8px; }
+.player--collapsed .player__command { margin-left: 0; }
+
+/* Short windows (laptops): the hand rises less, every board flows in one row and opponents' cards shrink. */
+@media (max-height: 820px) {
+  .hand { flex-basis: 120px; padding-top: 8px; }
+  .field { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-end; gap: 8px 6px; }
+  .field__row { display: contents; }
+  .player--compact .card--field { width: 54px; height: 75px; }
+  .player--compact .card--land, .player--compact .player__command .card--mini { width: 36px; height: 50px; }
+  .player--compact .card__type, .player--compact .card__counters { display: none; }
+}
+
+/* ---------- one opponent's board maximized over the table (your board shrinks to its header; your hand stays for spells) */
+
+.table__main--max > .player { flex: 0 0 auto; width: auto; }
+.table__main--max > .player .player__head { flex-direction: row; align-items: center; }
+.table__main--max .opponents { flex: 1 1 0; }
+.player__max {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--on-table-muted);
+  cursor: pointer;
+}
+.player__max:hover, .player__max[aria-pressed='true'] { border-color: var(--on-table-muted); color: var(--on-table); }
+.player--max .field { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-end; gap: 14px 12px; padding-top: 16px; }
+.player--max .field__row { display: contents; }
+.player--max .card--field { width: 140px; height: 195px; padding: 7px; }
+.player--max .card--land { width: 96px; height: 134px; padding: 6px; }
+.player--max .card--field.is-tapped { margin-inline: 30px; }
+.player--max .card--land.is-tapped { margin-inline: 20px; }
+.player--max .card__name { font-size: 13px; }
+.player--max .card__type { font-size: 10px; }
+.player--max .card__pt { font-size: 13px; }
+/* Few piles: use the room for even larger cards. */
+.player--max-big .card--field { width: 190px; height: 265px; padding: 9px; }
+.player--max-big .card--land { width: 130px; height: 181px; }
+.player--max-big .card--field.is-tapped { margin-inline: 40px; }
+.player--max-big .card__name { font-size: 16px; }
+.player--max-big .card__type { font-size: 12px; }
+
+/* With the side panel closed the hovered card floats in a corner instead (top: the bar's buttons sit low). */
+.float-preview {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 5;
+  width: 240px;
+  padding: 12px 14px;
+  border-radius: var(--panel-radius);
+  background: var(--panel);
+  color: var(--panel-ink);
+  border: var(--panel-edge);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.float-preview:has(.side__image) { padding: 0; background: none; border: 0; box-shadow: none; }
+.float-stack {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 5;
+  width: 280px;
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 12px 16px;
+  border-radius: var(--panel-radius);
+  background: var(--panel);
+  color: var(--panel-ink);
+  border: var(--panel-edge);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.float-stack h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: 18px; font-weight: var(--display-weight); }
+.float-preview h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 18px; }
+.float-preview p { margin: 4px 0 0; font-size: 13px; }

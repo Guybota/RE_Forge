@@ -41,7 +41,12 @@ public final class DialogHarness {
         FModel.getPreferences().setPref(FPref.LEGACY_ORDER_COMBATANTS, true);
         Deck deck = FModel.getDecks().getCommanderPrecons().get(MatchStarter.commanderPreconNames().get(0));
         RegisteredPlayer human = RegisteredPlayer.forCommander(deck).setPlayer(GamePlayerUtil.getGuiPlayer("Human", 0, 0, false));
-        RegisteredPlayer ai = RegisteredPlayer.forCommander(deck).setPlayer(GamePlayerUtil.createAiPlayer("Defender", 1));
+        List<RegisteredPlayer> players = new java.util.ArrayList<>(List.of(human));
+        // "table" is a busy four-player board for checking the multiplayer layout.
+        int opponents = scenario.equals("table") ? 3 : 1;
+        for (int i = 1; i <= opponents; i++) {
+            players.add(RegisteredPlayer.forCommander(deck).setPlayer(GamePlayerUtil.createAiPlayer(i == 1 ? "Defender" : "Opponent " + i, i)));
+        }
         GameRules rules = new GameRules(GameType.Commander);
         rules.setGamesPerMatch(1);
         rules.setWarnAboutAICards(false);
@@ -50,7 +55,7 @@ public final class DialogHarness {
         match.setStartGameHook(() -> {
             try {
                 GameState state = new GameState();
-                state.parse(Files.readAllLines(Path.of(scenario.equals("images") || scenario.equals("zones")
+                state.parse(Files.readAllLines(Path.of(List.of("images", "zones", "table").contains(scenario)
                         ? "scripts/fixtures/" + scenario.replace("images", "image") + "-cards.txt" : "scripts/fixtures/dialog-combat.txt")));
                 // Applying a native Forge state on the game thread creates real cards/combat.
                 state.applyToGame(match.getGame());
@@ -61,7 +66,7 @@ public final class DialogHarness {
                 gui.showErrorDialog(error.toString(), "Dialog smoke failed");
             }
         });
-        match.startMatch(rules, null, List.of(human, ai), human, gui);
+        match.startMatch(rules, null, players, human, gui);
         return match;
     }
 

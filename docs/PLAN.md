@@ -198,6 +198,11 @@ Opções de IA (`feat/ai-options`): no início, um perfil de IA do Forge por adv
 Muito difícil, Experimental ou Aleatório), lembrado no browser/Electron (`localStorage`). `smoke-match` recusa um perfil
 desconhecido e joga com perfis escolhidos. Os lugares de IA do lobby online continuam com o perfil padrão.
 
+Mesa multiplayer (`feat/multiplayer-layout`): permanentes iguais agrupadas (×N), campos dos adversários compactos numa só
+fila, ampliar um adversário pelo nome (os outros ficam só com o cabeçalho), maximizar o campo de um adversário sobre a mesa,
+painel lateral que abre e fecha e regras para janelas baixas. Verificado em
+1440×900 e 1280×720 com `DialogHarness --scenario table`.
+
 Passo 4 concluído. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 

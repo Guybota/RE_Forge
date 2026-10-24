@@ -12,9 +12,11 @@ type Props = {
   target?: boolean;
   onClick?: () => void;
   onHover?: (card: CardState | null) => void;
+  /** Identical cards shown as this one; above 1 the card is drawn as a pile with a count. */
+  count?: number;
 };
 
-export function Card({ card, size, selectable, chosen, target, onClick, onHover }: Props) {
+export function Card({ card, size, selectable, chosen, target, onClick, onHover, count = 1 }: Props) {
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
   const [fullFailed, setFullFailed] = useState<string | null>(null);
   const t = useT();
@@ -35,7 +37,10 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover 
     target && 'is-target',
     card.actionable && 'is-actionable',
     full && 'card--printed',
+    count > 1 && 'card--pile',
   ].filter(Boolean).join(' ');
+  const pile = count > 1 && <span className="card__count" aria-hidden="true">×{count}</span>;
+  const label = count > 1 ? `${card.name} ×${count}` : card.name;
 
   if (full) {
     return (
@@ -47,10 +52,11 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover 
         onMouseEnter={() => onHover?.(card)}
         onMouseLeave={() => onHover?.(null)}
         onFocus={() => onHover?.(card)}
-        aria-label={card.name}
+        aria-label={label}
         aria-pressed={chosen}
       >
         <img src={full} alt="" decoding="async" onError={() => setFullFailed(full)} />
+        {pile}
       </button>
     );
   }
@@ -69,9 +75,10 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover 
       onMouseEnter={() => onHover?.(card)}
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(card)}
-      aria-label={card.name}
+      aria-label={label}
       aria-pressed={chosen}
     >
+      {pile}
       {card.commander && size !== 'mini' && <span className="card__tag">{t('commander')}</span>}
       <span className="card__top">
         <span className="card__name">{card.name}</span>

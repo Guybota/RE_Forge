@@ -7,6 +7,7 @@ import { ChoiceDialog } from './ChoiceDialog';
 import { CombatArrows } from './CombatArrows';
 import { GameMenu } from './GameMenu';
 import { ZoneViewer, type OpenZone } from './ZoneViewer';
+import { PanelIcon } from './icons';
 import { PHASE_TRACK, manaSymbols, phaseKey } from './cards';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
@@ -30,11 +31,22 @@ function Preview({ card }: { card: CardState }) {
   );
 }
 
+const SIDE_STORAGE = 'reforge.sidePanel';
+
 export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const [hovered, setHovered] = useState<CardState | null>(null);
   const [shake, setShake] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [zone, setZone] = useState<OpenZone | null>(null);
+  const [focus, setFocus] = useState<number | null>(null);
+  const [maximize, setMaximize] = useState<number | null>(null);
+  const [sideOpen, setSideOpen] = useState(() => {
+    try { return localStorage.getItem(SIDE_STORAGE) !== 'closed'; } catch { return true; }
+  });
+  const toggleSide = () => setSideOpen((open) => {
+    try { localStorage.setItem(SIDE_STORAGE, open ? 'closed' : 'open'); } catch { /* remembered for this session only */ }
+    return !open;
+  });
   const { send } = engine;
   const t = useT();
 
@@ -56,14 +68,21 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       selectablePlayers: new Set(prompt.selectable.players),
       chosenPlayers: new Set(prompt.chosen.players),
       targetCards: new Set(top?.targetCardIds ?? []),
+      combatCards: new Set([...game.combat.flatMap((a) => [a.attackerId, ...a.blockerIds, ...(a.defenderCardId ? [a.defenderCardId] : [])]),
+        ...game.stack.flatMap((s) => s.targetCardIds ?? [])]),
       playerNames: names,
       onCard: (id) => send({ type: 'action', action: 'card', id }),
       onPlayer: (id) => send({ type: 'action', action: 'player', id }),
       onHover: setHovered,
       onZone: (playerId, z) => setZone({ playerId, zone: z }),
+      onFocus: game.players.length > 2 ? (id) => setFocus((f) => (f === id ? null : id)) : undefined,
+      onMaximize: (id) => setMaximize((m) => (m === id ? null : id)),
     };
   }, [game, prompt, send]);
 
+  // During combat every board stays open so the attack and block arrows have both ends.
+  const focused = game.combat.length === 0 && opponents.some((p) => p.id === focus) ? focus : null;
+  const maximized = game.combat.length === 0 ? opponents.find((p) => p.id === maximize) : undefined;
   const attackedBy = (playerId: number) => game.combat.filter((a) => a.defenderPlayerId === playerId).length;
 
   useEffect(() => {
@@ -76,6 +95,10 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // Space = OK, Escape = cancel, unless a dialog or text field has focus.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Escape' && maximized && !menuOpen && !zone && !engine.choice) {
+        setMaximize(null);
+        return;
+      }
       if (menuOpen || zone || engine.choice || (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, dialog'))) return;
       if (e.code === 'Space' && prompt.ok.enabled) {
         e.preventDefault();
@@ -88,7 +111,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [menuOpen, zone, engine.choice, prompt, send]);
+  }, [menuOpen, zone, maximized, engine.choice, prompt, send]);
 
   // The engine already dropped the status lines the table shows itself.
   const promptText = prompt.message.split('\n').join(' ');
@@ -96,15 +119,33 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const currentStep = phaseKey(game.phase);
   const myTurn = game.activePlayerId === me.id;
 
+  // Only while something is waiting to resolve.
+  const stack = game.stack.length > 0 && (
+    <section aria-live="polite">
+      <h2>{t('stack')}</h2>
+      <ol className="side__stack">
+        {game.stack.map((s) => <li key={s.id}>{s.text}</li>)}
+      </ol>
+    </section>
+  );
+
   return (
-    <div className="table">
-      <div className="table__main" ref={main}>
+    <div className={`table ${sideOpen ? '' : 'table--wide'}`}>
+      <div className={`table__main ${maximized ? 'table__main--max' : ''}`} ref={main}>
         <CombatArrows game={game} container={main} />
-        <div className={`opponents opponents--${opponents.length}`}>
+        {maximized ? (
+          <div className="opponents opponents--1">
+            <PlayerArea player={maximized} active={game.activePlayerId === maximized.id} maximized compact={false}
+              attackedBy={attackedBy(maximized.id)} ctx={ctx} />
+          </div>
+        ) : <div className={`opponents opponents--${opponents.length}`} style={focused !== null
+          ? { gridTemplateColumns: opponents.map((p) => (p.id === focused ? 'minmax(0, 1fr)' : 'auto')).join(' ') } : undefined}>
           {opponents.map((p) => (
-            <PlayerArea key={p.id} player={p} active={game.activePlayerId === p.id} compact={opponents.length > 1} attackedBy={attackedBy(p.id)} ctx={ctx} />
+            <PlayerArea key={p.id} player={p} active={game.activePlayerId === p.id} focused={p.id === focused}
+              collapsed={focused !== null && p.id !== focused} compact={opponents.length > 1 && focused === null}
+              attackedBy={attackedBy(p.id)} ctx={ctx} />
           ))}
-        </div>
+        </div>}
 
         <div className={`bar ${shake ? 'is-shaking' : ''}`}>
           <span className="bar__turn" title={currentStep ? t(currentStep) : undefined}>{t('turn', { n: game.turn })}</span>
@@ -126,10 +167,18 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
                 {prompt.ok.label}
               </button>
             )}
+            {!sideOpen && !game.gameOver && !me.hasLost && (
+              <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>
+            )}
+            {!sideOpen && (
+              <button type="button" className="btn btn--ghost bar__icon" aria-label={t('showPanel')} title={t('showPanel')} onClick={toggleSide}>
+                <PanelIcon />
+              </button>
+            )}
           </span>
         </div>
 
-        <PlayerArea player={me} active={myTurn} compact={false} attackedBy={attackedBy(me.id)} ctx={ctx} />
+        <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} ctx={ctx} />
 
         <div className="hand" aria-label={t('hand')}>
           {me.zones.hand.map((c, i, all) => {
@@ -144,24 +193,27 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
         </div>
       </div>
 
-      <aside className="side">
-        {!game.gameOver && !me.hasLost && <button type="button" className="side__menu" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>}
+      {!sideOpen && game.stack.length > 0 && <div className="float-stack">{stack}</div>}
+      {!sideOpen && hovered && !hovered.hidden && <div className="float-preview" aria-hidden="true"><Preview key={hovered.id} card={hovered} /></div>}
+
+      {sideOpen && <aside className="side">
+        <div className="side__tools">
+          <button type="button" className="side__menu side__icon" aria-label={t('hidePanel')} title={t('hidePanel')} onClick={toggleSide}>
+            <PanelIcon />
+          </button>
+          {!game.gameOver && !me.hasLost && <button type="button" className="side__menu" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>}
+        </div>
         <section className="side__preview" aria-live="polite">
           {hovered && !hovered.hidden ? <Preview key={hovered.id} card={hovered} /> : null}
         </section>
-        <section>
-          <h2>{t('stack')}</h2>
-          <ol className="side__stack">
-            {game.stack.map((s) => <li key={s.id}>{s.text}</li>)}
-          </ol>
-        </section>
+        {stack}
         <section className="side__log">
           <h2>{t('log')}</h2>
           <ol>
             {game.log.map((l, i) => <li key={i}>{l}</li>)}
           </ol>
         </section>
-      </aside>
+      </aside>}
 
       {menuOpen && !engine.choice && !game.gameOver && !me.hasLost && <GameMenu engine={engine} onClose={() => setMenuOpen(false)} />}
 
