@@ -187,6 +187,7 @@ Imagens concluídas no ramo `feat/card-images`:
   guarda-o para esse idioma. Falhas temporárias (rede, 5xx, resposta que não é JPEG) não ficam em cache e voltam a ser
   tentadas; o browser não guarda essas respostas (`no-store`). Cache separada por idioma; a cache antiga (só inglês) continua
   válida. Pedidos iguais em simultâneo partilham um download.
+- Imagens provisórias do Scryfall ("Localized Image Not Available", `image_status: placeholder`) contam como tradução em falta.
 - `engine:smoke-images` (`ImageHarness`, Scryfall simulado) e verificação real: carta em português, ficha e cache por idioma.
 
 Zonas (`feat/zones`): os contadores de cemitério e exílio abrem `ZoneViewer` com as cartas; o contador fica destacado

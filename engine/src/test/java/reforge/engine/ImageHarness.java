@@ -36,7 +36,7 @@ public final class ImageHarness {
             Main.main(args);
             nativeUrls();
             cacheAndFallback();
-            System.out.println("OK: image resolution, language isolation, English fallback, retry, concurrency and offline cache");
+            System.out.println("OK: image resolution, language isolation, English fallback, placeholders, retry, concurrency and offline cache");
             System.exit(0);
         } catch (Throwable error) {
             error.printStackTrace();
@@ -107,6 +107,14 @@ public final class ImageHarness {
         fixture.createContext("/", exchange -> {
             try (exchange) {
                 String path = exchange.getRequestURI().getPath();
+                if (path.startsWith("/placeholder/") && exchange.getRequestURI().getQuery() == null) {
+                    // Scryfall card JSON: the Portuguese printing exists but its picture is the English placeholder.
+                    byte[] json = ("{\"image_status\":\"" + (path.contains("/pt/") ? "placeholder" : "highres_scan") + "\"}").getBytes(StandardCharsets.UTF_8);
+                    exchange.getResponseHeaders().set("Content-Type", "application/json");
+                    exchange.sendResponseHeaders(200, json.length);
+                    exchange.getResponseBody().write(json);
+                    return;
+                }
                 int count = hits.computeIfAbsent(path, ignored -> new AtomicInteger()).incrementAndGet();
                 boolean localized = path.contains("/pt/");
                 int status = path.startsWith("/missing/") || path.startsWith("/fallback") && localized ? 404
@@ -123,7 +131,8 @@ public final class ImageHarness {
         });
         fixture.start();
         String origin = "http://127.0.0.1:" + fixture.getAddress().getPort();
-        ImageServer.Source source = (key, crop, language) -> List.of(origin + "/" + key + "/" + language + "/" + (crop ? "crop" : "full"));
+        ImageServer.Source source = (key, crop, language) -> List.of(origin + "/" + key + "/" + language + "/" + (crop ? "crop" : "full")
+                + (key.equals("placeholder") ? "?format=image" : ""));
         try {
             try (ImageServer server = new ImageServer(cache.toFile(), source)) {
                 int port = server.start();
@@ -136,6 +145,8 @@ public final class ImageHarness {
                 same(english, get(port, "fallback", "pt-BR", false), "missing Portuguese falls back to English");
                 same(english, get(port, "fallback", "pt-BR", false), "fallback cached for requested language");
                 check(hits.get("/fallback/pt/full").get() == 1 && hits.get("/fallback/en/full").get() == 1, "fallback fetched once");
+                same(english, get(port, "placeholder", "pt-BR", false), "Scryfall placeholder counts as a missing translation");
+                check(!hits.containsKey("/placeholder/pt/full"), "placeholder picture is never downloaded");
                 var temporaryFallback = get(port, "retry", "pt-BR", false);
                 same(english, temporaryFallback, "temporary failure can display English");
                 check(temporaryFallback.headers().firstValue("Cache-Control").orElse("").equals("no-store"), "temporary fallback is not frozen by browser cache");

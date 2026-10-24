@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -163,7 +164,8 @@ final class ImageServer implements AutoCloseable {
         boolean retry = false;
         try {
             for (String url : source.urls(key, crop, language)) {
-                Fetch result = download(url, target);
+                Fetch result = language.equals("en") ? Fetch.SAVED : translatedImage(url);
+                if (result == Fetch.SAVED) result = download(url, target);
                 if (result == Fetch.SAVED) return target;
                 retry |= result == Fetch.RETRY;
             }
@@ -206,6 +208,41 @@ final class ImageServer implements AutoCloseable {
     }
 
     private enum Fetch { SAVED, MISSING, RETRY }
+
+    /**
+     * Scryfall serves the English picture stamped "Localized Image Not Available" for printings it has no
+     * translated scan of; only the card's JSON says so. SAVED here means "go ahead and download the image".
+     */
+    private static Fetch translatedImage(String imageUrl) {
+        int query = imageUrl.indexOf('?');
+        if (query < 0 || !imageUrl.contains("format=image")) return Fetch.SAVED;
+        String url = imageUrl.substring(0, query);
+        if (ScryfallRateLimiter.shouldSkip(url)) return Fetch.RETRY;
+        HttpURLConnection conn = null;
+        try {
+            ScryfallRateLimiter.acquire(url);
+            conn = (HttpURLConnection) URI.create(url).toURL().openConnection();
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("User-Agent", "RE-Forge/" + Main.VERSION);
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(20_000);
+            int code = conn.getResponseCode();
+            if (code != HttpURLConnection.HTTP_OK) {
+                ScryfallRateLimiter.noteIfRateLimited(code, url, conn.getHeaderField("Retry-After"));
+                return code == 404 || code == 422 ? Fetch.MISSING : Fetch.RETRY;
+            }
+            try (InputStream in = conn.getInputStream()) {
+                var card = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+                String status = card.has("image_status") ? card.get("image_status").getAsString() : "";
+                return status.equals("placeholder") || status.equals("missing") ? Fetch.MISSING : Fetch.SAVED;
+            }
+        } catch (IOException | RuntimeException e) {
+            System.err.println("Could not check " + url + ": " + e.getMessage());
+            return Fetch.RETRY;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
 
     private static Fetch download(String url, File target) {
         if (ScryfallRateLimiter.shouldSkip(url)) return Fetch.RETRY;
