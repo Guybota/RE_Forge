@@ -1,0 +1,198 @@
+package reforge.engine;
+
+import java.net.InetSocketAddress;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.java_websocket.WebSocket;
+import org.java_websocket.handshake.ClientHandshake;
+import org.java_websocket.server.WebSocketServer;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+
+import forge.game.card.CardView;
+import forge.game.player.PlayerView;
+import forge.gamemodes.match.HostedMatch;
+import forge.interfaces.IGameController;
+import forge.model.FModel;
+
+/**
+ * Local WebSocket the web UI talks to. Every message is a JSON object with a "type".
+ * Only the UI on this machine connects, so the server binds to 127.0.0.1.
+ */
+public final class EngineServer extends WebSocketServer {
+    private static final Gson GSON = new Gson();
+    private final CountDownLatch started = new CountDownLatch(1);
+
+    /** What one connected UI has going on. */
+    private static final class Connection {
+        final Session session;
+        // UI actions can make Forge ask a question back; running them here keeps the socket
+        // thread free to receive the answer.
+        final ExecutorService actions = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "ui-actions");
+            t.setDaemon(true);
+            return t;
+        });
+        volatile WebGuiGame gui;
+        volatile HostedMatch match;
+
+        Connection(WebSocket socket) {
+            session = new Session(socket);
+        }
+    }
+
+    public EngineServer(InetSocketAddress address) {
+        super(address);
+        setReuseAddr(true);
+    }
+
+    /** Blocks until the socket is bound, then returns the real port (useful when asked for port 0). */
+    public int awaitPort() throws InterruptedException {
+        started.await();
+        return getPort();
+    }
+
+    @Override
+    public void onStart() {
+        started.countDown();
+    }
+
+    @Override
+    public void onOpen(WebSocket conn, ClientHandshake handshake) {
+        conn.setAttachment(new Connection(conn));
+    }
+
+    @Override
+    public void onClose(WebSocket conn, int code, String reason, boolean remote) {
+        Connection c = conn.getAttachment();
+        if (c == null) return;
+        c.session.close();
+        WebGuiGame gui = c.gui;
+        if (gui != null) {
+            // Nobody is left to play this side; end the game instead of leaving it waiting forever.
+            c.actions.execute(() -> {
+                if (!gui.isFinishedForLocalPlayer()) {
+                    gui.concede(); // the closed session answers "yes" to the confirm
+                    gui.concede(); // and this stops the AIs still playing
+                }
+                gui.dispose();
+            });
+        }
+        c.actions.shutdown();
+    }
+
+    @Override
+    public void onMessage(WebSocket conn, String text) {
+        Connection c = conn.getAttachment();
+        JsonObject msg;
+        try {
+            msg = GSON.fromJson(text, JsonObject.class);
+        } catch (JsonParseException e) {
+            c.session.send(error("Invalid JSON"));
+            return;
+        }
+        if (msg == null || !msg.has("type")) {
+            c.session.send(error("Missing type"));
+            return;
+        }
+        switch (msg.get("type").getAsString()) {
+            case "hello" -> c.session.send(engineInfo());
+            case "listDecks" -> c.session.send(decks());
+            case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
+            case "action" -> c.actions.execute(() -> action(c, msg));
+            case "answer" -> c.session.onAnswer(msg);
+            default -> c.session.send(error("Unknown type: " + msg.get("type").getAsString()));
+        }
+    }
+
+    private static void startMatch(Connection c, JsonObject msg) {
+        if (c.gui != null) {
+            if (!c.gui.isFinishedForLocalPlayer()) {
+                c.session.send(error("A match is already running"));
+                return;
+            }
+            c.gui.dispose();
+        }
+        String deck = msg.has("deck") && !msg.get("deck").isJsonNull() ? msg.get("deck").getAsString() : null;
+        int opponents = msg.has("opponents") ? msg.get("opponents").getAsInt() : 1;
+        WebGuiGame gui = new WebGuiGame(c.session);
+        try {
+            c.gui = gui;
+            c.match = MatchStarter.startCommander(gui, deck, opponents);
+        } catch (RuntimeException e) {
+            c.gui = null;
+            gui.dispose();
+            e.printStackTrace();
+            c.session.send(error("Could not start the match: " + e.getMessage()));
+        }
+    }
+
+    private static void action(Connection c, JsonObject msg) {
+        WebGuiGame gui = c.gui;
+        IGameController controller = gui == null ? null : gui.getGameController();
+        if (controller == null) {
+            c.session.send(error("No match is running"));
+            return;
+        }
+        String action = msg.has("action") ? msg.get("action").getAsString() : "";
+        int id = msg.has("id") ? msg.get("id").getAsInt() : -1;
+        switch (action) {
+            case "ok" -> controller.selectButtonOk();
+            case "cancel" -> controller.selectButtonCancel();
+            case "card" -> {
+                CardView card = gui.cardById(id);
+                if (card == null || !controller.selectCard(card, null, null)) gui.flashIncorrectAction();
+            }
+            case "player" -> {
+                PlayerView player = gui.playerById(id);
+                if (player != null) controller.selectPlayer(player, null);
+            }
+            case "undo" -> controller.undoLastAction();
+            case "attackAll" -> controller.alphaStrike();
+            // Forge's own flow: the first call asks and concedes; once the player is out, the next one
+            // ends the game for the AIs left playing each other.
+            case "concede" -> gui.runWhenAwaitingInput(gui::concede);
+            case "leave" -> gui.concede();
+            default -> c.session.send(error("Unknown action: " + action));
+        }
+        gui.markDirty();
+    }
+
+    @Override
+    public void onError(WebSocket conn, Exception ex) {
+        ex.printStackTrace();
+        if (conn == null) {
+            started.countDown(); // bind failed; let awaitPort return so Main doesn't hang
+        }
+    }
+
+    private static JsonObject engineInfo() {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "engineInfo");
+        o.addProperty("version", Main.VERSION);
+        o.addProperty("cards", FModel.getMagicDb().getCommonCards().getUniqueCards().size());
+        o.addProperty("editions", FModel.getMagicDb().getEditions().size());
+        return o;
+    }
+
+    private static JsonObject decks() {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "decks");
+        JsonArray names = new JsonArray();
+        MatchStarter.commanderPreconNames().forEach(names::add);
+        o.add("commander", names);
+        return o;
+    }
+
+    private static JsonObject error(String message) {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "error");
+        o.addProperty("message", message);
+        return o;
+    }
+}

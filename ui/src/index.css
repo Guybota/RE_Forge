@@ -1,0 +1,108 @@
+@import '@fontsource/work-sans/400.css';
+@import '@fontsource/work-sans/500.css';
+@import '@fontsource/work-sans/600.css';
+@import '@fontsource/work-sans/700.css';
+@import '@fontsource/eb-garamond/500.css';
+@import '@fontsource/eb-garamond/600.css';
+
+/* Skin tokens: "Mesa física" (felt table, paper cards). Other skins override these. */
+:root {
+  --felt: #1f3b2d;
+  --felt-line: rgba(243, 235, 221, 0.16);
+  --paper: #f3ebdd;
+  --paper-shade: #bfb49e;
+  --notepad: #efe6d2;
+  --notepad-line: #d9cdb4;
+  --wood: #4a2e1c;
+  --ink: #1c1a17;
+  --ink-muted: #4a453d;
+  --on-felt: #efe7d6;
+  --on-felt-muted: #c9d3c6;
+  --danger: #b9472e;
+  --select: #f3d58a;
+
+  --c-W: #d9cfae;
+  --c-U: #7393b3;
+  --c-B: #5e5652;
+  --c-R: #b86a50;
+  --c-G: #6f9068;
+  --c-C: #aaa49a;
+  --c-M: #c4a766;
+
+  --font-ui: 'Work Sans', system-ui, sans-serif;
+  --font-card: 'EB Garamond', Georgia, serif;
+
+  color-scheme: dark;
+  font: 15px/1.4 var(--font-ui);
+  color: var(--on-felt);
+  background-color: var(--felt);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 3px;
+}
+
+.btn {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 22px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn--primary {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 3px 0 var(--paper-shade);
+}
+.btn--ghost {
+  background: transparent;
+  border-color: rgba(243, 235, 221, 0.5);
+}
+.btn--big {
+  height: 56px;
+  padding: 0 32px;
+  border-radius: 28px;
+  font-size: 17px;
+}
+
+.input {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--felt-line);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--on-felt);
+  font: inherit;
+}
+
+.muted {
+  color: var(--on-felt-muted);
+}
+.error,
+.danger {
+  color: #ff8a6e;
+}

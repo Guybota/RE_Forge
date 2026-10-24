@@ -1,0 +1,25 @@
+{
+  "name": "re-forge",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "ui",
+    "desktop"
+  ],
+  "scripts": {
+    "engine:build": "node scripts/mvn.mjs -q -pl engine -am -DskipTests package",
+    "engine:smoke": "node scripts/smoke-engine.mjs",
+    "dev": "concurrently -k -n ui,app \"npm run dev -w ui\" \"wait-on http://localhost:5173 && cross-env RE_FORGE_DEV=1 npm start -w desktop\"",
+    "build": "npm run build -w ui",
+    "start": "npm start -w desktop",
+    "engine:smoke-match": "node scripts/smoke-match.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "wait-on": "^9.5.1"
+  },
+  "allowScripts": {
+    "electron@45.0.0": true
+  }
+}

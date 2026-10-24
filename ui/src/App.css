@@ -1,0 +1,71 @@
+.home {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 16px;
+}
+
+.home h1 {
+  margin: 0;
+  font-family: var(--font-card);
+  font-size: 72px;
+  font-weight: 600;
+}
+
+.home p {
+  margin: 0;
+}
+
+.home__form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
+  width: min(420px, 100%);
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--on-felt-muted);
+}
+
+.segmented {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.segmented legend {
+  margin-bottom: 6px;
+}
+.segmented label {
+  flex: 1;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--felt-line);
+  cursor: pointer;
+  font-weight: 600;
+}
+.segmented label.is-on {
+  background: var(--paper);
+  color: var(--ink);
+}
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--select);
+  outline-offset: 3px;
+}

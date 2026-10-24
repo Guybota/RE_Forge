@@ -1,0 +1,66 @@
+import type { CardState } from '../engine';
+import { colorKey, manaSymbols } from './cards';
+
+type Props = {
+  card: CardState;
+  size: 'land' | 'field' | 'hand' | 'mini';
+  selectable?: boolean;
+  chosen?: boolean;
+  target?: boolean;
+  attackLabel?: string;
+  onClick?: () => void;
+  onHover?: (card: CardState | null) => void;
+};
+
+export function Card({ card, size, selectable, chosen, target, attackLabel, onClick, onHover }: Props) {
+  if (card.hidden) {
+    return <div className={`card card--${size} card--back`} aria-label="Carta escondida" />;
+  }
+  const classes = [
+    'card',
+    `card--${size}`,
+    `card--c${colorKey(card)}`,
+    card.tapped && 'is-tapped',
+    card.attacking && 'is-attacking',
+    selectable && 'is-selectable',
+    chosen && 'is-chosen',
+    target && 'is-target',
+  ].filter(Boolean).join(' ');
+  const pt = card.power !== undefined ? `${card.power}/${card.toughness}` : card.loyalty ?? card.defense;
+
+  return (
+    <button
+      type="button"
+      className={classes}
+      onClick={onClick}
+      onMouseEnter={() => onHover?.(card)}
+      onMouseLeave={() => onHover?.(null)}
+      onFocus={() => onHover?.(card)}
+      aria-label={card.name}
+      aria-pressed={chosen}
+    >
+      {card.commander && size !== 'mini' && <span className="card__tag">Comandante</span>}
+      <span className="card__top">
+        <span className="card__name">{card.name}</span>
+        {size !== 'land' && (
+          <span className="card__cost">
+            {manaSymbols(card.cost).map((s, i) => (
+              <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>
+            ))}
+          </span>
+        )}
+      </span>
+      <span className="card__art" />
+      {size !== 'land' && size !== 'mini' && <span className="card__type">{card.type}</span>}
+      {(pt !== undefined || !!card.damage) && size !== 'land' && (
+        <span className="card__pt">{pt}{card.damage ? <em> −{card.damage}</em> : null}</span>
+      )}
+      {card.counters && size !== 'land' && (
+        <span className="card__counters">
+          {Object.entries(card.counters).map(([k, v]) => <span key={k} title={k}>{v}</span>)}
+        </span>
+      )}
+      {attackLabel && <span className="card__attack">→ {attackLabel}</span>}
+    </button>
+  );
+}

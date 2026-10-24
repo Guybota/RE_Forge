@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Builds the Forge engine modules and our bridge in one reactor.
+  Forge's poms use ${revision} as their version, which only resolves inside a reactor build,
+  so the bridge can't depend on separately installed Forge jars.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>reforge</groupId>
+    <artifactId>re-forge-build</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>forge/forge-core</module>
+        <module>forge/forge-game</module>
+        <module>forge/forge-ai</module>
+        <module>forge/forge-gui</module>
+        <module>engine</module>
+    </modules>
+</project>
