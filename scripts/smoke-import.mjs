@@ -65,13 +65,25 @@ function run(port) {
       } else if (step === 'concede' && msg.type === 'choice') {
         send({ type: 'answer', id: msg.id, picked: [0] });
       } else if (step === 'concede' && msg.type === 'state' && msg.gameOver) {
+        step = 'detail';
+        send({ type: 'getDeck', name: DECK });
+      } else if (step === 'detail' && msg.type === 'deckDetail') {
+        // The exported list keeps the printings and reads back as the same deck.
+        assert.equal(msg.name, DECK);
+        assert.match(msg.text, /^Commander\n1 .+ \(\w+\) \S+\n/, 'export starts with the commander and its printing');
+        assert.ok(msg.lines.some((l) => l.group === 'commander' && l.imageKey), 'detail groups the commander with its picture');
+        assert.equal(msg.unknown, 0, 'every exported line is recognised again');
+        step = 'rename';
+        send({ type: 'renameDeck', name: DECK, to: `${DECK} renamed` });
+      } else if (step === 'rename' && msg.type === 'decks') {
+        assert.ok(msg.mine.includes(`${DECK} renamed`) && !msg.mine.includes(DECK), 'deck renamed');
         step = 'delete';
-        send({ type: 'deleteDeck', name: DECK });
+        send({ type: 'deleteDeck', name: `${DECK} renamed` });
       } else if (step === 'delete' && msg.type === 'decks') {
-        assert.ok(!msg.mine.includes(DECK), 'deck deleted');
+        assert.ok(!msg.mine.includes(`${DECK} renamed`), 'deck deleted');
         finished = true;
         clearTimeout(timeout);
-        console.log('OK: imported, saved, played and deleted');
+        console.log('OK: imported, saved, played, exported, renamed and deleted');
         ws.close();
         engine.kill();
       }

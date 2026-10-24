@@ -1,35 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import type { Engine } from '../useEngine';
-import { cardImage } from '../images';
 import { Card } from './Card';
 import { ChoiceDialog } from './ChoiceDialog';
 import { CombatArrows } from './CombatArrows';
 import { GameMenu } from './GameMenu';
 import { ZoneViewer, type OpenZone } from './ZoneViewer';
 import { PanelIcon } from './icons';
-import { PHASE_TRACK, manaSymbols, phaseKey } from './cards';
+import { PHASE_TRACK, phaseKey } from './cards';
+import { Preview } from './CardZoom';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
 import './table.css';
-
-/** The printed card when there is a picture (it already shows name, cost and text); the text otherwise. */
-function Preview({ card }: { card: CardState }) {
-  const [failed, setFailed] = useState<string | null>(null);
-  const src = cardImage(card.imageKey, 'full');
-  if (src && failed !== src) {
-    return <img className="side__image" src={src} alt={`${card.name}: ${card.text ?? ''}`} onError={() => setFailed(src)} />;
-  }
-  return (
-    <>
-      <h2>{card.name}</h2>
-      <p className="side__cost">{manaSymbols(card.cost).join(' ')}</p>
-      <p className="side__type">{card.type}</p>
-      <p className="side__text">{card.text}</p>
-      {card.power !== undefined && <p className="side__pt">{card.power}/{card.toughness}</p>}
-    </>
-  );
-}
 
 /** With the side panel closed: the hovered card, drawn beside it (never over it) and kept inside the window. */
 function FloatPreview({ card }: { card: CardState }) {

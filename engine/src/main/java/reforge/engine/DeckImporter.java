@@ -79,11 +79,56 @@ final class DeckImporter {
 
     /** Saves under the given name (replacing a deck of the same name). Returns an error message or null. */
     static String save(String text, String name) {
-        if (name == null || name.isBlank()) return "A deck needs a name";
-        if (name.matches(".*[\\\\/:*?\"<>|].*")) return "The name can't contain \\ / : * ? \" < > |";
+        String invalid = invalidName(name);
+        if (invalid != null) return invalid;
         Preview p = preview(text, name);
         if (p.deck() == null || p.deck().getMain().isEmpty()) return "No cards recognised";
         mine().add(p.deck());
+        return null;
+    }
+
+    private static String invalidName(String name) {
+        if (name == null || name.isBlank()) return "A deck needs a name";
+        if (name.matches(".*[\\\\/:*?\"<>|].*")) return "The name can't contain \\ / : * ? \" < > |";
+        return null;
+    }
+
+    /**
+     * One of the player's decks as a decklist ("Commander" / "Deck" / "Sideboard" sections, with set and number so
+     * the exact printings survive an edit) plus the same grouped preview the import screen shows.
+     */
+    static JsonObject detail(String name) {
+        Deck deck = mine().get(name);
+        if (deck == null) return null;
+        StringBuilder text = new StringBuilder();
+        for (DeckSection section : List.of(DeckSection.Commander, DeckSection.Main, DeckSection.Sideboard)) {
+            if (!deck.has(section) || deck.get(section).isEmpty()) continue;
+            if (text.length() > 0) text.append('\n');
+            text.append(section == DeckSection.Main ? "Deck" : section.name()).append('\n');
+            for (var entry : deck.get(section)) {
+                PaperCard card = entry.getKey();
+                text.append(entry.getValue()).append(' ').append(card.getName())
+                        .append(" (").append(card.getEdition()).append(") ").append(card.getCollectorNumber()).append('\n');
+            }
+        }
+        JsonObject o = preview(text.toString(), name).json();
+        o.addProperty("type", "deckDetail");
+        o.addProperty("name", name);
+        o.addProperty("text", text.toString());
+        return o;
+    }
+
+    /** Returns an error message or null. */
+    static String rename(String from, String to) {
+        String invalid = invalidName(to);
+        if (invalid != null) return invalid;
+        Deck deck = mine().get(from);
+        if (deck == null) return "Unknown deck: " + from;
+        String target = to.trim();
+        if (target.equals(from)) return null;
+        if (mine().contains(target)) return "A deck with that name already exists";
+        mine().add((Deck) deck.copyTo(target));
+        mine().delete(from);
         return null;
     }
 

@@ -1,0 +1,93 @@
+import { useEffect, useState } from 'react';
+import { DeckCards } from './DeckCards';
+import { useT } from './i18n';
+import type { Engine } from './useEngine';
+
+type Props = {
+  engine: Engine;
+  /** Deck to show first, e.g. one just imported or edited. */
+  initialDeck?: string;
+  onBack: () => void;
+  onPlay: (deck: string) => void;
+  onImport: () => void;
+  onEdit: (deck: { name: string; text: string }) => void;
+};
+
+/** The player's own decks (imported or edited here): look through, rename, edit, export, delete or play one. */
+export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onEdit }: Props) {
+  const t = useT();
+  const { send, decks } = engine;
+  const [selected, setSelected] = useState(initialDeck && decks.mine.includes(initialDeck) ? initialDeck : decks.mine[0]);
+  const [name, setName] = useState(selected ?? '');
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const detail = engine.deckDetail?.name === selected ? engine.deckDetail : null;
+
+  useEffect(() => {
+    setName(selected ?? '');
+    setCopied(false);
+    if (selected) send({ type: 'getDeck', name: selected });
+  }, [selected, send]);
+
+  // Follow the list: a renamed deck stays selected, a deleted one hands over to the first remaining.
+  useEffect(() => {
+    if (renaming && decks.mine.includes(renaming)) {
+      setSelected(renaming);
+      setRenaming(null);
+    } else if (!selected || !decks.mine.includes(selected)) {
+      setSelected(decks.mine[0]);
+    }
+  }, [decks, renaming, selected]);
+  useEffect(() => {
+    if (engine.error) { setRenaming(null); setName(selected ?? ''); }
+  }, [engine.error, selected]);
+
+  const rename = () => {
+    const to = name.trim();
+    if (!selected || !to || to === selected) { setName(selected ?? ''); return; }
+    setRenaming(to);
+    send({ type: 'renameDeck', name: selected, to });
+  };
+
+  return (
+    <main className="import decks">
+      <header className="import__head">
+        <button type="button" className="btn btn--ghost" onClick={onBack}>{t('back')}</button>
+        <h1>{t('decks')}</h1>
+        {decks.mine.length > 0 && <button type="button" className="btn btn--ghost decks__import" onClick={onImport}>{t('import')}</button>}
+      </header>
+      {decks.mine.length === 0 ? (
+        <div className="decks__empty"><button type="button" className="btn btn--primary btn--big" onClick={onImport}>{t('importDeck')}</button></div>
+      ) : (
+        <div className="decks__body">
+          <ul className="decks__list" aria-label={t('myDecks')}>
+            {decks.mine.map((d) => (
+              <li key={d}>
+                <button type="button" className={`decks__item ${d === selected ? 'is-on' : ''}`} aria-pressed={d === selected} onClick={() => setSelected(d)}>{d}</button>
+              </li>
+            ))}
+          </ul>
+          {selected && (
+            <section className="decks__detail" aria-label={selected}>
+              <div className="decks__head">
+                <input className="input decks__name" aria-label={t('deckName')} value={name} onChange={(e) => setName(e.target.value)}
+                  onBlur={rename} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setName(selected); }} />
+                <button type="button" className="btn btn--primary" onClick={() => onPlay(selected)}>{t('playDeck')}</button>
+                <button type="button" className="btn btn--ghost" disabled={!detail} onClick={() => detail && onEdit({ name: selected, text: detail.text })}>{t('editDeck')}</button>
+                <button type="button" className="btn btn--ghost" disabled={!detail} title={t('exportHint')} onClick={async () => {
+                  if (!detail) return;
+                  try { await navigator.clipboard.writeText(detail.text); setCopied(true); } catch { setCopied(false); }
+                }}>{t(copied ? 'copied' : 'exportDeck')}</button>
+                <button type="button" className="btn btn--ghost decks__delete" onClick={() => {
+                  if (window.confirm(t('confirmDelete', { name: selected }))) send({ type: 'deleteDeck', name: selected });
+                }}>{t('deleteDeck')}</button>
+              </div>
+              {engine.error && <p className="error" role="alert">{engine.error}</p>}
+              {detail && <DeckCards preview={detail} />}
+            </section>
+          )}
+        </div>
+      )}
+    </main>
+  );
+}

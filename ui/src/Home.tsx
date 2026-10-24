@@ -18,8 +18,8 @@ function savedAi(): string[] {
 
 type Props = {
   engine: Engine;
-  onPick: (what: 'language' | 'skin' | 'import' | 'online') => void;
-  /** Deck to preselect, e.g. one just imported. */
+  onPick: (what: 'language' | 'skin' | 'decks' | 'online') => void;
+  /** Deck to preselect, e.g. one chosen to play from the decks screen. */
   initialDeck?: string;
 };
 
@@ -32,7 +32,6 @@ export function Home({ engine, onPick, initialDeck }: Props) {
   const info = engine.info;
   const languageName = info?.languages.find((l) => l.code === info.language)?.name;
   const { mine, precons } = engine.decks;
-  const isMine = mine.includes(deck);
 
   const profiles = info?.aiProfiles ?? [];
   // A remembered profile the engine no longer has falls back to Forge's default.
@@ -67,22 +66,7 @@ export function Home({ engine, onPick, initialDeck }: Props) {
                 {precons.map((d) => <option key={d} value={d}>{d}</option>)}
               </optgroup>
             </select>
-            {isMine && (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                aria-label={t('deleteDeck')}
-                title={t('deleteDeck')}
-                onClick={() => {
-                  if (!window.confirm(t('confirmDelete', { name: deck }))) return;
-                  engine.send({ type: 'deleteDeck', name: deck });
-                  setDeck(RANDOM);
-                }}
-              >
-                ✕
-              </button>
-            )}
-            <button type="button" className="btn btn--ghost" onClick={() => onPick('import')}>{t('import')}</button>
+<button type="button" className="btn btn--ghost" onClick={() => onPick('decks')}>{t('decks')}</button>
           </div>
         </div>
         <fieldset className="segmented">

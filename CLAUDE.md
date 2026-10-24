@@ -33,11 +33,15 @@ docs/       PLAN.md (roadmap).
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons, each with its chosen Forge AI profile (`res/ai`); sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
 | `Settings` | `<data>/reforge.properties`: chosen `language`, `skin` and separate phase stops for own/opponents' turns. Atomic writes; missing language/skin = first run. |
-| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. |
+| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`), `rename` copies then deletes. |
 
 ### UI (ui/src)
 
-- `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` (→ `ImportDeck`) → `Table`.
+- `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` (→ `Decks` → `ImportDeck`) → `Table`.
+- `Decks.tsx` — the player's own decks: grouped list (`DeckCards`), rename, edit (opens `ImportDeck` with the deck's
+  list; a new name replaces the old deck), export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
+- `table/CardZoom.tsx` — right click (long press on touch) on any card or deck line shows it big, in a modal `<dialog>`
+  so it sits above other dialogs; also exports the shared `Preview`.
 - `Lobby.tsx` — host/join form and online lobby, up to four mixed human/AI seats, deck selection and chat.
 - `useEngine.ts` / `engine.ts` — the socket and every message type (keep in sync with the engine).
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
@@ -79,7 +83,7 @@ npm run dev                   # Vite + Electron; Electron starts the engine
 npm run engine:smoke          # engine loads the card DB (~15 s)
 npm run engine:smoke-match    # passive game through the socket, concedes on turn 4 (SMOKE_OPPONENTS=3 for 4 players)
 npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
-npm run engine:smoke-import   # import a decklist fixture, play it, delete it
+npm run engine:smoke-import   # import a decklist fixture, play it, export, rename, delete it
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat

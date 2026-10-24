@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
 import { colorKey, manaSymbols } from './cards';
+import { CardZoom } from './CardZoom';
 import { useT } from '../i18n';
 
 type Props = {
@@ -22,6 +23,26 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
   const [fullFailed, setFullFailed] = useState<string | null>(null);
   const t = useT();
+  const zoom = useContext(CardZoom);
+  // Touch has no right click: a long press zooms instead, and the click that ends it is swallowed.
+  const press = useRef<number | undefined>(undefined);
+  const longPressed = useRef(false);
+  const endPress = () => window.clearTimeout(press.current);
+  const zoomProps = {
+    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); zoom(card); },
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      longPressed.current = false;
+      press.current = window.setTimeout(() => { longPressed.current = true; zoom(card); }, 450);
+    },
+    onPointerUp: endPress,
+    onPointerCancel: endPress,
+    onPointerLeave: endPress,
+  };
+  const click = onClick && (() => {
+    if (longPressed.current) { longPressed.current = false; return; }
+    onClick();
+  });
   const requestedFull = size === 'hand' ? cardImage(card.imageKey, 'full') : null;
   const full = requestedFull !== fullFailed ? requestedFull : null;
 
@@ -50,7 +71,8 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
         type="button"
         className={classes}
         data-card-id={card.id}
-        onClick={onClick}
+        onClick={click}
+        {...zoomProps}
         onMouseEnter={() => onHover?.(card)}
         onMouseLeave={() => onHover?.(null)}
         onFocus={() => onHover?.(card)}
@@ -73,7 +95,8 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
       role={onClick ? undefined : 'img'}
       className={classes}
       data-card-id={card.id}
-      onClick={onClick}
+      onClick={click}
+      {...zoomProps}
       onMouseEnter={() => onHover?.(card)}
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(card)}

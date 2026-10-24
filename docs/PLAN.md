@@ -208,6 +208,9 @@ linha em todas as skins, custo escondido nas cartas pequenas, pré-visualizaçã
 vista, imposto de comandante, sair para o início pelo menu, gramática portuguesa do Forge (ordinais e possessivos),
 importação agrupada por tipo com imagem e impressões originais, ecrã online alinhado com a importação, nome lembrado.
 
+Decks e zoom (`feat/decks-zoom`): ecrã Decks (ver agrupado, mudar nome, editar, exportar, apagar, jogar) e zoom de qualquer
+carta com clique direito ou toque prolongado.
+
 Passo 4 concluído. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 

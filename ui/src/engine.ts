@@ -142,6 +142,9 @@ export type DeckPreview = {
   problem?: string;
 };
 
+/** One of the player's decks: its decklist (with printings) and the grouped preview. */
+export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string };
+
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
 type EngineMessage =
@@ -154,6 +157,7 @@ type EngineMessage =
   | { type: 'lobbyClosed' }
   | { type: 'decks'; mine: string[]; commander: string[] }
   | DeckPreview
+  | DeckDetail
   | { type: 'error'; message: string };
 
 export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave';
@@ -167,6 +171,8 @@ export type ClientMessage =
   | { type: 'previewDeck'; text: string; name?: string }
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'deleteDeck'; name: string }
+  | { type: 'getDeck'; name: string }
+  | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; opponents: number; aiProfiles: string[] }
   | { type: 'hostGame'; name: string; port: number; upnp: boolean }
   | { type: 'joinGame'; name: string; address: string }
@@ -182,6 +188,7 @@ export type EngineHandlers = {
   onInfo: (info: EngineInfo) => void;
   onDecks: (decks: DeckLists) => void;
   onDeckPreview: (preview: DeckPreview) => void;
+  onDeckDetail: (detail: DeckDetail) => void;
   onState: (state: GameState) => void;
   onChoice: (choice: Choice) => void;
   onNotice: (notice: Notice) => void;
@@ -222,6 +229,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'engineInfo': h.onInfo(msg); break;
       case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander }); break;
       case 'deckPreview': h.onDeckPreview(msg); break;
+      case 'deckDetail': h.onDeckDetail(msg); break;
       case 'state': h.onState(msg); break;
       case 'choice': h.onChoice(msg); break;
       case 'notice': h.onNotice(msg); break;

@@ -133,6 +133,14 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
+            case "getDeck" -> c.actions.execute(() -> {
+                JsonObject detail = DeckImporter.detail(string(msg, "name"));
+                c.session.send(detail != null ? detail : error("Unknown deck"));
+            });
+            case "renameDeck" -> c.actions.execute(() -> {
+                String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
+                c.session.send(problem == null ? decks() : error(problem));
+            });
             case "deleteDeck" -> c.actions.execute(() -> {
                 DeckImporter.delete(string(msg, "name"));
                 c.session.send(decks());
