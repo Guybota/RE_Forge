@@ -388,15 +388,42 @@
   line-height: 1.35;
 }
 .side__log li { padding: 6px 0; border-bottom: 1px solid var(--panel-line); }
-.side__concede {
-  align-self: flex-start;
+.side__menu {
+  align-self: flex-end;
   min-height: 44px;
-  padding: 0 4px;
-  border: 0;
+  padding: 0 18px;
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-control);
   background: none;
-  color: var(--panel-ink-muted);
-  text-decoration: underline;
+  color: var(--panel-ink);
   cursor: pointer;
+}
+
+/* One settings sheet, using the same paper/material as the card preview and choices. */
+.choice.game-menu { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.game-menu[open] { display: flex; flex-direction: column; gap: 18px; }
+.game-menu__head, .game-menu__skin, .game-menu__footer { display: flex; align-items: center; gap: 16px; }
+.game-menu__head { justify-content: space-between; }
+.game-menu__head .choice__title { margin: 0; }
+.game-menu__body { min-height: 0; overflow-y: auto; }
+.game-menu__skin { justify-content: space-between; padding-bottom: 8px; }
+.game-menu .game-menu__skin .input { flex: 0 1 250px; min-width: 0; }
+.game-menu__section { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 20px; margin: 18px 0 8px; cursor: help; }
+.game-menu__phases { width: 100%; border-collapse: collapse; }
+.game-menu__phases th { text-align: left; font-weight: 500; }
+.game-menu__phases thead th { font-size: 12px; color: var(--panel-ink-muted); }
+.game-menu__phases :is(th, td) { border-bottom: 1px solid var(--panel-line); }
+.game-menu__phases :is(th, td):not(:first-child) { width: 100px; text-align: center; }
+.game-menu__check { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.game-menu__check input { width: 20px; height: 20px; accent-color: var(--panel-ink); cursor: pointer; }
+.game-menu__footer { flex-wrap: wrap; justify-content: space-between; }
+.game-menu__footer .muted { margin: 0; font-size: 12px; }
+.game-menu__concede { color: var(--danger); }
+.game-menu .error { color: var(--danger); margin: 0; }
+@media (max-width: 520px) {
+  .choice.game-menu { padding: 16px; }
+  .game-menu__phases :is(th, td):not(:first-child) { width: 80px; }
+  .game-menu__footer { gap: 8px; }
 }
 
 /* ---------- dialogs */

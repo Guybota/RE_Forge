@@ -32,6 +32,7 @@ import forge.model.FModel;
 /** One Forge netplay lobby per engine process. Only typed Forge events cross the game port. */
 final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyView {
     private final Session session;
+    private final Settings settings;
     private final Executor actions;
     private final Consumer<WebGuiGame> attachGui;
     private volatile GameLobby lobby;
@@ -44,8 +45,9 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
     private volatile List<String> addresses = List.of();
     private WebGuiGame gui;
 
-    OnlineLobby(Session session, Executor actions, Consumer<WebGuiGame> attachGui) {
+    OnlineLobby(Session session, Settings settings, Executor actions, Consumer<WebGuiGame> attachGui) {
         this.session = session;
+        this.settings = settings;
         this.actions = actions;
         this.attachGui = attachGui;
     }
@@ -100,7 +102,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
     synchronized WebGuiGame newGui() {
         if (closed) throw new IllegalStateException("Lobby is closed");
         if (gui != null) gui.dispose();
-        gui = new WebGuiGame(session);
+        gui = new WebGuiGame(session, settings);
         attachGui.accept(gui);
         return gui;
     }

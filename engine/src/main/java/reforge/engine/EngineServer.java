@@ -129,6 +129,7 @@ public final class EngineServer extends WebSocketServer {
             });
             case "setLanguage" -> c.actions.execute(() -> setLanguage(c, msg));
             case "setSkin" -> setSkin(c, msg);
+            case "setPhaseStops" -> c.actions.execute(() -> setPhaseStops(c, msg));
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
             case "setSlot", "setReady", "addSlot", "removeSlot", "startOnlineMatch", "chat", "leaveLobby" ->
@@ -163,7 +164,7 @@ public final class EngineServer extends WebSocketServer {
         }
     }
 
-    private static void startMatch(Connection c, JsonObject msg) {
+    private void startMatch(Connection c, JsonObject msg) {
         if (HeadlessGui.hasOnline()) {
             c.session.send(error("Leave the online lobby first"));
             return;
@@ -177,7 +178,7 @@ public final class EngineServer extends WebSocketServer {
         }
         String deck = msg.has("deck") && !msg.get("deck").isJsonNull() ? msg.get("deck").getAsString() : null;
         int opponents = msg.has("opponents") ? msg.get("opponents").getAsInt() : 1;
-        WebGuiGame gui = new WebGuiGame(c.session);
+        WebGuiGame gui = new WebGuiGame(c.session, settings);
         try {
             c.gui = gui;
             c.match = MatchStarter.startCommander(gui, deck, opponents);
@@ -189,14 +190,14 @@ public final class EngineServer extends WebSocketServer {
         }
     }
 
-    private static void openOnline(Connection c, JsonObject msg) {
+    private void openOnline(Connection c, JsonObject msg) {
         if (c.online != null && c.online.isClosed()) c.online = null;
         if (c.online != null || c.gui != null && !c.gui.isFinishedForLocalPlayer()) {
             c.session.send(error("A game or lobby is already open"));
             return;
         }
         if (c.gui != null) { c.gui.dispose(); c.gui = null; }
-        OnlineLobby online = new OnlineLobby(c.session, c.actions, gui -> c.gui = gui);
+        OnlineLobby online = new OnlineLobby(c.session, settings, c.actions, gui -> c.gui = gui);
         try {
             online.open(msg, msg.get("type").getAsString().equals("hostGame"));
             c.online = online;
@@ -218,6 +219,23 @@ public final class EngineServer extends WebSocketServer {
                 c.online.handle(msg.get("type").getAsString(), msg);
             }
         } catch (RuntimeException e) {
+            c.session.send(error(e.getMessage()));
+        }
+    }
+
+    private void setPhaseStops(Connection c, JsonObject msg) {
+        try {
+            if (!msg.has("stops") || !msg.get("stops").isJsonNull() && !msg.get("stops").isJsonObject()) {
+                throw new IllegalArgumentException("Expected phase stops or null to restore defaults");
+            }
+            settings.changePhaseStops(msg.get("stops").isJsonNull() ? null : msg.getAsJsonObject("stops"));
+            for (WebSocket socket : getConnections()) {
+                Connection connection = socket.getAttachment();
+                if (connection == null) continue;
+                if (connection.gui != null) connection.gui.phaseStopsChanged();
+                connection.session.send(engineInfo());
+            }
+        } catch (IllegalArgumentException | java.io.IOException e) {
             c.session.send(error(e.getMessage()));
         }
     }
@@ -268,6 +286,10 @@ public final class EngineServer extends WebSocketServer {
         o.addProperty("imageBase", imageBase);
         o.addProperty("language", settings.language());
         o.addProperty("skin", settings.skin());
+        o.add("phaseStops", settings.phaseStopsJson());
+        JsonArray phaseOptions = new JsonArray();
+        Settings.PHASES.forEach(phaseOptions::add);
+        o.add("phaseOptions", phaseOptions);
         JsonArray languages = new JsonArray();
         Settings.LANGUAGES.forEach((code, name) -> {
             JsonObject l = new JsonObject();

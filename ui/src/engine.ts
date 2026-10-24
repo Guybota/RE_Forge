@@ -1,6 +1,8 @@
 // Connection to the Java engine bridge. The Electron shell passes its port as ?enginePort=N.
 // Message shapes mirror engine/src/main/java/reforge/engine (GameSnapshot, WebGuiGame, EngineServer).
 
+export type PhaseStops = { mine: string[]; opponents: string[] };
+
 export type EngineInfo = {
   type: 'engineInfo';
   version: string;
@@ -12,6 +14,8 @@ export type EngineInfo = {
   languages: { code: string; name: string }[];
   /** Skin id; missing until the player has chosen one (first run). */
   skin?: string;
+  phaseStops: PhaseStops;
+  phaseOptions: string[];
 };
 
 export type CardState = {
@@ -139,6 +143,7 @@ export type ClientMessage =
   | { type: 'listDecks' }
   | { type: 'setLanguage'; language: string }
   | { type: 'setSkin'; skin: string }
+  | { type: 'setPhaseStops'; stops: PhaseStops | null }
   | { type: 'previewDeck'; text: string; name?: string }
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'deleteDeck'; name: string }

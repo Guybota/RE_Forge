@@ -46,6 +46,7 @@ final class WebGuiGame extends NetworkGuiGame {
     private static final long PUSH_DELAY_MS = 40;
 
     private final Session session;
+    private final Settings settings;
     private final ScheduledExecutorService pusher = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "state-push");
         t.setDaemon(true);
@@ -57,8 +58,9 @@ final class WebGuiGame extends NetworkGuiGame {
     private volatile GameSnapshot.Prompt prompt = GameSnapshot.Prompt.NONE;
     private volatile GameSnapshot lastSnapshot;
 
-    WebGuiGame(Session session) {
+    WebGuiGame(Session session, Settings settings) {
         this.session = session;
+        this.settings = settings;
     }
 
     // ---------------------------------------------------------------- state pushing
@@ -440,19 +442,19 @@ final class WebGuiGame extends NetworkGuiGame {
     @Override public void setCard(CardView card) { }
     @Override public void setPlayerAvatar(LobbyPlayer player, IHasIcon ihi) { }
 
-    /**
-     * Which steps the local player gets priority in when nothing is happening. Forge passes
-     * automatically through the others unless something is on the stack.
-     * shortcut: fixed stops; make them a setting when the options screen exists.
-     */
+    /** Recheck local priority and update the host's cache for remote controllers. */
+    void phaseStopsChanged() {
+        GameView game = getGameView();
+        if (disposed || game == null || game.isGameOver()) return;
+        for (PlayerView player : game.getPlayers()) {
+            for (PhaseType phase : PhaseType.values()) pushSkipPhaseToControllers(player, phase);
+        }
+        markDirty();
+    }
+
+    /** Forge still decides mandatory actions and priority with a nonempty stack. */
     @Override
     public boolean isUiSetToSkipPhase(PlayerView playerTurn, PhaseType phase) {
-        boolean myTurn = isLocalPlayer(playerTurn);
-        if (myTurn) {
-            // After blocks so the attacker sees them (and can respond) before damage; the step only
-            // happens when you attacked, so it adds no clicks otherwise.
-            return phase != PhaseType.MAIN1 && phase != PhaseType.MAIN2 && phase != PhaseType.COMBAT_DECLARE_BLOCKERS;
-        }
-        return phase != PhaseType.COMBAT_DECLARE_BLOCKERS && phase != PhaseType.END_OF_TURN;
+        return !settings.stopsAt(isLocalPlayer(playerTurn), phase.name());
     }
 }

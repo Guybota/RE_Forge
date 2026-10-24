@@ -85,7 +85,7 @@ function autoplay(peer) {
       }
       if (msg.type === 'state') { lastState = msg; fresh = true; }
     }
-    if (peer.conceding || !lastState || lastState.gameOver || !fresh && Date.now() - actedAt < 1500) return;
+    if (peer.conceding || peer.pauseActions || !lastState || lastState.gameOver || !fresh && Date.now() - actedAt < 1500) return;
     actedAt = Date.now();
     const { ok, selectable, chosen } = lastState.prompt;
     if (ok.enabled) peer.send({ type: 'action', action: 'ok' });
@@ -167,6 +167,8 @@ try {
   guest.send({ type: 'setReady', ready: true });
   await host.wait((m) => m.type === 'lobby' && m.slots.every((s) => s.ready));
   console.log('lobby: two seats, deck exchange, AI seat, readiness and chat OK');
+  guest.send({ type: 'setPhaseStops', stops: { mine: ['UPKEEP'], opponents: [] } });
+  await guest.wait((m) => m.type === 'engineInfo' && m.phaseStops.mine.length === 1 && m.phaseStops.mine[0] === 'UPKEEP');
   host.send({ type: 'startOnlineMatch' });
   autoplay(host); autoplay(guest);
   for (const peer of [host, guest]) {
@@ -184,6 +186,17 @@ try {
   await host.wait((m) => m.type === 'state' && m.turn >= 4, 0, 90_000);
   await guest.wait((m) => m.type === 'state' && m.turn >= 4, 0, 90_000);
   console.log('game: both clients reached turn 4, local hands private, remote deltas/input OK');
+  guest.pauseActions = true;
+  const isLocalStop = (m, phase) => m.type === 'state' && m.phase === phase && m.prompt.ok.enabled
+    && m.players.some((p) => p.isLocal && p.id === m.activePlayerId);
+  if (!isLocalStop(guest.messages.findLast((m) => m.type === 'state'), 'UPKEEP')) {
+    await guest.wait((m) => isLocalStop(m, 'UPKEEP'), guest.messages.length, 60_000);
+  }
+  const changedAt = guest.messages.length;
+  guest.send({ type: 'setPhaseStops', stops: { mine: ['DRAW'], opponents: [] } });
+  await guest.wait((m) => isLocalStop(m, 'DRAW'), changedAt);
+  guest.pauseActions = false;
+  console.log('settings: guest stops at upkeep; live change releases upkeep and stops at draw on the host');
   // A remote concession checks client→server controller calls and the end state on both peers.
   await concede(guest);
   if (aiCount) {

@@ -4,6 +4,17 @@ import { createContext, useContext } from 'react';
 // these cover the rest. Languages without their own table use English.
 
 const pt = {
+  menu: 'Menu',
+  gameMenu: 'Menu da partida',
+  close: 'Fechar',
+  phaseStops: 'Paragens por fase',
+  phaseStopsHint: 'Parar quando tens prioridade e a stack está vazia. O Forge continua a pedir ações obrigatórias. As alterações são guardadas automaticamente.',
+  phase: 'Fase',
+  yourTurn: 'O teu turno',
+  opponentsTurn: 'Adversários',
+  phaseStopFor: '{phase}: {turn}',
+  resetPhaseStops: 'Repor paragens',
+  saving: 'A guardar…',
   online: 'Jogar online',
   lobby: 'Mesa online',
   hostGame: 'Criar jogo',
@@ -113,6 +124,17 @@ const pt = {
 export type MessageKey = keyof typeof pt;
 
 const en: Record<MessageKey, string> = {
+  menu: 'Menu',
+  gameMenu: 'Match menu',
+  close: 'Close',
+  phaseStops: 'Phase stops',
+  phaseStopsHint: 'Stop when you have priority and the stack is empty. Forge still asks for mandatory actions. Changes are saved automatically.',
+  phase: 'Phase',
+  yourTurn: 'Your turn',
+  opponentsTurn: 'Opponents',
+  phaseStopFor: '{phase}: {turn}',
+  resetPhaseStops: 'Reset stops',
+  saving: 'Saving…',
   online: 'Play online',
   lobby: 'Online table',
   hostGame: 'Host game',

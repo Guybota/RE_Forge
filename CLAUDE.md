@@ -31,7 +31,7 @@ docs/       PLAN.md (roadmap).
 | `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons; sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
-| `Settings` | `<data>/reforge.properties`: chosen `language` and `skin` (missing = first run). |
+| `Settings` | `<data>/reforge.properties`: chosen `language`, `skin` and separate phase stops for own/opponents' turns. Atomic writes; missing language/skin = first run. |
 | `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. |
 
 ### UI (ui/src)
@@ -42,6 +42,7 @@ docs/       PLAN.md (roadmap).
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
+- `table/GameMenu.tsx` — in-game skin, saved phase stops, reset and concede. Escape closes it; a Forge choice takes precedence. Live phase changes use Forge's `YieldUpdate` path for local/remote controllers.
 
 ## Environment (Windows dev machine)
 
@@ -62,6 +63,7 @@ npm run engine:smoke-match    # passive game through the socket, concedes on tur
 npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
 npm run engine:smoke-import   # import a decklist fixture, play it, delete it
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
+npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 ```
 
 ### Checking the UI in a browser

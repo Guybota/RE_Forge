@@ -151,8 +151,23 @@ Critério de feito: duas máquinas na mesma rede jogam uma partida de Commander 
 
 ## Passo 4 — Completar a mesa (fase 1 da lista de ecrãs)
 
+Menu e paragens implementados no ramo `feat/table-options`:
+- `GameMenu.tsx`: mudar skin durante a partida, configurar paragens, repor as iniciais e conceder com confirmação do Forge.
+  Fecha com Escape e dá precedência a escolhas obrigatórias. Idioma continua no Home, fora da partida.
+- `Settings`: paragens separadas para o teu turno e os adversários, gravadas em `reforge.properties` por escrita atómica.
+  Mantêm as paragens anteriores por omissão; desvirar não é selecionável. Aplicam-se imediatamente pelo mecanismo de
+  `YieldUpdate` do Forge, incluindo no anfitrião para o jogador remoto.
+- `engine:smoke-settings`: validação sem alterações parciais, lista vazia, persistência após reiniciar, paragem real na
+  manutenção e avanço sem OK ao removê-la; skin a meio da partida, bloqueio de idioma e reposição dos valores iniciais.
+- `engine:smoke-online` verifica também uma alteração de manutenção para compra no cliente remoto durante a partida.
+- UI verificada no browser nas quatro skins e a 390 px: alteração de paragens, reposição, Escape, cancelar e confirmar
+  concessão. Motor e UI compilam.
+- Passaram os testes de paragens, online, partida local e combate (com ataques e bloqueios presentes no estado).
+
+Por fazer neste passo: opções de IA, auditoria dos diálogos, imagens e consulta das zonas.
+
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).
-- **Opções de jogo**: paragens por fase (hoje fixas em `WebGuiGame.isUiSetToSkipPhase` → passar a `Settings`), velocidade e
+- **Opções de jogo**: paragens por fase configuráveis em `Settings` (feito); velocidade e
   perfil da IA (`AiProfileUtil`), tempo limite da IA.
 - **Auditoria dos diálogos**: percorrer todos os métodos de escolha do `IGuiGame` e garantir que cada `kind` tem boa UI:
   mulligan, alvos, escolher cartas de uma lista (procurar no grimório, scry/surveil com `order`), escolher número, modos,

@@ -41,6 +41,7 @@ npm run engine:smoke-match    # plays a passive Commander game through the socke
 npm run engine:smoke-combat   # plays an active game (lands, spells, targets, attacks, blocks); a few minutes
 npm run engine:smoke-import   # imports scripts/fixtures/riders-of-rohan-arena.txt, plays it, deletes it
 npm run engine:smoke-online   # two engines: lobby, chat, private hands, remote turns and concession
+npm run engine:smoke-settings # settings survive restart; phase stops change live priority
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.
@@ -60,6 +61,18 @@ The UI WebSocket and card-image server remain bound to 127.0.0.1.
 Two instances on one computer need separate engine ports and `--data` folders. Start the first
 engine and wait for `READY` before starting the second: Forge reads a profile next to the shared
 assets during startup. `engine:smoke-online` handles this automatically.
+
+## Match menu
+
+Open **Menu** in the side panel during a match to change skin, configure phase stops, restore the
+default stops or concede (with Forge's confirmation). Escape closes the menu without answering the
+game's prompt. A new mandatory choice closes the menu so it can be answered.
+
+Phase stops are separate for your turn and opponents' turns, saved automatically in
+`reforge.properties`, and take effect during the current game, including online games. The defaults
+remain main phases and the blockers step on your turn, and the blockers step and end step on other
+turns. Forge still decides when priority and mandatory choices are required; untap is not selectable.
+Language remains available from Home, outside a running match.
 
 ## Data
 
@@ -81,6 +94,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `previewDeck` / `saveDeck` / `deleteDeck` | Decklist `text` (+ `name`) → `deckPreview` (lines with status, cards, commanders, legality `problem`); save/delete answer `decks` |
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
 | UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
+| UI → engine | `setPhaseStops` | `stops: {mine: [phase names], opponents: [phase names]}`, or `stops: null` to restore defaults. Both rows are validated before saving; applies live |
 | UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3 |
 | UI → engine | `hostGame` / `joinGame` | Player `name`; host: `port` (1024–65535), optional `upnp`; join: `address` (`host:port`) |
 | UI → engine | `setSlot` | `index`, optional `slotType` (`ai` or `open`, host only), optional `deck` (own/AI slot only) |
@@ -95,6 +109,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | engine → UI | `chatMessage`, `lobbyClosed` | Chat `source`, `text`, `kind`; lobby closure also clears the game/choice in the UI |
 
 Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
+`engineInfo` also includes `phaseOptions` (supported Forge phase names) and `phaseStops` (current two rows).
 Card `name`, `type` and `text` are in the chosen language; `typeEn` is the English type line for UI logic.
 Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other languages fall back to English).
 
