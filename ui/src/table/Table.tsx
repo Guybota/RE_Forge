@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import type { Engine } from '../useEngine';
 import { cardImage } from '../images';
 import { Card } from './Card';
 import { ChoiceDialog } from './ChoiceDialog';
+import { CombatArrows } from './CombatArrows';
 import { PHASE_TRACK, manaSymbols, phaseKey } from './cards';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
@@ -37,19 +38,16 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const opponents = game.players.filter((p) => p !== me);
   const { prompt } = game;
 
+  const main = useRef<HTMLDivElement>(null);
   const ctx: TableContext = useMemo(() => {
     const names = new Map(game.players.map((p) => [p.id, p.name]));
-    const cardNames = new Map(game.players.flatMap((p) => p.zones.battlefield.map((c) => [c.id, c.name ?? ''] as const)));
     const top = game.stack[0];
     return {
       selectableCards: new Set(prompt.selectable.cards),
       chosenCards: new Set(prompt.chosen.cards),
       selectablePlayers: new Set(prompt.selectable.players),
+      chosenPlayers: new Set(prompt.chosen.players),
       targetCards: new Set(top?.targetCardIds ?? []),
-      attackLabels: new Map(game.combat.map((a) => [
-        a.attackerId,
-        a.defenderPlayerId !== undefined ? names.get(a.defenderPlayerId) ?? '' : cardNames.get(a.defenderCardId ?? -1) ?? '',
-      ])),
       playerNames: names,
       onCard: (id) => send({ type: 'action', action: 'card', id }),
       onPlayer: (id) => send({ type: 'action', action: 'player', id }),
@@ -91,7 +89,8 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
   return (
     <div className="table">
-      <div className="table__main">
+      <div className="table__main" ref={main}>
+        <CombatArrows game={game} container={main} />
         <div className={`opponents opponents--${opponents.length}`}>
           {opponents.map((p) => (
             <PlayerArea key={p.id} player={p} active={game.activePlayerId === p.id} compact={opponents.length > 1} attackedBy={attackedBy(p.id)} ctx={ctx} />
@@ -107,9 +106,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           </ol>
           <span className="bar__prompt" title={prompt.message}>{promptText}</span>
           <span className="bar__buttons">
-            {myTurn && game.phase === 'COMBAT_DECLARE_ATTACKERS' && prompt.ok.enabled && (
-              <button type="button" className="btn btn--ghost" onClick={() => send({ type: 'action', action: 'attackAll' })}>{t('attackAll')}</button>
-            )}
+            {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
             {prompt.cancel.label && (
               <button type="button" className="btn btn--ghost" disabled={!prompt.cancel.enabled} onClick={() => send({ type: 'action', action: 'cancel' })}>
                 {prompt.cancel.label}

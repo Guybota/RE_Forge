@@ -6,6 +6,7 @@
 }
 
 .table__main {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -73,6 +74,10 @@
   font-weight: 700;
   box-shadow: var(--life-shadow);
   cursor: default;
+}
+.life.is-chosen {
+  outline: 3px solid var(--danger);
+  outline-offset: 3px;
 }
 .life.is-selectable {
   cursor: pointer;
@@ -157,6 +162,8 @@
 }
 .card.is-selectable { outline: 3px solid var(--select); outline-offset: 2px; }
 .card.is-chosen { outline: 3px solid var(--danger); outline-offset: 2px; }
+/* Forge's "you can use this now": playable, can attack, can block. */
+.card.is-actionable { box-shadow: 0 0 0 2px var(--select), var(--card-shadow); }
 .card.is-target { outline: 2px dashed var(--on-table); outline-offset: 5px; }
 .card:hover { --lift: -4px; }
 .card.is-attacking:hover { --lift: -18px; }
@@ -252,19 +259,6 @@
   font-size: 10px;
   display: grid;
   place-items: center;
-}
-.card__attack {
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  transform: translateX(-50%) rotate(calc(-1 * var(--rot)));
-  padding: 1px 8px;
-  border-radius: 9px;
-  background: var(--danger);
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 600;
-  white-space: nowrap;
 }
 
 .pip {
@@ -519,3 +513,24 @@
 .overlay__box h2 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 40px; }
 .overlay__box p { margin: 0; }
 .overlay .btn--primary { background: var(--panel-ink); color: var(--panel); box-shadow: none; }
+
+/* ---------- combat arrows (drawn over the table, not clickable) */
+
+.combat-arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+  overflow: visible;
+}
+.combat-arrows__line {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.combat-arrows__line--attack { stroke: var(--danger); }
+.combat-arrows__line--block { stroke: var(--select); stroke-dasharray: 6 5; }
+.combat-arrows__head--attack { fill: var(--danger); }
+.combat-arrows__head--block { fill: var(--select); }

@@ -62,8 +62,12 @@ function Pick({ choice, answer, hover }: { choice: Choice; answer: Engine['answe
   const options = choice.options ?? [];
   const min = Math.max(0, choice.min ?? 1);
   const max = choice.max === undefined || choice.max < 0 ? options.length : choice.max;
-  const [picked, setPicked] = useState<number[]>(choice.preselected ?? []);
   const ordered = choice.kind === 'order';
+  // When every item must be ordered, start from the order given: usually it doesn't matter and
+  // Confirm is one click; clicking items still lets the player reorder them.
+  const [picked, setPicked] = useState<number[]>(
+    choice.preselected?.length ? choice.preselected : ordered && min >= options.length ? options.map((_, i) => i) : [],
+  );
   const t = useT();
 
   // A single required pick answers on click; anything else needs a confirm.

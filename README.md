@@ -38,6 +38,7 @@ For a production-style run: `npm run build` then `npm start`.
 ```bash
 npm run engine:smoke          # engine loads the card database
 npm run engine:smoke-match    # plays a passive Commander game through the socket and concedes
+npm run engine:smoke-combat   # plays an active game (lands, spells, targets, attacks, blocks); a few minutes
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.

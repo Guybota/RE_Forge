@@ -32,6 +32,8 @@ export type CardState = {
   loyalty?: string;
   defense?: string;
   controllerId?: number;
+  /** Usable right now: playable from hand, can attack, or can block (Forge's actionable highlight). */
+  actionable?: boolean;
   tapped?: boolean;
   sick?: boolean;
   attacking?: boolean;

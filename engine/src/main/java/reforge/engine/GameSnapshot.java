@@ -130,6 +130,7 @@ final class GameSnapshot {
         if (s.getType() != null && s.getType().isPlaneswalker()) o.addProperty("loyalty", s.getLoyalty());
         if (s.getType() != null && s.getType().isBattle()) o.addProperty("defense", s.getDefense());
         o.addProperty("controllerId", c.getController() == null ? null : c.getController().getId());
+        o.addProperty("actionable", gui.isWeaklySelectable(c));
         o.addProperty("tapped", c.isTapped());
         o.addProperty("sick", c.isSick());
         o.addProperty("attacking", c.isAttacking());
@@ -189,8 +190,12 @@ final class GameSnapshot {
             // A defender is a player, or a planeswalker/battle card.
             if (defender instanceof PlayerView) o.addProperty("defenderPlayerId", defender.getId());
             else if (defender != null) o.addProperty("defenderCardId", defender.getId());
+            // While blockers are being declared Forge keeps them as "planned"; after that, as blockers.
             JsonArray blockers = new JsonArray();
-            if (combat.getBlockers(attacker) != null) combat.getBlockers(attacker).forEach(b -> blockers.add(b.getId()));
+            var declared = combat.getBlockers(attacker);
+            var planned = combat.getPlannedBlockers(attacker);
+            var shown = declared != null && !declared.isEmpty() ? declared : planned;
+            if (shown != null) shown.forEach(b -> blockers.add(b.getId()));
             o.add("blockerIds", blockers);
             arr.add(o);
         }

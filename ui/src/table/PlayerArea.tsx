@@ -7,8 +7,9 @@ export type TableContext = {
   selectableCards: Set<number>;
   chosenCards: Set<number>;
   selectablePlayers: Set<number>;
+  /** E.g. the player your attackers are aimed at while declaring attacks. */
+  chosenPlayers: Set<number>;
   targetCards: Set<number>;
-  attackLabels: Map<number, string>;
   playerNames: Map<number, string>;
   onCard: (id: number) => void;
   onPlayer: (id: number) => void;
@@ -28,6 +29,7 @@ export function PlayerArea({ player, active, compact, attackedBy, ctx }: Props) 
   const lands = field.filter(isLand);
   const others = field.filter((c) => !isLand(c));
   const selectable = ctx.selectablePlayers.has(player.id);
+  const chosen = ctx.chosenPlayers.has(player.id);
   const cmdDamage = player.commanderDamage.filter((d) => d.damage > 0);
   const t = useT();
 
@@ -36,7 +38,6 @@ export function PlayerArea({ player, active, compact, attackedBy, ctx }: Props) 
     selectable: ctx.selectableCards.has(c.id),
     chosen: ctx.chosenCards.has(c.id),
     target: ctx.targetCards.has(c.id),
-    attackLabel: c.attacking ? ctx.attackLabels.get(c.id) : undefined,
     onClick: () => ctx.onCard(c.id),
     onHover: ctx.onHover,
   });
@@ -46,7 +47,9 @@ export function PlayerArea({ player, active, compact, attackedBy, ctx }: Props) 
       <header className="player__head">
         <button
           type="button"
-          className={`life ${selectable ? 'is-selectable' : ''}`}
+          className={`life ${selectable ? 'is-selectable' : ''} ${chosen ? 'is-chosen' : ''}`}
+          data-player-id={player.id}
+          aria-pressed={chosen}
           onClick={() => ctx.onPlayer(player.id)}
           aria-label={t('lifeOf', { name: player.name, life: player.life })}
         >

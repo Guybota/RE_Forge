@@ -41,12 +41,15 @@ Feito no ramo:
 - No teu turno o jogo para depois dos bloqueios (`isUiSetToSkipPhase`), para veres o bloqueio antes do dano.
 - `scripts/smoke-combat.mjs`: bot ativo (terrenos, feitiços, alvos de carta e de jogador, ataques, bloqueios).
 
+- Bloqueio do lado do jogador verificado no browser (4 jogadores): atacante escolhido, criatura própria acionável, seta
+  tracejada. O snapshot mostra os bloqueadores "planeados" enquanto se declaram (`getPlannedBlockers`).
+- Diálogo `order` que exige ordenar tudo começa já ordenado (basta Confirmar).
+- Fichas não pedem imagem (o servidor ainda não as suporta), para não aparecer o ícone de imagem partida.
+
 Por fazer:
-1. Confirmar o **bloqueio do lado do jogador**: quando a IA ataca, clicar num atacante (fica "escolhido") e depois numa
-   criatura própria acionável; ver a seta tracejada. Correr `npm run engine:smoke-combat` até `blocks > 0` aparecer nas
-   estatísticas (depende de a IA atacar com o bot a ter criaturas; repetir se preciso).
-2. Distribuir dano entre vários bloqueadores (`assignCombatDamage` → diálogo `amounts`): verificar numa partida.
-3. Commit e juntar ao `main`.
+1. Distribuir dano entre vários bloqueadores (`assignCombatDamage` → diálogo `amounts`): verificar numa partida
+   (não aconteceu nos testes).
+2. O bot `smoke-combat` raramente vê a IA atacar enquanto tem criaturas; os bloqueios ficam cobertos pelo teste manual.
 
 Critério de feito: atacar, escolher alvo em 4 jogadores, bloquear e distribuir dano funcionam no browser; os três testes de fumo passam.
 

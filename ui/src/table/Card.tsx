@@ -10,12 +10,11 @@ type Props = {
   selectable?: boolean;
   chosen?: boolean;
   target?: boolean;
-  attackLabel?: string;
   onClick?: () => void;
   onHover?: (card: CardState | null) => void;
 };
 
-export function Card({ card, size, selectable, chosen, target, attackLabel, onClick, onHover }: Props) {
+export function Card({ card, size, selectable, chosen, target, onClick, onHover }: Props) {
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
   const [fullFailed, setFullFailed] = useState(false);
   const t = useT();
@@ -33,6 +32,7 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
     selectable && 'is-selectable',
     chosen && 'is-chosen',
     target && 'is-target',
+    card.actionable && 'is-actionable',
     full && 'card--printed',
   ].filter(Boolean).join(' ');
 
@@ -41,6 +41,7 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
       <button
         type="button"
         className={classes}
+        data-card-id={card.id}
         onClick={onClick}
         onMouseEnter={() => onHover?.(card)}
         onMouseLeave={() => onHover?.(null)}
@@ -62,6 +63,7 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
       type={onClick ? 'button' : undefined}
       role={onClick ? undefined : 'img'}
       className={classes}
+      data-card-id={card.id}
       onClick={onClick}
       onMouseEnter={() => onHover?.(card)}
       onMouseLeave={() => onHover?.(null)}
@@ -92,7 +94,6 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
           {Object.entries(card.counters).map(([k, v]) => <span key={k} title={k}>{v}</span>)}
         </span>
       )}
-      {attackLabel && <span className="card__attack">→ {attackLabel}</span>}
     </Tag>
   );
 }

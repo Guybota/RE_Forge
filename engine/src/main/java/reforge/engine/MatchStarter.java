@@ -50,6 +50,8 @@ final class MatchStarter {
         FModel.getPreferences().setPref(FPref.PLAYER_NAME, name);
         // Replay recording serialises the whole game on every event; there is no replay viewer here yet.
         FModel.getPreferences().setPref(FPref.UI_RECORD_REPLAYS, false);
+        // Tell the UI which cards can be used right now (playable, can attack, can block).
+        FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
 
         GameRules rules = new GameRules(GameType.Commander);
         rules.setGamesPerMatch(1);

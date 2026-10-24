@@ -12,7 +12,8 @@
     "dev": "concurrently -k -n ui,app \"npm run dev -w ui\" \"wait-on http://localhost:5173 && cross-env RE_FORGE_DEV=1 npm start -w desktop\"",
     "build": "npm run build -w ui",
     "start": "npm start -w desktop",
-    "engine:smoke-match": "node scripts/smoke-match.mjs"
+    "engine:smoke-match": "node scripts/smoke-match.mjs",
+    "engine:smoke-combat": "node scripts/smoke-combat.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

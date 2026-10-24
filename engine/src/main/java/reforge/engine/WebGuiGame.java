@@ -189,6 +189,10 @@ final class WebGuiGame extends AbstractGuiGame {
         markDirty();
     }
 
+    // Forge marks the cards you can use right now (playable, can attack, can block) as "weakly selectable".
+    @Override public void setWeaklySelectable(Iterable<CardView> cards) { super.setWeaklySelectable(cards); markDirty(); }
+    @Override public void clearWeaklySelectable() { super.clearWeaklySelectable(); markDirty(); }
+
     @Override public void flashIncorrectAction() { notice("incorrectAction", null); }
     @Override public void alertUser() { notice("alert", null); }
     @Override public void message(String message, String title) { notice("message", message); }
@@ -428,7 +432,9 @@ final class WebGuiGame extends AbstractGuiGame {
     public boolean isUiSetToSkipPhase(PlayerView playerTurn, PhaseType phase) {
         boolean myTurn = isLocalPlayer(playerTurn);
         if (myTurn) {
-            return phase != PhaseType.MAIN1 && phase != PhaseType.MAIN2;
+            // After blocks so the attacker sees them (and can respond) before damage; the step only
+            // happens when you attacked, so it adds no clicks otherwise.
+            return phase != PhaseType.MAIN1 && phase != PhaseType.MAIN2 && phase != PhaseType.COMBAT_DECLARE_BLOCKERS;
         }
         return phase != PhaseType.COMBAT_DECLARE_BLOCKERS && phase != PhaseType.END_OF_TURN;
     }
