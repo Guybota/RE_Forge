@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
 import { colorKey, manaSymbols } from './cards';
+import { useT } from '../i18n';
 
 type Props = {
   card: CardState;
@@ -17,10 +18,11 @@ type Props = {
 export function Card({ card, size, selectable, chosen, target, attackLabel, onClick, onHover }: Props) {
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
   const [fullFailed, setFullFailed] = useState(false);
+  const t = useT();
   const full = size === 'hand' && !fullFailed ? cardImage(card.imageKey, 'full') : null;
 
   if (card.hidden) {
-    return <div className={`card card--${size} card--back`} aria-label="Carta escondida" />;
+    return <div className={`card card--${size} card--back`} aria-label={t('hiddenCard')} />;
   }
   const classes = [
     'card',
@@ -64,7 +66,7 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
       aria-label={card.name}
       aria-pressed={chosen}
     >
-      {card.commander && size !== 'mini' && <span className="card__tag">Comandante</span>}
+      {card.commander && size !== 'mini' && <span className="card__tag">{t('commander')}</span>}
       <span className="card__top">
         <span className="card__name">{card.name}</span>
         {size !== 'land' && (

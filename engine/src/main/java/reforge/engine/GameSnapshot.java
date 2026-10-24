@@ -20,6 +20,7 @@ import forge.game.spellability.StackItemView;
 import forge.game.zone.ZoneType;
 import forge.gamemodes.match.Selection;
 import forge.trackable.TrackableObject;
+import forge.util.CardTranslation;
 
 /**
  * Turns Forge's GameView into the JSON "state" message, and remembers which id is which view so
@@ -113,13 +114,15 @@ final class GameSnapshot {
             return o;
         }
         CardStateView s = c.getCurrentState();
-        o.addProperty("name", s.getName());
+        o.addProperty("name", name(s));
         o.addProperty("cost", s.getManaCost() == null ? "" : s.getManaCost().toString());
-        o.addProperty("type", s.getType() == null ? "" : s.getType().toString());
+        o.addProperty("type", s.getType() == null ? "" : CardTranslation.getTranslatedType(s));
+        // Untranslated, for the UI's own logic (is it a land? which basic?) in any language.
+        o.addProperty("typeEn", s.getType() == null ? "" : s.getType().toString());
         o.addProperty("colors", s.getColors() == null ? "" : s.getColors().toString());
         o.addProperty("set", s.getSetCode());
         o.addProperty("imageKey", s.getImageKey());
-        o.addProperty("text", s.getOracleText());
+        o.addProperty("text", text(s));
         if (s.getType() != null && s.getType().isCreature()) {
             o.addProperty("power", s.getPower());
             o.addProperty("toughness", s.getToughness());
@@ -144,6 +147,17 @@ final class GameSnapshot {
             o.add("counters", counters);
         }
         return o;
+    }
+
+    /** The card's name in Forge's current language (English when there's no translation). */
+    static String name(CardStateView s) {
+        return CardTranslation.getTranslatedName(s);
+    }
+
+    /** Rules text in the current language; falls back to the English oracle text. */
+    private static String text(CardStateView s) {
+        String translated = CardTranslation.getTranslatedOracle(s);
+        return translated == null || translated.isEmpty() ? s.getOracleText() : translated.replace("\\n", "\n");
     }
 
     private JsonArray stack(GameView game) {

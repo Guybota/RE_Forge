@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CardState, Choice, GameState } from '../engine';
 import type { Engine } from '../useEngine';
+import { useT } from '../i18n';
 
 type Props = {
   choice: Choice;
@@ -43,13 +44,14 @@ export function ChoiceDialog({ choice, answer, onHover, cards }: Props) {
 }
 
 function Reveal({ labels, onDone, hover }: { labels: string[]; onDone: () => void; hover: (i: number) => void }) {
+  const t = useT();
   return (
     <>
       <ul className="choice__list">
         {labels.map((l, i) => <li key={i} onMouseEnter={() => hover(i)}>{l}</li>)}
       </ul>
       <div className="choice__buttons">
-        <button type="button" className="btn btn--primary" onClick={onDone} autoFocus>OK</button>
+        <button type="button" className="btn btn--primary" onClick={onDone} autoFocus>{t('ok')}</button>
       </div>
     </>
   );
@@ -62,6 +64,7 @@ function Pick({ choice, answer, hover }: { choice: Choice; answer: Engine['answe
   const max = choice.max === undefined || choice.max < 0 ? options.length : choice.max;
   const [picked, setPicked] = useState<number[]>(choice.preselected ?? []);
   const ordered = choice.kind === 'order';
+  const t = useT();
 
   // A single required pick answers on click; anything else needs a confirm.
   const instant = max === 1 && !ordered;
@@ -90,10 +93,10 @@ function Pick({ choice, answer, hover }: { choice: Choice; answer: Engine['answe
         })}
       </ul>
       <div className="choice__buttons">
-        {instant && min === 0 && <button type="button" className="btn btn--ghost" onClick={() => answer({ picked: [] })}>Nenhum</button>}
+        {instant && min === 0 && <button type="button" className="btn btn--ghost" onClick={() => answer({ picked: [] })}>{t('none')}</button>}
         {!instant && (
           <button type="button" className="btn btn--primary" disabled={!valid} onClick={() => answer({ picked })}>
-            Confirmar{max > 1 ? ` · ${picked.length}` : ''}
+            {t('confirm')}{max > 1 ? ` · ${picked.length}` : ''}
           </button>
         )}
       </div>
@@ -106,6 +109,7 @@ function Amounts({ choice, answer }: { choice: Choice; answer: Engine['answer'] 
   const total = choice.total ?? 0;
   const [amounts, setAmounts] = useState<number[]>(() => options.map((_, i) => (i === 0 ? total : 0)));
   const left = total - amounts.reduce((a, b) => a + b, 0);
+  const t = useT();
   const change = (i: number, delta: number) =>
     setAmounts((a) => a.map((v, j) => (j === i ? Math.max(0, Math.min(v + delta, v + left)) : v)));
 
@@ -115,15 +119,15 @@ function Amounts({ choice, answer }: { choice: Choice; answer: Engine['answer'] 
         {options.map((o, i) => (
           <li key={i} className="choice__amount">
             <span>{o.label}</span>
-            <button type="button" className="btn btn--ghost" onClick={() => change(i, -1)} aria-label={`Menos para ${o.label}`} disabled={amounts[i] === 0}>−</button>
+            <button type="button" className="btn btn--ghost" onClick={() => change(i, -1)} aria-label={t('less', { name: o.label })} disabled={amounts[i] === 0}>−</button>
             <output>{amounts[i]}</output>
-            <button type="button" className="btn btn--ghost" onClick={() => change(i, 1)} aria-label={`Mais para ${o.label}`} disabled={left === 0}>+</button>
+            <button type="button" className="btn btn--ghost" onClick={() => change(i, 1)} aria-label={t('more', { name: o.label })} disabled={left === 0}>+</button>
           </li>
         ))}
       </ul>
       <div className="choice__buttons">
-        <span className="muted">{left > 0 ? `Faltam ${left}` : ''}</span>
-        <button type="button" className="btn btn--primary" disabled={left !== 0} onClick={() => answer({ amounts })}>Confirmar</button>
+        <span className="muted">{left > 0 ? t('left', { n: left }) : ''}</span>
+        <button type="button" className="btn btn--primary" disabled={left !== 0} onClick={() => answer({ amounts })}>{t('confirm')}</button>
       </div>
     </>
   );
@@ -131,11 +135,12 @@ function Amounts({ choice, answer }: { choice: Choice; answer: Engine['answer'] 
 
 function TextInput({ choice, answer }: { choice: Choice; answer: Engine['answer'] }) {
   const [value, setValue] = useState(choice.initial ?? '');
+  const t = useT();
   return (
     <form className="choice__buttons" onSubmit={(e) => { e.preventDefault(); answer({ value }); }}>
       <input className="input" aria-label={choice.title} inputMode={choice.numeric ? 'numeric' : 'text'} value={value} onChange={(e) => setValue(e.target.value)} autoFocus />
-      <button type="button" className="btn btn--ghost" onClick={() => answer({ value: null })}>Cancelar</button>
-      <button type="submit" className="btn btn--primary">OK</button>
+      <button type="button" className="btn btn--ghost" onClick={() => answer({ value: null })}>{t('cancel')}</button>
+      <button type="submit" className="btn btn--primary">{t('ok')}</button>
     </form>
   );
 }

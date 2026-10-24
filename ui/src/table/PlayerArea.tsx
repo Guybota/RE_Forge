@@ -1,6 +1,7 @@
 import type { CardState, PlayerState } from '../engine';
 import { Card } from './Card';
 import { isLand } from './cards';
+import { useT } from '../i18n';
 
 export type TableContext = {
   selectableCards: Set<number>;
@@ -28,6 +29,7 @@ export function PlayerArea({ player, active, compact, attackedBy, ctx }: Props) 
   const others = field.filter((c) => !isLand(c));
   const selectable = ctx.selectablePlayers.has(player.id);
   const cmdDamage = player.commanderDamage.filter((d) => d.damage > 0);
+  const t = useT();
 
   const cardProps = (c: CardState) => ({
     card: c,
@@ -46,22 +48,22 @@ export function PlayerArea({ player, active, compact, attackedBy, ctx }: Props) 
           type="button"
           className={`life ${selectable ? 'is-selectable' : ''}`}
           onClick={() => ctx.onPlayer(player.id)}
-          aria-label={`${player.name}: ${player.life} de vida`}
+          aria-label={t('lifeOf', { name: player.name, life: player.life })}
         >
           {player.life}
         </button>
         <span className="player__name">{player.name}</span>
-        {active && <span className="chip chip--light">Turno</span>}
-        {attackedBy > 0 && <span className="chip chip--danger">Atacado · {attackedBy}</span>}
+        {active && <span className="chip chip--light">{t('turnChip')}</span>}
+        {attackedBy > 0 && <span className="chip chip--danger">{t('attacked', { n: attackedBy })}</span>}
         <span className="player__stats">
-          <span>Mão {player.handSize}</span>
-          <span title="Biblioteca">Bib {player.librarySize}</span>
-          <span title="Cemitério">Cem {player.zones.graveyard.length}</span>
-          {player.zones.exile.length > 0 && <span title="Exílio">Exl {player.zones.exile.length}</span>}
-          {player.poison > 0 && <span className="danger">Veneno {player.poison}</span>}
+          <span>{t('handCount', { n: player.handSize })}</span>
+          <span title={t('library')}>{t('libraryShort', { n: player.librarySize })}</span>
+          <span title={t('graveyard')}>{t('graveyardShort', { n: player.zones.graveyard.length })}</span>
+          {player.zones.exile.length > 0 && <span title={t('exile')}>{t('exileShort', { n: player.zones.exile.length })}</span>}
+          {player.poison > 0 && <span className="danger">{t('poison', { n: player.poison })}</span>}
           {cmdDamage.map((d) => (
-            <span key={d.commanderId} title={`Dano de comandante de ${ctx.playerNames.get(d.fromPlayerId)}`}>
-              Cmdr {d.damage}/21
+            <span key={d.commanderId} title={t('commanderDamageFrom', { name: ctx.playerNames.get(d.fromPlayerId) ?? '' })}>
+              {t('commanderDamage', { n: d.damage })}
             </span>
           ))}
         </span>

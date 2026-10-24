@@ -14,6 +14,7 @@ const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'ja
 const engine = spawn(java, ['-jar', path.join(root, 'engine/target/re-forge-engine.jar'),
   '--port', '0', '--assets', path.join(root, 'forge/forge-gui'), '--exit-with-parent']);
 engine.stderr.on('data', (d) => process.stderr.write(d));
+engine.on('exit', (code, signal) => console.error(`engine exited: code ${code} signal ${signal}`));
 
 const timeout = setTimeout(() => fail('no game over within 5 minutes'), 300_000);
 function fail(message) {
@@ -34,7 +35,6 @@ engine.stdout.on('data', (chunk) => {
 function play(port) {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   const send = (o) => ws.send(JSON.stringify(o));
-  let lastOkKey = '';
   let conceded = false;
   let sawOpeningHand = false;
   let choices = 0;
@@ -42,7 +42,9 @@ function play(port) {
   let left = false;
   ws.onopen = () => send({ type: 'startMatch', opponents: OPPONENTS });
   let finished = false;
-  ws.onerror = () => { if (!finished) fail('socket error'); };
+  // Report how the socket closed (code/reason) rather than a bare error, so failures can be diagnosed.
+  // The delay lets an engine crash report its exit code first.
+  ws.onclose = (e) => { if (!finished) setTimeout(() => fail(`socket closed: code ${e.code} reason "${e.reason}"`), 1000); };
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
     if (process.env.SMOKE_DEBUG) {
@@ -104,19 +106,26 @@ function play(port) {
       return;
     }
 
-    const { ok, selectable, chosen } = msg.prompt;
-    const okKey = `${msg.turn}|${msg.phase}|${msg.prompt.message}|${msg.stack.length}|${chosen.cards.length}`;
-    if (okKey === lastOkKey) return;
+    latest = msg;
+    latestSeq++;
+  };
+
+  // Act on the newest state once; if nothing new arrives within 2 s, act on it again (an OK can
+  // land while the engine is busy). Prompt texts can repeat or be empty, so don't key on them.
+  let latest = null, latestSeq = 0, actedSeq = -1, actedAt = 0;
+  const tick = setInterval(() => {
+    if (finished) return clearInterval(tick);
+    if (!latest || latest.gameOver || conceded) return;
+    if (latestSeq === actedSeq && Date.now() - actedAt < 2000) return;
+    actedSeq = latestSeq;
+    actedAt = Date.now();
+    const { ok, selectable, chosen } = latest.prompt;
     if (ok.enabled) {
-      lastOkKey = okKey;
       send({ type: 'action', action: 'ok' });
     } else {
       // e.g. discarding to hand size: OK stays off until enough cards are picked
       const card = selectable.cards.find((id) => !chosen.cards.includes(id));
-      if (card !== undefined) {
-        lastOkKey = okKey;
-        send({ type: 'action', action: 'card', id: card });
-      }
+      if (card !== undefined) send({ type: 'action', action: 'card', id: card });
     }
-  };
+  }, 150);
 }

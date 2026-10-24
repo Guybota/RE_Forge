@@ -1,5 +1,7 @@
 node_modules/
 dist/
 engine/target/
+build/
+dist-app/
 .tools/
 *.log

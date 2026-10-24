@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MessageKey } from './i18n';
 import { setImageBase } from './images';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
   status: 'connecting' | 'ready' | 'failed';
-  failure: string | null;
+  failure: MessageKey | null;
   info: EngineInfo | null;
   decks: string[];
   game: GameState | null;
@@ -20,7 +21,7 @@ export type Engine = {
 export function useEngine(): Engine {
   const port = enginePort();
   const [status, setStatus] = useState<Engine['status']>(port ? 'connecting' : 'failed');
-  const [failure, setFailure] = useState<string | null>(port ? null : 'Sem motor: abre a app pelo Electron (npm run dev)');
+  const [failure, setFailure] = useState<MessageKey | null>(port ? null : 'noEngine');
   const [info, setInfo] = useState<EngineInfo | null>(null);
   const [decks, setDecks] = useState<string[]>([]);
   const [game, setGame] = useState<GameState | null>(null);
@@ -44,14 +45,17 @@ export function useEngine(): Engine {
       onError: setError,
       onClosed: () => {
         setStatus('failed');
-        setFailure('Ligação ao motor perdida');
+        setFailure('engineLost');
       },
     });
     conn.current = c;
     return () => c.close();
   }, [port]);
 
-  const send = useCallback((m: ClientMessage) => conn.current?.send(m), []);
+  const send = useCallback((m: ClientMessage) => {
+    setError(null);
+    conn.current?.send(m);
+  }, []);
 
   const answer = useCallback<Engine['answer']>(
     (a) => {

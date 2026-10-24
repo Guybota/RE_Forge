@@ -65,6 +65,44 @@
   opacity: 0;
   pointer-events: none;
 }
+.home__language {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--felt-line);
+  border-radius: 22px;
+  background: transparent;
+  color: var(--on-felt-muted);
+  cursor: pointer;
+}
+
+.languages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(440px, 100%);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.languages__option {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--felt-line);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 17px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.languages__option:hover,
+.languages__option.is-on {
+  background: var(--paper);
+  color: var(--ink);
+}
+
 .segmented label:has(input:focus-visible) {
   outline: 2px solid var(--select);
   outline-offset: 3px;

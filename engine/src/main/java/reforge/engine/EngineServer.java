@@ -47,11 +47,16 @@ public final class EngineServer extends WebSocketServer {
     }
 
     private final String imageBase;
+    private final Settings settings;
 
-    public EngineServer(InetSocketAddress address, String imageBase) {
+    public EngineServer(InetSocketAddress address, String imageBase, Settings settings) {
         super(address);
         this.imageBase = imageBase;
+        this.settings = settings;
         setReuseAddr(true);
+        // The library drops a connection (code 1006) when a ping isn't answered in time. The UI is a
+        // local process that lives and dies with us; the parent-watch already handles it going away.
+        setConnectionLostTimeout(0);
     }
 
     /** Blocks until the socket is bound, then returns the real port (useful when asked for port 0). */
@@ -106,10 +111,25 @@ public final class EngineServer extends WebSocketServer {
         switch (msg.get("type").getAsString()) {
             case "hello" -> c.session.send(engineInfo());
             case "listDecks" -> c.session.send(decks());
+            case "setLanguage" -> c.actions.execute(() -> setLanguage(c, msg));
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "action" -> c.actions.execute(() -> action(c, msg));
             case "answer" -> c.session.onAnswer(msg);
             default -> c.session.send(error("Unknown type: " + msg.get("type").getAsString()));
+        }
+    }
+
+    private void setLanguage(Connection c, JsonObject msg) {
+        // Forge's translators are shared by the whole engine; swapping them mid-game would mix languages.
+        if (c.gui != null && !c.gui.isFinishedForLocalPlayer()) {
+            c.session.send(error("Can't change language during a match"));
+            return;
+        }
+        try {
+            settings.changeLanguage(msg.has("language") ? msg.get("language").getAsString() : "");
+            c.session.send(engineInfo());
+        } catch (IllegalArgumentException | java.io.IOException e) {
+            c.session.send(error(e.getMessage()));
         }
     }
 
@@ -179,6 +199,15 @@ public final class EngineServer extends WebSocketServer {
         o.addProperty("type", "engineInfo");
         o.addProperty("version", Main.VERSION);
         o.addProperty("imageBase", imageBase);
+        o.addProperty("language", settings.language());
+        JsonArray languages = new JsonArray();
+        Settings.LANGUAGES.forEach((code, name) -> {
+            JsonObject l = new JsonObject();
+            l.addProperty("code", code);
+            l.addProperty("name", name);
+            languages.add(l);
+        });
+        o.add("languages", languages);
         o.addProperty("cards", FModel.getMagicDb().getCommonCards().getUniqueCards().size());
         o.addProperty("editions", FModel.getMagicDb().getEditions().size());
         return o;

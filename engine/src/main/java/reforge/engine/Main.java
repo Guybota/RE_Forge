@@ -35,10 +35,11 @@ public final class Main {
         System.setProperty("java.awt.headless", "true");
         writeProfile(new File(assets), new File(data));
         GuiBase.setInterface(new HeadlessGui(assets));
-        FModel.initialize(null, null);
+        Settings settings = new Settings(new File(data));
+        FModel.initialize(null, settings::applyTo);
 
         int imagePort = new ImageServer().start();
-        EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card");
+        EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card", settings);
         server.start();
         System.out.println("READY " + server.awaitPort());
         System.out.flush();

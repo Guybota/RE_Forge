@@ -4,7 +4,8 @@ import type { Engine } from '../useEngine';
 import { cardImage } from '../images';
 import { Card } from './Card';
 import { ChoiceDialog } from './ChoiceDialog';
-import { PHASE_TRACK, manaSymbols, phaseLabel } from './cards';
+import { PHASE_TRACK, manaSymbols, phaseKey } from './cards';
+import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
 import './table.css';
 
@@ -26,13 +27,11 @@ function Preview({ card }: { card: CardState }) {
   );
 }
 
-// Forge's priority prompt repeats what the phase track and stack already show.
-const REDUNDANT_PROMPT_LINE = /^(Priority|Turn|Phase|Stack):/;
-
 export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const [hovered, setHovered] = useState<CardState | null>(null);
   const [shake, setShake] = useState(false);
   const { send } = engine;
+  const t = useT();
 
   const me = game.players.find((p) => p.isLocal) ?? game.players[0];
   const opponents = game.players.filter((p) => p !== me);
@@ -63,8 +62,8 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   useEffect(() => {
     if (engine.notice?.kind !== 'incorrectAction') return;
     setShake(true);
-    const t = setTimeout(() => setShake(false), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShake(false), 400);
+    return () => clearTimeout(timer);
   }, [engine.notice]);
 
   // Space = OK, Escape = cancel, unless a dialog or text field has focus.
@@ -84,8 +83,10 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [engine.choice, prompt, send]);
 
-  const promptText = prompt.message.split('\n').filter((l) => l.trim() && !REDUNDANT_PROMPT_LINE.test(l)).join(' ');
-  const activeTrack = PHASE_TRACK.findIndex((t) => game.phase && t.phases.includes(game.phase));
+  // The engine already dropped the status lines the table shows itself.
+  const promptText = prompt.message.split('\n').join(' ');
+  const activeTrack = PHASE_TRACK.findIndex((step) => game.phase && step.phases.includes(game.phase));
+  const currentStep = phaseKey(game.phase);
   const myTurn = game.activePlayerId === me.id;
 
   return (
@@ -98,16 +99,16 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
         </div>
 
         <div className={`bar ${shake ? 'is-shaking' : ''}`}>
-          <span className="bar__turn" title={phaseLabel(game.phase)}>Turno {game.turn}</span>
+          <span className="bar__turn" title={currentStep ? t(currentStep) : undefined}>{t('turn', { n: game.turn })}</span>
           <ol className="bar__phases">
-            {PHASE_TRACK.map((t, i) => (
-              <li key={t.label} className={i === activeTrack ? 'is-current' : ''}>{t.label}</li>
+            {PHASE_TRACK.map((step, i) => (
+              <li key={step.label} className={i === activeTrack ? 'is-current' : ''}>{t(step.label)}</li>
             ))}
           </ol>
           <span className="bar__prompt" title={prompt.message}>{promptText}</span>
           <span className="bar__buttons">
             {myTurn && game.phase === 'COMBAT_DECLARE_ATTACKERS' && prompt.ok.enabled && (
-              <button type="button" className="btn btn--ghost" onClick={() => send({ type: 'action', action: 'attackAll' })}>Atacar com tudo</button>
+              <button type="button" className="btn btn--ghost" onClick={() => send({ type: 'action', action: 'attackAll' })}>{t('attackAll')}</button>
             )}
             {prompt.cancel.label && (
               <button type="button" className="btn btn--ghost" disabled={!prompt.cancel.enabled} onClick={() => send({ type: 'action', action: 'cancel' })}>
@@ -115,7 +116,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
               </button>
             )}
             {prompt.ok.label && (
-              <button type="button" className="btn btn--primary" disabled={!prompt.ok.enabled} onClick={() => send({ type: 'action', action: 'ok' })} title="Espaço">
+              <button type="button" className="btn btn--primary" disabled={!prompt.ok.enabled} onClick={() => send({ type: 'action', action: 'ok' })} title="Space">
                 {prompt.ok.label}
               </button>
             )}
@@ -124,7 +125,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
         <PlayerArea player={me} active={myTurn} compact={false} attackedBy={attackedBy(me.id)} ctx={ctx} />
 
-        <div className="hand" aria-label="Mão">
+        <div className="hand" aria-label={t('hand')}>
           {me.zones.hand.map((c, i, all) => {
             const d = i - (all.length - 1) / 2;
             return (
@@ -142,20 +143,20 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           {hovered && !hovered.hidden ? <Preview key={hovered.id} card={hovered} /> : null}
         </section>
         <section>
-          <h2>Stack</h2>
+          <h2>{t('stack')}</h2>
           <ol className="side__stack">
             {game.stack.map((s) => <li key={s.id}>{s.text}</li>)}
           </ol>
         </section>
         <section className="side__log">
-          <h2>Registo</h2>
+          <h2>{t('log')}</h2>
           <ol>
             {game.log.map((l, i) => <li key={i}>{l}</li>)}
           </ol>
         </section>
         {!game.gameOver && !me.hasLost && (
           <button type="button" className="side__concede" onClick={() => send({ type: 'action', action: 'concede' })}>
-            Conceder
+            {t('concede')}
           </button>
         )}
       </aside>
@@ -171,7 +172,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       {(game.gameOver || me.hasLost) && (
         <div className="overlay">
           <div className="overlay__box">
-            <h2>{game.gameOver && game.winner === me.name ? 'Vitória' : 'Derrota'}</h2>
+            <h2>{game.gameOver && game.winner === me.name ? t('victory') : t('defeat')}</h2>
             {game.winner && game.winner !== me.name && <p>{game.winner}</p>}
             <button
               type="button"
@@ -182,7 +183,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
                 engine.leaveGame();
               }}
             >
-              Continuar
+              {t('continue')}
             </button>
           </div>
         </div>

@@ -1,14 +1,26 @@
 // Connection to the Java engine bridge. The Electron shell passes its port as ?enginePort=N.
 // Message shapes mirror engine/src/main/java/reforge/engine (GameSnapshot, WebGuiGame, EngineServer).
 
-export type EngineInfo = { type: 'engineInfo'; version: string; cards: number; editions: number; imageBase?: string };
+export type EngineInfo = {
+  type: 'engineInfo';
+  version: string;
+  cards: number;
+  editions: number;
+  imageBase?: string;
+  /** Forge language code; missing until the player has chosen one (first run). */
+  language?: string;
+  languages: { code: string; name: string }[];
+};
 
 export type CardState = {
   id: number;
   hidden?: boolean;
   name?: string;
   cost?: string;
+  /** Type line in the chosen language, for display. */
   type?: string;
+  /** Type line in English, for logic (land detection, basic land colour). */
+  typeEn?: string;
   colors?: string;
   set?: string;
   imageKey?: string;
@@ -97,6 +109,7 @@ export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' 
 export type ClientMessage =
   | { type: 'hello' }
   | { type: 'listDecks' }
+  | { type: 'setLanguage'; language: string }
   | { type: 'startMatch'; deck: string | null; opponents: number }
   | { type: 'action'; action: Action; id?: number }
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null };
@@ -135,7 +148,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
     try {
       msg = JSON.parse(event.data);
     } catch {
-      h.onError('Resposta inválida do motor');
+      h.onError('Invalid reply from the engine');
       return;
     }
     switch (msg.type) {

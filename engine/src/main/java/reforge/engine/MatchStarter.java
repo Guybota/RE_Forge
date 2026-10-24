@@ -12,12 +12,17 @@ import forge.gamemodes.match.HostedMatch;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
+import forge.util.Localizer;
 
 /** Starts a Commander game: the local player against 1–3 AI opponents, using Forge's precon decks. */
 final class MatchStarter {
-    static final String PLAYER_NAME = "Tu";
-
     private MatchStarter() { }
+
+    /** "You" in Forge's current language ("Você", "Vous", …), capitalised to read as a name. */
+    private static String playerName() {
+        String you = Localizer.getInstance().getMessage("lblYou");
+        return you.isEmpty() ? "You" : you.substring(0, 1).toUpperCase() + you.substring(1);
+    }
 
     static List<String> commanderPreconNames() {
         List<String> names = new ArrayList<>(FModel.getDecks().getCommanderPrecons().getItemNames());
@@ -41,7 +46,8 @@ final class MatchStarter {
         precons.remove(mine);
 
         // Forge asks for a name when this preference is blank; we have no dialog for that.
-        FModel.getPreferences().setPref(FPref.PLAYER_NAME, PLAYER_NAME);
+        String name = playerName();
+        FModel.getPreferences().setPref(FPref.PLAYER_NAME, name);
         // Replay recording serialises the whole game on every event; there is no replay viewer here yet.
         FModel.getPreferences().setPref(FPref.UI_RECORD_REPLAYS, false);
 
@@ -52,7 +58,7 @@ final class MatchStarter {
 
         List<RegisteredPlayer> players = new ArrayList<>();
         RegisteredPlayer human = RegisteredPlayer.forCommander(mine);
-        human.setPlayer(GamePlayerUtil.getGuiPlayer(PLAYER_NAME, 0, 0, false));
+        human.setPlayer(GamePlayerUtil.getGuiPlayer(name, 0, 0, false));
         players.add(human);
         for (int i = 0; i < opponents; i++) {
             Deck deck = precons.get(i);

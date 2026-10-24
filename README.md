@@ -58,7 +58,8 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 
 | Direction | `type` | What |
 |---|---|---|
-| UI → engine | `hello`, `listDecks` | Engine info; the Commander precon names |
+| UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); the Commander precon names |
+| UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
 | UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3 |
 | UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave` |
 | UI → engine | `answer` | Reply to a `choice`: `picked` indices, `amounts`, or `value` |
@@ -67,6 +68,8 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | engine → UI | `notice` | `incorrectAction`, `alert`, `message`, `error` |
 
 Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
+Card `name`, `type` and `text` are in the chosen language; `typeEn` is the English type line for UI logic.
+Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other languages fall back to English).
 
 ## Design rule
 

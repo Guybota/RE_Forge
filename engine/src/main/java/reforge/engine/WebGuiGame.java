@@ -35,6 +35,7 @@ import forge.player.PlayerZoneUpdate;
 import forge.trackable.TrackableCollection;
 import forge.util.FSerializableFunction;
 import forge.util.ITriggerEvent;
+import forge.util.Localizer;
 
 /**
  * Forge's view of "the screen" for the local human. Board changes are batched into "state"
@@ -129,8 +130,28 @@ final class WebGuiGame extends AbstractGuiGame {
     @Override
     public void showPromptMessage(PlayerView playerView, String message, CardView card) {
         GameSnapshot.Prompt p = prompt;
-        prompt = new GameSnapshot.Prompt(message, p.ok(), p.cancel(), p.okEnabled(), p.cancelEnabled(), p.selection());
+        prompt = new GameSnapshot.Prompt(withoutStatusLines(message), p.ok(), p.cancel(), p.okEnabled(), p.cancelEnabled(), p.selection());
         markDirty();
+    }
+
+    /**
+     * Forge's priority prompt starts with "Priority: … / Turn: … / Phase: … / Stack: …" lines
+     * (InputBase.getTurnPhasePriorityMessage), which the table already shows. Drop them, in
+     * whatever language Forge is using.
+     */
+    private static String withoutStatusLines(String message) {
+        if (message == null) return "";
+        Localizer l = Localizer.getInstance();
+        List<String> prefixes = List.of(l.getMessage("lblPriority") + ":", l.getMessage("lblTurn") + ":",
+                l.getMessage("lblPhase") + ":", l.getMessage("lblStack") + ":");
+        StringBuilder sb = new StringBuilder();
+        for (String line : message.split("\n")) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || prefixes.stream().anyMatch(trimmed::startsWith)) continue;
+            if (sb.length() > 0) sb.append('\n');
+            sb.append(trimmed);
+        }
+        return sb.toString();
     }
 
     @Override
@@ -199,7 +220,7 @@ final class WebGuiGame extends AbstractGuiGame {
             JsonObject o = new JsonObject();
             if (item instanceof CardView c) {
                 o.addProperty("cardId", c.getId());
-                o.addProperty("label", c.getCurrentState().getName());
+                o.addProperty("label", GameSnapshot.name(c.getCurrentState()));
             } else if (item instanceof PlayerView p) {
                 o.addProperty("playerId", p.getId());
                 o.addProperty("label", p.getName());
@@ -320,7 +341,7 @@ final class WebGuiGame extends AbstractGuiGame {
     public SpellAbilityView getAbilityToPlay(CardView hostCard, List<SpellAbilityView> abilities, ITriggerEvent triggerEvent) {
         if (abilities.isEmpty()) return null;
         if (abilities.size() == 1) return abilities.get(0); // a click on a card with one thing to do just does it
-        List<SpellAbilityView> chosen = chooseFrom("choose", hostCard.getCurrentState().getName(), 0, 1, abilities, null, null);
+        List<SpellAbilityView> chosen = chooseFrom("choose", GameSnapshot.name(hostCard.getCurrentState()), 0, 1, abilities, null, null);
         return chosen.isEmpty() ? null : chosen.get(0);
     }
 
@@ -348,7 +369,7 @@ final class WebGuiGame extends AbstractGuiGame {
         // Forge reads the null key as "damage to the defending player/planeswalker" (trample).
         List<Object> targets = new ArrayList<>(blockers);
         if (defender != null) targets.add(defender);
-        int[] amounts = amounts(attacker.getCurrentState().getName(), damage, targets);
+        int[] amounts = amounts(GameSnapshot.name(attacker.getCurrentState()), damage, targets);
         Map<CardView, Integer> result = new LinkedHashMap<>();
         for (int i = 0; i < blockers.size(); i++) result.put(blockers.get(i), amounts[i]);
         if (defender != null) result.put(null, amounts[blockers.size()]);
@@ -358,7 +379,7 @@ final class WebGuiGame extends AbstractGuiGame {
     @Override
     public Map<Object, Integer> assignGenericAmount(CardView effectSource, Map<Object, Integer> target, int amount, boolean atLeastOne, String amountLabel) {
         List<Object> keys = new ArrayList<>(target.keySet());
-        int[] amounts = amounts(effectSource.getCurrentState().getName(), amount, keys);
+        int[] amounts = amounts(GameSnapshot.name(effectSource.getCurrentState()), amount, keys);
         Map<Object, Integer> result = new LinkedHashMap<>();
         for (int i = 0; i < keys.size(); i++) result.put(keys.get(i), amounts[i]);
         return result;
