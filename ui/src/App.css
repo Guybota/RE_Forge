@@ -149,6 +149,9 @@
   gap: 8px;
 }
 .home__deck select { flex: 1; min-width: 0; }
+/* The buttons sit inside a muted label; they keep the normal ink. */
+.home__deck .btn { color: var(--on-table); }
+.online__form { align-self: center; margin-top: 8vh; }
 
 /* Deck import */
 .import {
@@ -173,14 +176,19 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 640px);
+  justify-content: center;
   gap: 24px;
 }
+/* Before anything is pasted the list stands alone in the middle; the preview column appears with it. */
+.import--preview .import__body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); justify-content: stretch; }
 @media (max-width: 800px) {
-  .import__body { grid-template-columns: 1fr; }
+  .import--preview .import__body { grid-template-columns: 1fr; }
 }
+.import__left { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .import__paste textarea {
-  height: calc(100vh - 260px);
+  width: 100%;
+  height: calc(100vh - 250px);
   min-height: 240px;
   padding: 12px;
   resize: vertical;
@@ -205,11 +213,21 @@
   text-decoration: underline dotted;
   cursor: help;
 }
+.import__groups { min-height: 0; max-height: calc(100vh - 170px); overflow-y: auto; columns: 2 220px; column-gap: 28px; }
+.import__group { break-inside: avoid; margin-bottom: 16px; }
+.import__group h2 { margin: 0 0 4px; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 17px; }
+.import__qty { display: inline-block; min-width: 1.6em; color: var(--on-table-muted); }
+.import__picture {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 3;
+  width: 240px;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
 .import__lines {
-  flex: 1;
-  min-height: 0;
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
   margin: 0;
   padding: 0;
   list-style: none;

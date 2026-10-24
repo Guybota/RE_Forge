@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useT } from './i18n';
 import type { Engine } from './useEngine';
 
+const NAME_STORAGE = 'reforge.playerName';
+
 export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }) {
   const t = useT();
   const { lobby, send } = engine;
   const [mode, setMode] = useState<'host' | 'join'>('host');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(() => {
+    try { return localStorage.getItem(NAME_STORAGE) ?? ''; } catch { return ''; }
+  });
   const [address, setAddress] = useState('');
   const [port, setPort] = useState(36743);
   const [upnp, setUpnp] = useState(false);
@@ -23,17 +27,25 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
     onBack();
   };
   if (!lobby) return (
-    <main className="home">
-      <h1>{t('online')}</h1>
-      <form className="home__form" onSubmit={(event) => {
+    <main className="import">
+      <header className="import__head">
+        <button type="button" className="btn btn--ghost" onClick={back} disabled={busy}>{t('back')}</button>
+        <h1>{t('online')}</h1>
+      </header>
+      <form className="home__form online__form" onSubmit={(event) => {
         event.preventDefault();
         setBusy(true);
+        try { localStorage.setItem(NAME_STORAGE, name.trim()); } catch { /* typed again next time */ }
         send(mode === 'host' ? { type: 'hostGame', name, port, upnp } : { type: 'joinGame', name, address });
       }}>
-        <div className="online__modes">
-          <button type="button" className={`btn ${mode === 'host' ? 'btn--primary' : 'btn--ghost'}`} aria-pressed={mode === 'host'} onClick={() => setMode('host')} disabled={busy}>{t('hostGame')}</button>
-          <button type="button" className={`btn ${mode === 'join' ? 'btn--primary' : 'btn--ghost'}`} aria-pressed={mode === 'join'} onClick={() => setMode('join')} disabled={busy}>{t('joinGame')}</button>
-        </div>
+        <fieldset className="segmented" disabled={busy}>
+          {(['host', 'join'] as const).map((m) => (
+            <label key={m} className={mode === m ? 'is-on' : ''}>
+              <input type="radio" name="online-mode" value={m} checked={mode === m} onChange={() => setMode(m)} />
+              {t(m === 'host' ? 'hostGame' : 'joinGame')}
+            </label>
+          ))}
+        </fieldset>
         <label className="field-label">{t('playerName')}<input className="input" required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} autoComplete="nickname" /></label>
         {mode === 'host' ? <>
           <label className="field-label" title={t('portHint')}>{t('port')}<input className="input" type="number" min={1024} max={65535} required value={port} onChange={(e) => setPort(Number(e.target.value))} disabled={busy} /></label>
@@ -41,7 +53,6 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
         </> : <label className="field-label">{t('address')}<input className="input" required value={address} onChange={(e) => setAddress(e.target.value)} disabled={busy} placeholder="192.168.1.10:36743" /></label>}
         <button type="submit" className="btn btn--primary" disabled={busy || !name.trim()}>{busy ? t('connecting') : t(mode === 'host' ? 'hostGame' : 'joinGame')}</button>
         {engine.error && <p className="error" role="alert">{engine.error}</p>}
-        <button type="button" className="btn btn--ghost" onClick={back} disabled={busy}>{t('back')}</button>
       </form>
     </main>
   );

@@ -274,6 +274,8 @@ button {
   outline: 2px solid var(--select);
   outline-offset: 3px;
 }
+/* Fields already have a border: the ring hugs it instead of drawing a second box around it. */
+.input:focus-visible, textarea.input:focus-visible { outline-offset: -1px; }
 
 .btn {
   height: 44px;

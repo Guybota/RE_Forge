@@ -203,6 +203,11 @@ fila, ampliar um adversário pelo nome (os outros ficam só com o cabeçalho), m
 painel lateral que abre e fecha e regras para janelas baixas. Verificado em
 1440×900 e 1280×720 com `DialogHarness --scenario table`.
 
+Auditoria visual (`fix/visual-audit`): mesa em telemóvel (painel em gaveta, adversários em linhas), cabeçalhos compactos numa
+linha em todas as skins, custo escondido nas cartas pequenas, pré-visualização ao lado da carta, painel com a última carta
+vista, imposto de comandante, sair para o início pelo menu, gramática portuguesa do Forge (ordinais e possessivos),
+importação agrupada por tipo com imagem e impressões originais, ecrã online alinhado com a importação, nome lembrado.
+
 Passo 4 concluído. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 

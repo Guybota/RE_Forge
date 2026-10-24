@@ -41,6 +41,7 @@ public final class Main {
         writeProfile(new File(assets), new File(data));
         GuiBase.setInterface(new HeadlessGui(assets));
         Settings settings = new Settings(new File(data));
+        LangPortuguese.register();
         FModel.initialize(null, settings::applyTo);
 
         int imagePort = new ImageServer().start();

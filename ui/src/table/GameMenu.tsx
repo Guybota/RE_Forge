@@ -5,7 +5,7 @@ import { DEFAULT_SKIN, SKINS } from '../skins';
 import type { Engine } from '../useEngine';
 import { phaseKey } from './cards';
 
-export function GameMenu({ engine, onClose }: { engine: Engine; onClose: () => void }) {
+export function GameMenu({ engine, onClose, onLeave }: { engine: Engine; onClose: () => void; onLeave: () => void }) {
   const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
@@ -73,7 +73,10 @@ export function GameMenu({ engine, onClose }: { engine: Engine; onClose: () => v
       <footer className="game-menu__footer">
         <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => { setBusy(true); engine.send({ type: 'setPhaseStops', stops: null }); }}>{t('resetPhaseStops')}</button>
         <span className="muted" role="status">{busy ? t('saving') : ''}</span>
-        <button type="button" className="btn btn--ghost game-menu__concede" onClick={() => { onClose(); engine.send({ type: 'action', action: 'concede' }); }}>{t('concede')}</button>
+        <span className="game-menu__exit">
+          <button type="button" className="btn btn--ghost" title={t('leaveGameHint')} onClick={() => { onClose(); onLeave(); }}>{t('leaveGame')}</button>
+          <button type="button" className="btn btn--ghost game-menu__concede" onClick={() => { onClose(); engine.send({ type: 'action', action: 'concede' }); }}>{t('concede')}</button>
+        </span>
       </footer>
     </dialog>
   );

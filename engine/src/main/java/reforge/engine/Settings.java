@@ -166,6 +166,9 @@ final class Settings {
 
     /** Sets Forge's language before it loads its texts (FModel.initialize's preference hook). */
     Void applyTo(ForgePreferences prefs) {
+        // Imported decks without a set get the first core/expansion printing: never a promo, a Secret Lair or a
+        // set Forge already lists but that isn't out yet (no picture anywhere).
+        prefs.setPref(FPref.UI_PREFERRED_ART, "ORIGINAL_ART_CORE_EXPANSIONS_REPRINT_ONLY");
         if (language() != null) {
             prefs.setPref(FPref.UI_LANGUAGE, language());
         }

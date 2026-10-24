@@ -40,7 +40,7 @@ export default function App() {
     // First run: 1. language, 2. skin, 3. play.
     screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
   } else if (!engine.info?.skin || picking === 'skin') {
-    screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} />;
+    screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} onBack={() => setPicking('language')} />;
   } else if (picking === 'import') {
     screen = (
       <ImportDeck

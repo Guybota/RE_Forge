@@ -403,7 +403,6 @@
   font-weight: var(--display-weight);
 }
 .side__preview {
-  min-height: 180px;
   padding: 12px 14px;
   border-radius: min(8px, var(--panel-radius));
   background: var(--panel-raised);
@@ -667,6 +666,8 @@
   .player--compact .card--field { width: 54px; height: 75px; }
   .player--compact .card--land, .player--compact .player__command .card--mini { width: 36px; height: 50px; }
   .player--compact .card__type, .player--compact .card__counters { display: none; }
+  .player--compact { padding-block: 4px; gap: 2px; }
+  .player--compact .field { padding-top: 0; row-gap: 6px; }
 }
 
 /* ---------- one opponent's board maximized over the table (your board shrinks to its header; your hand stays for spells) */
@@ -703,13 +704,11 @@
 .player--max-big .card__name { font-size: 16px; }
 .player--max-big .card__type { font-size: 12px; }
 
-/* With the side panel closed the hovered card floats in a corner instead (top: the bar's buttons sit low). */
+/* With the side panel closed the hovered card floats beside it (placed by FloatPreview). */
 .float-preview {
   position: fixed;
-  right: 16px;
-  top: 16px;
   z-index: 5;
-  width: 240px;
+  width: clamp(180px, 30vh, 260px);
   padding: 12px 14px;
   border-radius: var(--panel-radius);
   background: var(--panel);
@@ -737,3 +736,52 @@
 .float-stack h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: 18px; font-weight: var(--display-weight); }
 .float-preview h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 18px; }
 .float-preview p { margin: 4px 0 0; font-size: 13px; }
+
+/* ---------- audit fixes */
+
+/* Compact headers stay on one line in every skin: hand and library move to the name's tooltip. */
+.player--compact .player__minor { display: none; }
+.player--compact .player__head { flex-wrap: nowrap; min-width: 0; }
+.player--compact .player__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+.player--compact .player__stats { flex-shrink: 0; gap: 2px; font-size: 11px; white-space: nowrap; }
+.player--compact .player__stats > span { padding: 0 4px; }
+.player--compact .player__zone { padding: 0 4px; }
+/* Small cards: the name matters more than the cost. */
+.player--compact .card__cost, .card--mini .card__cost, .card--mini .card__pt { display: none; }
+.player--compact .card--field.is-tapped { margin-inline: 10px; }
+.player--compact .card--land.is-tapped { margin-inline: 6px; }
+.game-menu__exit { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- phones: the panel is a drawer, opponents are headers, cards and hand shrink */
+.side-scrim { display: none; }
+@media (max-width: 760px) {
+  .table { grid-template-columns: minmax(0, 1fr); }
+  .table--narrow .side {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 6;
+    width: min(320px, 88vw);
+    border-left-width: 6px;
+    box-shadow: -12px 0 30px rgba(0, 0, 0, 0.45);
+  }
+  .side-scrim { display: block; position: fixed; inset: 0; z-index: 5; border: 0; background: rgba(0, 0, 0, 0.45); }
+  .table--narrow .opponents { flex: 0 0 auto; display: flex; flex-direction: column; }
+  .table--narrow .opponents > .player { flex: 0 0 auto; min-width: 0; }
+  .table--narrow .player--collapsed { width: auto; }
+  .table--narrow .player--collapsed .player__head { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+  .table--narrow .opponents--1 { flex: 1 1 0; }
+  .table--narrow .bar { flex-wrap: wrap; row-gap: 6px; padding: 8px 12px; }
+  .table--narrow .bar__phases { display: none; }
+  .table--narrow .bar__prompt { order: 3; flex-basis: 100%; white-space: normal; }
+  .table--narrow .player { padding: 8px 12px; }
+  .table--narrow .field { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-end; gap: 6px; }
+  .table--narrow .field__row { display: contents; }
+  .table--narrow .card--field { width: 60px; height: 84px; padding: 3px; }
+  .table--narrow .card--land { width: 40px; height: 56px; padding: 3px; }
+  .table--narrow .card__type, .table--narrow .card__cost { display: none; }
+  .table--narrow .card__name { font-size: 8px; }
+  .table--narrow .hand { flex-basis: 110px; }
+  .table--narrow .card--hand { width: 86px; height: 120px; }
+  .table--narrow .hand__slot { margin-left: -24px; }
+  .table--narrow .hand__slot:hover .card { --lift: -40px; }
+}

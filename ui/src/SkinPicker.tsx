@@ -4,13 +4,14 @@ import { SKINS } from './skins';
 import { Card } from './table/Card';
 import type { Engine } from './useEngine';
 
-// What each tile draws: a life total, a creature and the OK button, in that tile's own skin.
-const SAMPLE: CardState = { id: -1, name: 'Llanowar Elves', cost: '{G}', type: 'Creature — Elf Druid', typeEn: 'Creature — Elf Druid', power: 1, toughness: 1 };
 
 /** First-run step 2 (after the language), and reachable from the home screen. */
-export function SkinPicker({ engine, onDone }: { engine: Engine; onDone?: () => void }) {
+export function SkinPicker({ engine, onDone, onBack }: { engine: Engine; onDone?: () => void; onBack?: () => void }) {
   const t = useT();
   const current = engine.info?.skin;
+  // What each tile draws: a life total, a creature and the OK button, in that tile's own skin.
+  const sample: CardState = { id: -1, name: t('sampleCardName'), cost: '{G}', type: t('sampleCardType'), typeEn: 'Creature — Elf Druid',
+    imageKey: 'c:Llanowar Elves|M11', power: 1, toughness: 1 };
 
   return (
     <main className="home">
@@ -29,7 +30,7 @@ export function SkinPicker({ engine, onDone }: { engine: Engine; onDone?: () => 
             >
               <span className="skin-tile__table" aria-hidden="true">
                 <span className="life">40</span>
-                <Card card={SAMPLE} size="field" />
+                <Card card={sample} size="field" />
                 <span className="btn btn--primary skin-tile__ok">OK</span>
               </span>
               <span className="skin-tile__name">{t(s.name)}</span>
@@ -37,6 +38,7 @@ export function SkinPicker({ engine, onDone }: { engine: Engine; onDone?: () => 
           </li>
         ))}
       </ul>
+      {onBack && <button type="button" className="btn btn--ghost" onClick={onBack}>{t('language')}</button>}
     </main>
   );
 }

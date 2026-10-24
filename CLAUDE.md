@@ -49,7 +49,12 @@ docs/       PLAN.md (roadmap).
   opponent's name enlarges that board and collapses the others (not during combat). Short windows (≤ 820 px) flow every board. The icon next to an opponent's life maximizes that board with large cards;
   your board shrinks to its header and your hand stays, so spells can target it (Escape or the same icon returns; not
   during combat). The side panel can be hidden (remembered in `localStorage`); then Menu and the panel toggle sit in the
-  bar, the hovered card floats top-right and the stack floats bottom-left. The stack only shows while it has items.
+  bar, the hovered card floats beside it (`FloatPreview`) and the stack floats bottom-left. The stack only shows while it
+  has items; the panel keeps the last card looked at. Phones (≤ 760 px): the panel is a drawer, opponents are header rows
+  (maximize to see a board), the bar wraps. Compact headers keep one line: hand/library move to the name's tooltip.
+  Commander tax shows as a badge on the command-zone card (`commanderCasts` in the state).
+- Leaving a match from the menu concedes (Forge confirms) and goes home; `useEngine` ignores the old match's late
+  states and questions after `leaveGame` until a new match starts.
 - `table/ZoneViewer.tsx` — a player's graveyard or exile (the counters in `PlayerArea` open it). Usable cards, e.g. flashback,
   are cast from here; face-down cards stay hidden.
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
@@ -123,6 +128,10 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
   tokens via `CardEdition.getTokens`). Collector numbers differ between printings: check real ones (e.g. Bolt M11 = 149).
 - Scryfall answers a translated printing without a scan with the English picture stamped "Localized Image Not
   Available"; only the card JSON's `image_status` (`placeholder`) tells. `ImageServer` checks it before non-English downloads.
+- Forge has no Portuguese `Lang` (ordinals, possessives) and fell back to English ("2nd", "X's Upkeep"):
+  `LangPortuguese` is registered for pt-BR before `FModel.initialize`.
+- `UI_PREFERRED_ART` is `ORIGINAL_ART_CORE_EXPANSIONS_REPRINT_ONLY`: "latest" picked promos and sets Forge lists before
+  release (no picture on Scryfall).
 - Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).
 - Choice bots should start `amounts` from `initialAmounts`, honor the prompt's constraints, and return a full permutation
   for `arrange`. Hidden choice cards have no label/details; explicit reveals authorize only the listed cards.

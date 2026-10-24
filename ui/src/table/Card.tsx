@@ -14,9 +14,11 @@ type Props = {
   onHover?: (card: CardState | null) => void;
   /** Identical cards shown as this one; above 1 the card is drawn as a pile with a count. */
   count?: number;
+  /** A small corner label, e.g. the commander tax. */
+  badge?: { text: string; title: string };
 };
 
-export function Card({ card, size, selectable, chosen, target, onClick, onHover, count = 1 }: Props) {
+export function Card({ card, size, selectable, chosen, target, onClick, onHover, count = 1, badge }: Props) {
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
   const [fullFailed, setFullFailed] = useState<string | null>(null);
   const t = useT();
@@ -39,7 +41,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
     full && 'card--printed',
     count > 1 && 'card--pile',
   ].filter(Boolean).join(' ');
-  const pile = count > 1 && <span className="card__count" aria-hidden="true">×{count}</span>;
+  const pile = (count > 1 || badge) && <span className="card__count" title={badge?.title} aria-hidden={!badge}>{badge ? badge.text : `×${count}`}</span>;
   const label = count > 1 ? `${card.name} ×${count}` : card.name;
 
   if (full) {

@@ -93,6 +93,17 @@ final class GameSnapshot {
             }
         }
         o.add("commanderDamage", cmdDamage);
+
+        JsonArray casts = new JsonArray();
+        if (p.getCommanders() != null) {
+            for (CardView commander : p.getCommanders()) {
+                JsonObject c = new JsonObject();
+                c.addProperty("id", commander.getId());
+                c.addProperty("casts", p.getCommanderCast(commander));
+                casts.add(c);
+            }
+        }
+        o.add("commanderCasts", casts);
         return o;
     }
 

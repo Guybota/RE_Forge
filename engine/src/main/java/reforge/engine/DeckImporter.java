@@ -17,6 +17,7 @@ import forge.gui.interfaces.ICheckBox;
 import forge.gui.interfaces.IComboBox;
 import forge.item.PaperCard;
 import forge.model.FModel;
+import forge.util.CardTranslation;
 import forge.util.storage.IStorage;
 
 /**
@@ -45,6 +46,14 @@ final class DeckImporter {
             l.addProperty("status", status);
             String message = controller.getTokenStatusMessage(t);
             if (message != null && !message.isEmpty()) l.addProperty("message", message);
+            PaperCard card = t.getCard();
+            if (card != null) {
+                // For the grouped list: translated name, a type group and the picture of the chosen printing.
+                l.addProperty("name", CardTranslation.getTranslatedName(card.getName()));
+                l.addProperty("qty", t.getQuantity());
+                l.addProperty("group", t.getTokenSection() == DeckSection.Commander ? "commander" : group(card));
+                l.addProperty("imageKey", card.getImageKey(false));
+            }
             lines.add(l);
         }
 
@@ -84,6 +93,19 @@ final class DeckImporter {
 
     static IStorage<Deck> mine() {
         return FModel.getDecks().getCommander();
+    }
+
+    private static String group(PaperCard card) {
+        var type = card.getRules().getType();
+        if (type.isLand()) return "land";
+        if (type.isCreature()) return "creature";
+        if (type.isPlaneswalker()) return "planeswalker";
+        if (type.isInstant()) return "instant";
+        if (type.isSorcery()) return "sorcery";
+        if (type.isArtifact()) return "artifact";
+        if (type.isEnchantment()) return "enchantment";
+        if (type.isBattle()) return "battle";
+        return "other";
     }
 
     private static String status(TokenType type) {

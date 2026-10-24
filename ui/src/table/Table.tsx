@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import type { Engine } from '../useEngine';
 import { cardImage } from '../images';
@@ -31,20 +31,60 @@ function Preview({ card }: { card: CardState }) {
   );
 }
 
+/** With the side panel closed: the hovered card, drawn beside it (never over it) and kept inside the window. */
+function FloatPreview({ card }: { card: CardState }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const target = document.querySelector(`[data-card-id="${card.id}"]`)?.getBoundingClientRect();
+    const box = ref.current?.getBoundingClientRect();
+    if (!target || !box) return;
+    const gap = 12, w = box.width, h = box.height;
+    const right = target.right + gap + w <= window.innerWidth - 8;
+    const left = right ? target.right + gap : Math.max(8, target.left - gap - w);
+    const top = Math.min(Math.max(8, target.top + target.height / 2 - h / 2), window.innerHeight - h - 8);
+    setPos({ left, top });
+  }, [card]);
+  return (
+    <div ref={ref} className="float-preview" aria-hidden="true" style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
+      <Preview card={card} />
+    </div>
+  );
+}
+
 const SIDE_STORAGE = 'reforge.sidePanel';
+const NARROW = '(max-width: 760px)';
+
+/** True while the window matches the media query. */
+function useMedia(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
+}
 
 export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const [hovered, setHovered] = useState<CardState | null>(null);
+  // The side panel keeps showing the last card looked at instead of going blank.
+  const [lastSeen, setLastSeen] = useState<CardState | null>(null);
+  useEffect(() => { if (hovered && !hovered.hidden) setLastSeen(hovered); }, [hovered]);
+  const narrow = useMedia(NARROW);
   const [shake, setShake] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [zone, setZone] = useState<OpenZone | null>(null);
   const [focus, setFocus] = useState<number | null>(null);
   const [maximize, setMaximize] = useState<number | null>(null);
+  // On a phone the panel is a drawer over the table, closed until asked for; the choice is not remembered there.
   const [sideOpen, setSideOpen] = useState(() => {
+    if (window.matchMedia(NARROW).matches) return false;
     try { return localStorage.getItem(SIDE_STORAGE) !== 'closed'; } catch { return true; }
   });
   const toggleSide = () => setSideOpen((open) => {
-    try { localStorage.setItem(SIDE_STORAGE, open ? 'closed' : 'open'); } catch { /* remembered for this session only */ }
+    if (!narrow) try { localStorage.setItem(SIDE_STORAGE, open ? 'closed' : 'open'); } catch { /* remembered for this session only */ }
     return !open;
   });
   const { send } = engine;
@@ -83,6 +123,8 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // During combat every board stays open so the attack and block arrows have both ends.
   const focused = game.combat.length === 0 && opponents.some((p) => p.id === focus) ? focus : null;
   const maximized = game.combat.length === 0 ? opponents.find((p) => p.id === maximize) : undefined;
+  // Phones show opponents as headers only (life, counts); a tap on the maximize icon opens a board.
+  const headersOnly = narrow && opponents.length > 1;
   const attackedBy = (playerId: number) => game.combat.filter((a) => a.defenderPlayerId === playerId).length;
 
   useEffect(() => {
@@ -119,6 +161,30 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const currentStep = phaseKey(game.phase);
   const myTurn = game.activePlayerId === me.id;
 
+  const leave = () => {
+    if (engine.lobby) {
+      send({ type: 'leaveLobby' });
+      engine.leaveGame();
+      return;
+    }
+    // In multiplayer the AIs keep playing after we're out; leaving ends the game for them.
+    if (!game.gameOver) send({ type: 'action', action: 'leave' });
+    engine.leaveGame();
+  };
+
+  // "Leave" from the menu concedes first; Forge asks to confirm. Confirmed: straight home. Cancelled: stay.
+  const [leaving, setLeaving] = useState(false);
+  const askedToConcede = useRef(false);
+  useEffect(() => {
+    if (!leaving) return;
+    if (me.hasLost || game.gameOver) { askedToConcede.current = false; setLeaving(false); leave(); return; }
+    if (engine.choice) { askedToConcede.current = true; return; }
+    if (!askedToConcede.current) return;
+    // The question closed without a loss arriving soon after: the player cancelled.
+    const timer = setTimeout(() => { askedToConcede.current = false; setLeaving(false); }, 1500);
+    return () => clearTimeout(timer);
+  }, [leaving, engine.choice, me.hasLost, game.gameOver]);
+
   // Only while something is waiting to resolve.
   const stack = game.stack.length > 0 && (
     <section aria-live="polite">
@@ -130,7 +196,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   );
 
   return (
-    <div className={`table ${sideOpen ? '' : 'table--wide'}`}>
+    <div className={`table ${sideOpen && !narrow ? '' : 'table--wide'} ${narrow ? 'table--narrow' : ''}`}>
       <div className={`table__main ${maximized ? 'table__main--max' : ''}`} ref={main}>
         <CombatArrows game={game} container={main} />
         {maximized ? (
@@ -142,7 +208,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           ? { gridTemplateColumns: opponents.map((p) => (p.id === focused ? 'minmax(0, 1fr)' : 'auto')).join(' ') } : undefined}>
           {opponents.map((p) => (
             <PlayerArea key={p.id} player={p} active={game.activePlayerId === p.id} focused={p.id === focused}
-              collapsed={focused !== null && p.id !== focused} compact={opponents.length > 1 && focused === null}
+              collapsed={headersOnly || (focused !== null && p.id !== focused)} compact={opponents.length > 1 && focused === null}
               attackedBy={attackedBy(p.id)} ctx={ctx} />
           ))}
         </div>}
@@ -194,8 +260,9 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       </div>
 
       {!sideOpen && game.stack.length > 0 && <div className="float-stack">{stack}</div>}
-      {!sideOpen && hovered && !hovered.hidden && <div className="float-preview" aria-hidden="true"><Preview key={hovered.id} card={hovered} /></div>}
+      {!sideOpen && !narrow && hovered && !hovered.hidden && <FloatPreview key={hovered.id} card={hovered} />}
 
+      {sideOpen && narrow && <button type="button" className="side-scrim" aria-label={t('hidePanel')} onClick={toggleSide} />}
       {sideOpen && <aside className="side">
         <div className="side__tools">
           <button type="button" className="side__menu side__icon" aria-label={t('hidePanel')} title={t('hidePanel')} onClick={toggleSide}>
@@ -203,9 +270,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           </button>
           {!game.gameOver && !me.hasLost && <button type="button" className="side__menu" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>}
         </div>
-        <section className="side__preview" aria-live="polite">
-          {hovered && !hovered.hidden ? <Preview key={hovered.id} card={hovered} /> : null}
-        </section>
+        {lastSeen && <section className="side__preview" aria-live="polite"><Preview key={lastSeen.id} card={lastSeen} /></section>}
         {stack}
         <section className="side__log">
           <h2>{t('log')}</h2>
@@ -215,7 +280,11 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
         </section>
       </aside>}
 
-      {menuOpen && !engine.choice && !game.gameOver && !me.hasLost && <GameMenu engine={engine} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && !engine.choice && !game.gameOver && !me.hasLost && <GameMenu engine={engine} onClose={() => setMenuOpen(false)} onLeave={() => {
+        if (engine.lobby) { leave(); return; }
+        setLeaving(true);
+        send({ type: 'action', action: 'concede' });
+      }} />}
 
       {zone && !menuOpen && !engine.choice && (() => {
         const owner = game.players.find((p) => p.id === zone.playerId);
@@ -235,20 +304,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           <div className="overlay__box">
             <h2>{game.gameOver && game.winner === me.name ? t('victory') : t('defeat')}</h2>
             {game.winner && game.winner !== me.name && <p>{game.winner}</p>}
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => {
-                if (engine.lobby) {
-                  send({ type: 'leaveLobby' });
-                  engine.leaveGame();
-                  return;
-                }
-                // In multiplayer the AIs keep playing after we're out; leaving ends the game for them.
-                if (!game.gameOver) send({ type: 'action', action: 'leave' });
-                engine.leaveGame();
-              }}
-            >
+            <button type="button" className="btn btn--primary" onClick={leave}>
               {t('continue')}
             </button>
           </div>

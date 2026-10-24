@@ -54,6 +54,8 @@ export type CardState = {
 
 export type PlayerState = {
   id: number;
+  /** How often each commander was cast from the command zone (tax = 2 × casts). */
+  commanderCasts?: { id: number; casts: number }[];
   name: string;
   life: number;
   poison: number;
@@ -130,7 +132,8 @@ export type ChatMessage = { type: 'chatMessage'; source?: string; text: string; 
 
 export type DeckPreview = {
   type: 'deckPreview';
-  lines: { text: string; status: 'ok' | 'warning' | 'error'; message?: string }[];
+  /** Card lines also carry the translated name, quantity, type group and picture of the chosen printing. */
+  lines: { text: string; status: 'ok' | 'warning' | 'error'; message?: string; name?: string; qty?: number; group?: string; imageKey?: string }[];
   unknown: number;
   name?: string;
   cards?: number;

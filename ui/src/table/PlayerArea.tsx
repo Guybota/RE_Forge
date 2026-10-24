@@ -50,6 +50,7 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
   const chosen = ctx.chosenPlayers.has(player.id);
   const cmdDamage = player.commanderDamage.filter((d) => d.damage > 0);
   const t = useT();
+  const counts = `${t('handCount', { n: player.handSize })} · ${t('libraryShort', { n: player.librarySize })}`;
 
   const cardProps = (c: CardState) => ({
     card: c,
@@ -62,7 +63,11 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
 
   const command = (
     <span className="player__command">
-      {player.zones.command.map((c) => <Card key={c.id} size="mini" {...cardProps(c)} />)}
+      {player.zones.command.map((c) => {
+        const casts = player.commanderCasts?.find((x) => x.id === c.id)?.casts ?? 0;
+        return <Card key={c.id} size="mini" {...cardProps(c)}
+          badge={casts > 0 ? { text: `+${casts * 2}`, title: t('commanderTax', { n: casts * 2 }) } : undefined} />;
+      })}
     </span>
   );
 
@@ -87,13 +92,13 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
         )}
         {ctx.onFocus && !player.isLocal && !maximized
           ? <button type="button" className="player__name player__name--button" aria-pressed={!!focused}
-              title={t(focused ? 'showAllBoards' : 'enlargeBoard')} onClick={() => ctx.onFocus?.(player.id)}>{player.name}</button>
-          : <span className="player__name">{player.name}</span>}
+              title={`${t(focused ? 'showAllBoards' : 'enlargeBoard')} · ${counts}`} onClick={() => ctx.onFocus?.(player.id)}>{player.name}</button>
+          : <span className="player__name" title={compact ? counts : undefined}>{player.name}</span>}
         {active && <span className="chip chip--light">{t('turnChip')}</span>}
         {attackedBy > 0 && <span className="chip chip--danger">{t('attacked', { n: attackedBy })}</span>}
         <span className="player__stats">
-          <span>{t('handCount', { n: player.handSize })}</span>
-          <span title={t('library')}>{t('libraryShort', { n: player.librarySize })}</span>
+          <span className="player__minor">{t('handCount', { n: player.handSize })}</span>
+          <span className="player__minor" title={t('library')}>{t('libraryShort', { n: player.librarySize })}</span>
           {(['graveyard', 'exile'] as const).map((zone) => {
             const n = player.zones[zone].length;
             if (zone === 'exile' && n === 0) return null;

@@ -37,6 +37,8 @@ export function useEngine(): Engine {
   const [lobby, setLobby] = useState<LobbyState | null>(null);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const conn = useRef<EngineConnection | null>(null);
+  // After leaving a match its last states and questions may still arrive; they must not reopen the table.
+  const left = useRef(false);
 
   useEffect(() => {
     if (!port) return;
@@ -48,10 +50,11 @@ export function useEngine(): Engine {
       },
       onDecks: setDecks,
       onDeckPreview: setDeckPreview,
-      onState: setGame,
-      onChoice: setChoice,
+      onState: (g) => { if (!left.current) setGame(g); },
+      onChoice: (q) => { if (!left.current) setChoice(q); },
       onNotice: (n) => setNotice({ ...n, at: Date.now() }),
       onLobby: (l) => {
+        if (l) left.current = false;
         setLobby(l);
         if (!l) { setGame(null); setChoice(null); setChat([]); }
       },
@@ -68,6 +71,7 @@ export function useEngine(): Engine {
 
   const send = useCallback((m: ClientMessage) => {
     setError(null);
+    if (m.type === 'startMatch' || m.type === 'startOnlineMatch') left.current = false;
     conn.current?.send(m);
   }, []);
 
@@ -79,7 +83,11 @@ export function useEngine(): Engine {
     [choice, send],
   );
 
-  const leaveGame = useCallback(() => setGame(null), []);
+  const leaveGame = useCallback(() => {
+    left.current = true;
+    setGame(null);
+    setChoice(null);
+  }, []);
 
   return { status, failure, info, decks, deckPreview, game, choice, notice, error, lobby, chat, send, answer, leaveGame };
 }
