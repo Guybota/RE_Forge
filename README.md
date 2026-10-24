@@ -43,6 +43,7 @@ npm run engine:smoke-import   # imports scripts/fixtures/riders-of-rohan-arena.t
 npm run engine:smoke-online   # two engines: lobby, chat, private hands, remote turns and concession
 npm run engine:smoke-settings # settings survive restart; phase stops change live priority
 npm run engine:smoke-dialogs  # deterministic choices, invalid answers, scry/surveil and a real double block
+npm run engine:smoke-images   # card/token image URLs, per-language cache, English fallback, retries (simulated Scryfall)
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.
@@ -83,9 +84,10 @@ The engine keeps Forge's preferences, decks and caches in `%APPDATA%\RE-Forge` (
 never in the `%APPDATA%\Forge` folder an installed Forge uses. It does this by writing `forge/forge-gui/forge.profile.properties`
 (ignored by Forge's git) on every start.
 
-Card pictures are served by the engine at `<imageBase>?key=<imageKey>&format=crop|full` (`imageBase` comes in `engineInfo`,
-`imageKey` on each card). The first request downloads from Scryfall through Forge's rate limiter; after that it is read
-from `cache/reforge-art/`. Tokens have no picture yet.
+Card and token pictures are served by the engine at `<imageBase>?key=<imageKey>&format=crop|full&lang=<language>`
+(`imageBase` comes in `engineInfo`, `imageKey` on each card). The first request downloads from Scryfall through Forge's
+rate limiter, in the chosen language when Scryfall has it (English otherwise); after that it is read from
+`cache/reforge-art/`, one file per language.
 
 ## Engine protocol
 

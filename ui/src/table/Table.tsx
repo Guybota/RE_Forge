@@ -13,10 +13,10 @@ import './table.css';
 
 /** The printed card when there is a picture (it already shows name, cost and text); the text otherwise. */
 function Preview({ card }: { card: CardState }) {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   const src = cardImage(card.imageKey, 'full');
-  if (src && !failed) {
-    return <img className="side__image" src={src} alt={`${card.name}: ${card.text ?? ''}`} onError={() => setFailed(true)} />;
+  if (src && failed !== src) {
+    return <img className="side__image" src={src} alt={`${card.name}: ${card.text ?? ''}`} onError={() => setFailed(src)} />;
   }
   return (
     <>

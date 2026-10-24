@@ -70,6 +70,7 @@ npm run engine:smoke-import   # import a decklist fixture, play it, delete it
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
+npm run engine:smoke-images   # image URLs (cards, tokens), per-language cache, English fallback, retries
 ```
 
 ### Checking the UI in a browser
@@ -110,8 +111,8 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 - Java-WebSocket's ping timeout closed idle local connections (code 1006) → `setConnectionLostTimeout(0)`.
 - Forge's priority prompt starts with Priority/Turn/Phase/Stack lines; `WebGuiGame` strips them in any language.
 - Forge only marks playable/attacking/blocking cards (`actionable`) when `UI_SHOW_ACTIONABLE_HIGHLIGHTS` is on.
-- `ImageFetcher` asserts it runs on the GUI thread, so `ImageServer` builds Scryfall URLs itself (`ImageUtil`). Tokens have no
-  picture yet.
+- `ImageFetcher` asserts it runs on the GUI thread, so `ImageServer` builds Scryfall URLs itself (`ImageUtil`;
+  tokens via `CardEdition.getTokens`). Collector numbers differ between printings: check real ones (e.g. Bolt M11 = 149).
 - Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).
 - Choice bots should start `amounts` from `initialAmounts`, honor the prompt's constraints, and return a full permutation
   for `arrange`. Hidden choice cards have no label/details; explicit reveals authorize only the listed cards.

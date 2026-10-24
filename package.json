@@ -17,7 +17,8 @@
     "engine:smoke-import": "node scripts/smoke-import.mjs",
     "engine:smoke-online": "node scripts/smoke-online.mjs",
     "engine:smoke-settings": "node scripts/smoke-settings.mjs",
-    "engine:smoke-dialogs": "node scripts/smoke-dialogs.mjs"
+    "engine:smoke-dialogs": "node scripts/smoke-dialogs.mjs",
+    "engine:smoke-images": "node scripts/smoke-images.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

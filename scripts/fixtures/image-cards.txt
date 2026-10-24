@@ -1,0 +1,12 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=T:w_1_1_spirit_flying|Set:ISD;Delver of Secrets|Set:ISD|Transformed;Forest|Set:M11
+p1battlefield=T:b_2_2_zombie|Set:ISD
+p0hand=Lightning Bolt|Set:M11;Sol Ring|Set:VOC
+p1hand=
+p0library=Forest;Island;Plains;Mountain;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

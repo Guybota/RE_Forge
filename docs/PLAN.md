@@ -181,7 +181,15 @@ Auditoria dos diálogos concluída no ramo `feat/dialog-audit`:
   esperadas. Diálogo de dano verificado também a 390 px. Motor e UI compilam; regressões de definições, online,
   importação, partida local e combate passaram (esta execução aleatória de combate teve ataques, sem bloqueios).
 
-Por fazer neste passo: opções de IA, imagens e consulta das zonas. Sideboard entre jogos e escolhas de modos futuros
+Imagens concluídas no ramo `feat/card-images`:
+- Fichas (`t:`) resolvidas pelos dados de edição do Forge (`CardEdition.getTokens`, `getTokensCode`), incluindo verso.
+- Imagens no idioma escolhido (`lang` no pedido, códigos do Scryfall); se a tradução não existe (404/422), usa o inglês e
+  guarda-o para esse idioma. Falhas temporárias (rede, 5xx, resposta que não é JPEG) não ficam em cache e voltam a ser
+  tentadas; o browser não guarda essas respostas (`no-store`). Cache separada por idioma; a cache antiga (só inglês) continua
+  válida. Pedidos iguais em simultâneo partilham um download.
+- `engine:smoke-images` (`ImageHarness`, Scryfall simulado) e verificação real: carta em português, ficha e cache por idioma.
+
+Por fazer neste passo: opções de IA e consulta das zonas. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).

@@ -60,9 +60,9 @@ export function ChoiceDialog({ choice, answer, onHover, cards }: Props) {
 }
 
 function ChoicePreview({ card }: { card: CardState }) {
-  const [failed, setFailed] = useState(false);
-  const image = card.token ? null : cardImage(card.imageKey, 'full');
-  if (image && !failed) return <img src={image} alt={card.name ?? ''} onError={() => setFailed(true)} />;
+  const [failed, setFailed] = useState<string | null>(null);
+  const image = cardImage(card.imageKey, 'full');
+  if (image && failed !== image) return <img src={image} alt={card.name ?? ''} onError={() => setFailed(image)} />;
   return <><h3>{card.name}</h3><p>{card.type}</p><p>{card.text}</p></>;
 }
 

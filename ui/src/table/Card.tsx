@@ -16,9 +16,10 @@ type Props = {
 
 export function Card({ card, size, selectable, chosen, target, onClick, onHover }: Props) {
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
-  const [fullFailed, setFullFailed] = useState(false);
+  const [fullFailed, setFullFailed] = useState<string | null>(null);
   const t = useT();
-  const full = size === 'hand' && !fullFailed ? cardImage(card.imageKey, 'full') : null;
+  const requestedFull = size === 'hand' ? cardImage(card.imageKey, 'full') : null;
+  const full = requestedFull !== fullFailed ? requestedFull : null;
 
   if (card.hidden) {
     return <div className={`card card--${size} card--back`} aria-label={t('hiddenCard')} />;
@@ -49,7 +50,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover 
         aria-label={card.name}
         aria-pressed={chosen}
       >
-        <img src={full} alt="" decoding="async" onError={() => setFullFailed(true)} />
+        <img src={full} alt="" decoding="async" onError={() => setFullFailed(full)} />
       </button>
     );
   }
@@ -83,7 +84,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover 
         )}
       </span>
       <span className="card__art">
-        {art && <img src={art} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true; }} />}
+        {art && <img key={art} src={art} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true; }} />}
       </span>
       {size !== 'land' && size !== 'mini' && <span className="card__type">{card.type}</span>}
       {(pt !== undefined || !!card.damage) && size !== 'land' && (

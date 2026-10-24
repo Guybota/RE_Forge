@@ -42,7 +42,7 @@ export function useEngine(): Engine {
     if (!port) return;
     const c = connectEngine(port, {
       onInfo: (i) => {
-        setImageBase(i.imageBase);
+        setImageBase(i.imageBase, i.language);
         setInfo(i);
         setStatus('ready');
       },
