@@ -237,21 +237,38 @@ final class WebGuiGame extends NetworkGuiGame {
         return session.ask(q);
     }
 
+    private JsonObject askValidated(String kind, String title, JsonObject prompt,
+                                    java.util.function.Predicate<JsonObject> valid) {
+        while (!disposed && !session.isClosed()) {
+            JsonObject answer = ask(kind, title, prompt);
+            if (answer == null || valid.test(answer)) return answer;
+            prompt.addProperty("invalid", true);
+        }
+        return null;
+    }
+
     private <T> JsonArray options(Collection<T> items, FSerializableFunction<T, String> display) {
+        return options(items, display, false);
+    }
+
+    private <T> JsonArray options(Collection<T> items, FSerializableFunction<T, String> display, boolean revealed) {
         JsonArray arr = new JsonArray();
         for (T item : items) {
             JsonObject o = new JsonObject();
             if (item instanceof CardView c) {
                 o.addProperty("cardId", c.getId());
-                o.addProperty("label", GameSnapshot.name(c.getCurrentState()));
+                JsonObject card = GameSnapshot.describeCard(c, this, revealed);
+                o.addProperty("label", card.has("hidden") ? "" : GameSnapshot.name(c.getCurrentState()));
+                o.add("card", card);
             } else if (item instanceof PlayerView p) {
                 o.addProperty("playerId", p.getId());
                 o.addProperty("label", p.getName());
             }
-            if (display != null) {
+            if (display != null && !(o.has("card") && o.getAsJsonObject("card").has("hidden"))) {
                 o.addProperty("label", display.apply(item));
             } else if (!o.has("label")) {
-                o.addProperty("label", String.valueOf(item));
+                o.addProperty("label", item instanceof forge.util.ITranslatable translated
+                        ? translated.getTranslatedName() : String.valueOf(item));
             }
             arr.add(o);
         }
@@ -263,11 +280,44 @@ final class WebGuiGame extends NetworkGuiGame {
         Set<Integer> result = new LinkedHashSet<>();
         if (answer != null && answer.has("picked") && answer.get("picked").isJsonArray()) {
             for (JsonElement e : answer.getAsJsonArray("picked")) {
-                int i = e.getAsInt();
+                Integer value = integer(e);
+                if (value == null) continue;
+                int i = value;
                 if (i >= 0 && i < size) result.add(i);
             }
         }
         return new ArrayList<>(result);
+    }
+
+    private static Integer integer(JsonElement value) {
+        try {
+            if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) return null;
+            return value.getAsBigDecimal().intValueExact();
+        } catch (ArithmeticException | NumberFormatException e) { return null; }
+    }
+
+    private static int[] integers(JsonObject answer, String field, int size) {
+        if (!answer.has(field) || !answer.get(field).isJsonArray()) return null;
+        JsonArray array = answer.getAsJsonArray(field);
+        if (array.size() != size) return null;
+        int[] values = new int[size];
+        for (int i = 0; i < size; i++) {
+            Integer value = integer(array.get(i));
+            if (value == null) return null;
+            values[i] = value;
+        }
+        return values;
+    }
+
+    private static boolean validPicks(JsonObject answer, int size, int min, int max) {
+        if (!answer.has("picked") || !answer.get("picked").isJsonArray()) return false;
+        JsonArray values = answer.getAsJsonArray("picked");
+        Set<Integer> seen = new LinkedHashSet<>();
+        for (JsonElement element : values) {
+            Integer index = integer(element);
+            if (index == null || index < 0 || index >= size || !seen.add(index)) return false;
+        }
+        return seen.size() >= Math.max(0, min) && (max < 0 || seen.size() <= max);
     }
 
     private static <T> List<T> select(List<T> items, List<Integer> indices) {
@@ -282,13 +332,16 @@ final class WebGuiGame extends NetworkGuiGame {
         JsonObject q = new JsonObject();
         q.addProperty("min", min);
         q.addProperty("max", max);
-        q.add("options", options(items, display));
+        q.add("options", options(items, display, min < 0));
         if (preselected != null) {
             JsonArray pre = new JsonArray();
-            preselected.forEach(item -> pre.add(items.indexOf(item)));
+            Set<Integer> indices = new LinkedHashSet<>();
+            preselected.forEach(item -> { int index = items.indexOf(item); if (index >= 0) indices.add(index); });
+            indices.forEach(pre::add);
             q.add("preselected", pre);
         }
-        JsonObject answer = ask(kind, title, q);
+        JsonObject answer = askValidated(kind, title, q,
+                a -> min < 0 || validPicks(a, items.size(), min, max));
         if (min < 0) return new ArrayList<>();
         List<Integer> idx = picked(answer, items.size());
         if (idx.size() < min || (max >= 0 && idx.size() > max)) {
@@ -320,7 +373,8 @@ final class WebGuiGame extends NetworkGuiGame {
 
     @Override
     public boolean confirm(CardView c, String question, boolean defaultIsYes, List<String> options) {
-        return yesNo(question, options == null || options.size() < 2 ? List.of("Sim", "Não") : options, defaultIsYes);
+        return yesNo(question, options == null || options.size() < 2 ? List.of(
+                Localizer.getInstance().getMessage("lblYes"), Localizer.getInstance().getMessage("lblNo")) : options, defaultIsYes);
     }
 
     @Override
@@ -329,7 +383,7 @@ final class WebGuiGame extends NetworkGuiGame {
     }
 
     private boolean yesNo(String question, List<String> labels, boolean defaultYes) {
-        List<Integer> idx = picked(ask("confirm", question, optionsOnly(labels)), 2);
+        List<Integer> idx = picked(askValidated("confirm", question, optionsOnly(labels), a -> validPicks(a, labels.size(), 1, 1)), labels.size());
         return idx.isEmpty() ? defaultYes : idx.get(0) == 0;
     }
 
@@ -343,21 +397,59 @@ final class WebGuiGame extends NetworkGuiGame {
 
     @Override
     public int showOptionDialog(String message, String title, FSkinProp icon, List<String> options, int defaultOption) {
-        List<Integer> idx = picked(ask("confirm", message, optionsOnly(options)), options.size());
+        if (options.isEmpty()) return defaultOption;
+        List<Integer> idx = picked(askValidated("confirm", message, optionsOnly(options), a -> validPicks(a, options.size(), 1, 1)), options.size());
         return idx.isEmpty() ? defaultOption : idx.get(0);
     }
 
     @Override
     public String showInputDialog(String message, String title, FSkinProp icon, String initialInput, List<String> inputOptions, boolean isNumeric) {
         if (inputOptions != null && !inputOptions.isEmpty()) {
-            List<Integer> idx = picked(ask("confirm", message, optionsOnly(inputOptions)), inputOptions.size());
-            return idx.isEmpty() ? null : inputOptions.get(idx.get(0));
+            return oneOrNone(message, inputOptions);
         }
         JsonObject q = new JsonObject();
         q.addProperty("initial", initialInput);
         q.addProperty("numeric", isNumeric);
-        JsonObject answer = ask("text", message, q);
+        JsonObject answer = askValidated("text", message, q, a -> validText(a, isNumeric, Integer.MIN_VALUE, Integer.MAX_VALUE));
         return answer == null || !answer.has("value") || answer.get("value").isJsonNull() ? null : answer.get("value").getAsString();
+    }
+
+    @Override public Integer getInteger(String message, int min, int max, boolean sortDesc) {
+        return integerChoice(message, min, max);
+    }
+
+    @Override public Integer getInteger(String message, int min, int max, int cutoff) {
+        if (cutoff < min) return min;
+        return integerChoice(message, min, max);
+    }
+
+    private Integer integerChoice(String message, int min, int max) {
+        if (max <= min) return min;
+        JsonObject q = new JsonObject();
+        q.addProperty("numeric", true);
+        q.addProperty("numberMin", min);
+        q.addProperty("numberMax", max);
+        q.addProperty("initial", String.valueOf(min));
+        JsonObject answer = askValidated("text", message, q, a -> validText(a, true, min, max));
+        return answer == null || answer.get("value").isJsonNull() ? null : Integer.valueOf(answer.get("value").getAsString());
+    }
+
+    private static boolean validText(JsonObject answer, boolean numeric, int min, int max) {
+        if (!answer.has("value")) return false;
+        JsonElement value = answer.get("value");
+        if (value.isJsonNull()) return true;
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) return false;
+        if (!numeric) return true;
+        try {
+            int n = Integer.parseInt(value.getAsString());
+            return n >= min && n <= max;
+        } catch (NumberFormatException e) { return false; }
+    }
+
+    @Override public <T> List<T> insertInList(String title, T newItem, List<T> oldItems) {
+        List<T> all = new ArrayList<>(oldItems);
+        all.add(newItem);
+        return chooseFrom("order", title, all.size(), all.size(), all, null, null);
     }
 
     @Override
@@ -370,6 +462,7 @@ final class WebGuiGame extends NetworkGuiGame {
 
     @Override
     public GameEntityView chooseSingleEntityForEffect(String title, List<? extends GameEntityView> optionList, DelayedReveal delayedReveal, boolean isOptional) {
+        if (delayedReveal != null) reveal(delayedReveal.getMessagePrefix(), new ArrayList<>(delayedReveal.getCards()));
         if (optionList.isEmpty()) return null;
         List<GameEntityView> chosen = chooseFrom("choose", title, isOptional ? 0 : 1, 1, new ArrayList<>(optionList), null, null);
         return chosen.isEmpty() ? null : chosen.get(0);
@@ -377,6 +470,7 @@ final class WebGuiGame extends NetworkGuiGame {
 
     @Override
     public List<GameEntityView> chooseEntitiesForEffect(String title, List<? extends GameEntityView> optionList, int min, int max, DelayedReveal delayedReveal) {
+        if (delayedReveal != null) reveal(delayedReveal.getMessagePrefix(), new ArrayList<>(delayedReveal.getCards()));
         return chooseFrom("choose", title, min, max, new ArrayList<>(optionList), null, null);
     }
 
@@ -384,50 +478,96 @@ final class WebGuiGame extends NetworkGuiGame {
     public List<CardView> manipulateCardList(String title, Iterable<CardView> cards, Iterable<CardView> manipulable, boolean toTop, boolean toBottom, boolean toAnywhere) {
         List<CardView> all = new ArrayList<>();
         cards.forEach(all::add);
-        return chooseFrom("order", title, all.size(), all.size(), all, null, null);
+        Set<CardView> movable = new LinkedHashSet<>();
+        manipulable.forEach(movable::add);
+        JsonObject q = new JsonObject();
+        q.add("options", options(all, null));
+        JsonArray indices = new JsonArray();
+        for (int i = 0; i < all.size(); i++) if (movable.contains(all.get(i))) indices.add(i);
+        q.add("movable", indices);
+        q.addProperty("toTop", toTop);
+        q.addProperty("toBottom", toBottom);
+        q.addProperty("toAnywhere", toAnywhere);
+        JsonObject answer = askValidated("arrange", title, q, a -> {
+            if (!validPicks(a, all.size(), all.size(), all.size())) return false;
+            List<CardView> result = select(all, picked(a, all.size()));
+            List<CardView> fixed = all.stream().filter(c -> !movable.contains(c)).toList();
+            if (!result.stream().filter(c -> !movable.contains(c)).toList().equals(fixed)) return false;
+            if (toAnywhere) return true;
+            int firstFixed = -1, lastFixed = -1;
+            for (int i = 0; i < result.size(); i++) if (!movable.contains(result.get(i))) {
+                if (firstFixed < 0) firstFixed = i;
+                lastFixed = i;
+            }
+            for (int i = 0; i < result.size(); i++) if (movable.contains(result.get(i))) {
+                if (firstFixed < 0 || i < firstFixed && toTop || i > lastFixed && toBottom) continue;
+                if (!result.equals(all)) return false;
+            }
+            return true;
+        });
+        return answer == null ? all : select(all, picked(answer, all.size()));
     }
 
     @Override
     public Map<CardView, Integer> assignCombatDamage(CardView attacker, List<CardView> blockers, int damage, GameEntityView defender, boolean overrideOrder, boolean maySkip) {
         // Forge reads the null key as "damage to the defending player/planeswalker" (trample).
         List<Object> targets = new ArrayList<>(blockers);
-        if (defender != null) targets.add(defender);
-        int[] amounts = amounts(GameSnapshot.name(attacker.getCurrentState()), damage, targets);
+        var state = attacker.getCurrentState();
+        boolean free = state.hasDivideDamage() && overrideOrder;
+        boolean includeDefender = defender != null && (state.hasTrample() || free);
+        if (includeDefender) targets.add(defender);
+        if (damage <= 0 || targets.isEmpty()) return Map.of();
+        int[] lethal = new int[targets.size()];
+        for (int i = 0; i < blockers.size(); i++) {
+            CardView blocker = blockers.get(i);
+            int n = Math.max(0, blocker.getLethalDamage());
+            if (blocker.getCurrentState().isPlaneswalker()) n = Integer.parseInt(blocker.getCurrentState().getLoyalty());
+            else if (state.hasDeathtouch()) n = Math.min(n, 1);
+            lethal[i] = n;
+        }
+        int[] maximums = new int[targets.size()];
+        java.util.Arrays.fill(maximums, damage);
+        AmountAssignment rules = new AmountAssignment(damage, new int[targets.size()], maximums, lethal,
+                !overrideOrder, free, includeDefender ? targets.size() - 1 : -1);
+        int[] amounts = amounts(GameSnapshot.name(state), targets, rules, maySkip);
+        if (amounts == null) return null;
         Map<CardView, Integer> result = new LinkedHashMap<>();
         for (int i = 0; i < blockers.size(); i++) result.put(blockers.get(i), amounts[i]);
-        if (defender != null) result.put(null, amounts[blockers.size()]);
+        if (includeDefender) result.put(null, amounts[blockers.size()]);
         return result;
     }
 
     @Override
     public Map<Object, Integer> assignGenericAmount(CardView effectSource, Map<Object, Integer> target, int amount, boolean atLeastOne, String amountLabel) {
         List<Object> keys = new ArrayList<>(target.keySet());
-        int[] amounts = amounts(GameSnapshot.name(effectSource.getCurrentState()), amount, keys);
+        if (amount <= 0 || keys.isEmpty()) return Map.of();
+        int[] minimums = new int[keys.size()], maximums = new int[keys.size()];
+        for (int i = 0; i < keys.size(); i++) {
+            minimums[i] = atLeastOne ? 1 : 0;
+            maximums[i] = target.get(keys.get(i)) == null ? amount : target.get(keys.get(i));
+        }
+        AmountAssignment rules = new AmountAssignment(amount, minimums, maximums, null, false, true, -1);
+        int[] amounts = amounts(amountLabel + ": " + GameSnapshot.name(effectSource.getCurrentState()), keys, rules, false);
         Map<Object, Integer> result = new LinkedHashMap<>();
         for (int i = 0; i < keys.size(); i++) result.put(keys.get(i), amounts[i]);
         return result;
     }
 
-    /** Asks how to split {@code total} over the targets. Falls back to everything on the first one. */
-    private int[] amounts(String title, int total, List<Object> targets) {
+    private int[] amounts(String title, List<Object> targets, AmountAssignment rules, boolean maySkip) {
         JsonObject q = new JsonObject();
-        q.addProperty("total", total);
+        rules.describe(q);
+        q.addProperty("maySkip", maySkip);
         q.add("options", options(targets, null));
-        JsonObject answer = ask("amounts", title, q);
-        int[] result = new int[targets.size()];
-        int sum = 0;
-        if (answer != null && answer.has("amounts") && answer.get("amounts").isJsonArray()) {
-            JsonArray arr = answer.getAsJsonArray("amounts");
-            for (int i = 0; i < Math.min(arr.size(), result.length); i++) {
-                result[i] = Math.max(0, arr.get(i).getAsInt());
-                sum += result[i];
-            }
-        }
-        if (sum != total && result.length > 0) {
-            java.util.Arrays.fill(result, 0);
-            result[0] = total;
-        }
-        return result;
+        JsonObject answer = askValidated("amounts", title, q,
+                a -> maySkip && skipping(a)
+                        || rules.valid(integers(a, "amounts", targets.size())));
+        if (answer != null && maySkip && skipping(answer)) return null;
+        return answer == null ? rules.suggested() : integers(answer, "amounts", targets.size());
+    }
+
+    private static boolean skipping(JsonObject answer) {
+        return answer.has("skip") && answer.get("skip").isJsonPrimitive()
+                && answer.get("skip").getAsJsonPrimitive().isBoolean() && answer.get("skip").getAsBoolean();
     }
 
     @Override

@@ -16,6 +16,11 @@ public final class Main {
     public static final String VERSION = "0.1.0";
 
     public static void main(String[] args) throws Exception {
+        launch(args, MatchStarter::startCommander);
+    }
+
+    /** Package-private injection lets the test launcher use real Forge scenarios without a test socket API. */
+    static void launch(String[] args, EngineServer.MatchFactory matches) throws Exception {
         String assets = null;
         String data = defaultDataDir();
         int port = 0;
@@ -39,7 +44,7 @@ public final class Main {
         FModel.initialize(null, settings::applyTo);
 
         int imagePort = new ImageServer().start();
-        EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card", settings);
+        EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card", settings, matches);
         server.start();
         System.out.println("READY " + server.awaitPort());
         System.out.flush();

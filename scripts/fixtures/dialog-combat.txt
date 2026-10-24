@@ -1,0 +1,13 @@
+# Deterministic real combat: Lure requires both Hill Giants to block Craw Wurm.
+activeplayer=p0
+activephase=COMBAT_DECLARE_BLOCKERS
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Craw Wurm|Id:1|Attacking;Lure|AttachedTo:1
+p1battlefield=Hill Giant;Hill Giant
+p0hand=
+p1hand=
+p0library=Forest;Island;Plains;Mountain;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

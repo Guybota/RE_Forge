@@ -4,6 +4,19 @@ import { createContext, useContext } from 'react';
 // these cover the rest. Languages without their own table use English.
 
 const pt = {
+  revealedCards: 'Cartas reveladas',
+  invalidChoice: 'Revê a escolha: os valores enviados não são válidos.',
+  searchChoices: 'Procurar nas opções',
+  moveUp: 'Subir {name}',
+  moveDown: 'Descer {name}',
+  toTop: 'Para o topo',
+  toBottom: 'Para o fundo',
+  otherCards: 'Outras {n} cartas',
+  autoAssign: 'Distribuir automaticamente',
+  skipDamage: 'Distribuir depois',
+  lethalDamage: 'Letal: {n}',
+  damageOrderHint: 'Atribui dano letal antes de avançar para o alvo seguinte.',
+  trampleHint: 'Só podes atribuir dano ao defensor depois de atribuir dano letal a todos os bloqueadores.',
   menu: 'Menu',
   gameMenu: 'Menu da partida',
   close: 'Fechar',
@@ -124,6 +137,19 @@ const pt = {
 export type MessageKey = keyof typeof pt;
 
 const en: Record<MessageKey, string> = {
+  revealedCards: 'Revealed cards',
+  invalidChoice: 'Review the choice: the submitted values are not valid.',
+  searchChoices: 'Search options',
+  moveUp: 'Move {name} up',
+  moveDown: 'Move {name} down',
+  toTop: 'Move to top',
+  toBottom: 'Move to bottom',
+  otherCards: '{n} other cards',
+  autoAssign: 'Assign automatically',
+  skipDamage: 'Assign later',
+  lethalDamage: 'Lethal: {n}',
+  damageOrderHint: 'Assign lethal damage before assigning to the next target.',
+  trampleHint: 'Assign lethal damage to every blocker before assigning damage to the defender.',
   menu: 'Menu',
   gameMenu: 'Match menu',
   close: 'Close',

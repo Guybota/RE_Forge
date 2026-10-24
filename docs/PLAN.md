@@ -48,10 +48,12 @@ Feito no ramo:
 - Diálogo `order` que exige ordenar tudo começa já ordenado (basta Confirmar).
 - Fichas não pedem imagem (o servidor ainda não as suporta), para não aparecer o ícone de imagem partida.
 
-Por fazer:
-1. Distribuir dano entre vários bloqueadores (`assignCombatDamage` → diálogo `amounts`): verificar numa partida
-   (não aconteceu nos testes).
-2. O bot `smoke-combat` raramente vê a IA atacar enquanto tem criaturas; os bloqueios ficam cobertos pelo teste manual.
+- Distribuição entre vários bloqueadores validada na auditoria dos diálogos: fixture nativa do Forge com Craw Wurm
+  e Lure contra dois Hill Giants. O teste determinístico e o browser confirmam 3+3, morte das três criaturas e vida
+  do defensor inalterada. A ponte valida também atropelar, toque mortífero e ordem quando exigida pelo Forge.
+
+Limitação do bot aleatório: `smoke-combat` raramente vê a IA atacar enquanto tem criaturas; o bloqueio pelo humano
+continua coberto pelo teste manual, e a distribuição de dano pelo cenário determinístico.
 
 Critério de feito: atacar, escolher alvo em 4 jogadores, bloquear e distribuir dano funcionam no browser; os três testes de fumo passam.
 
@@ -151,7 +153,7 @@ Critério de feito: duas máquinas na mesma rede jogam uma partida de Commander 
 
 ## Passo 4 — Completar a mesa (fase 1 da lista de ecrãs)
 
-Menu e paragens implementados no ramo `feat/table-options`:
+Menu e paragens integrados em `main` no commit `deaf7e6`:
 - `GameMenu.tsx`: mudar skin durante a partida, configurar paragens, repor as iniciais e conceder com confirmação do Forge.
   Fecha com Escape e dá precedência a escolhas obrigatórias. Idioma continua no Home, fora da partida.
 - `Settings`: paragens separadas para o teu turno e os adversários, gravadas em `reforge.properties` por escrita atómica.
@@ -164,14 +166,29 @@ Menu e paragens implementados no ramo `feat/table-options`:
   concessão. Motor e UI compilam.
 - Passaram os testes de paragens, online, partida local e combate (com ataques e bloqueios presentes no estado).
 
-Por fazer neste passo: opções de IA, auditoria dos diálogos, imagens e consulta das zonas.
+Auditoria dos diálogos concluída no ramo `feat/dialog-audit`:
+- Validação no motor: seleções únicas e com cardinalidade correta, permutações completas, inteiros dentro dos limites,
+  mínimos/máximos por destinatário, dano letal antes de destinatários posteriores quando necessário e antes de atropelar.
+  Respostas inválidas repetem a escolha com novo id; o adiamento de dano respeita `maySkip`.
+- Número com limites próprios, incluindo valores negativos e acima de 100; cancelamento preserva `null`.
+- Ordenação com setas, inserção de novos itens, organização no topo/fundo do grimório com cartas fixas preservadas,
+  procura em listas longas e pré-visualização das cartas. Revelações adiadas são apresentadas antes da escolha.
+- Privacidade: opções ocultas não enviam nomes nem detalhes; revelar cartas não revela o resto do grimório.
+- `engine:smoke-dialogs`: callbacks de dano, atropelar, toque mortífero, limites por alvo, cores de mana, números,
+  modos, gatilhos, inserção, organização, scry/surveil nativos, procura, revelação e alvo opcional. Rejeita dez casos
+  inválidos e resolve o combate real com dois bloqueadores. O launcher vive nas fontes de teste, fora do jar distribuído.
+- Verificados no browser os mesmos diálogos e o combate até à segunda fase principal, com 3+3 no registo e as mortes
+  esperadas. Diálogo de dano verificado também a 390 px. Motor e UI compilam; regressões de definições, online,
+  importação, partida local e combate passaram (esta execução aleatória de combate teve ataques, sem bloqueios).
+
+Por fazer neste passo: opções de IA, imagens e consulta das zonas. Sideboard entre jogos e escolhas de modos futuros
+ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).
 - **Opções de jogo**: paragens por fase configuráveis em `Settings` (feito); velocidade e
   perfil da IA (`AiProfileUtil`), tempo limite da IA.
-- **Auditoria dos diálogos**: percorrer todos os métodos de escolha do `IGuiGame` e garantir que cada `kind` tem boa UI:
-  mulligan, alvos, escolher cartas de uma lista (procurar no grimório, scry/surveil com `order`), escolher número, modos,
-  pagar mana (clicar terrenos acionáveis), ordenar gatilhos, revelar. Usar `smoke-combat` + partidas no browser.
+- **Auditoria dos diálogos**: concluída para os callbacks usados pela mesa atual; ver validação acima. Mulligan, alvos
+  e pagamento por terrenos acionáveis mantêm os caminhos de entrada do Forge cobertos pelas partidas de fumo.
 - **Imagens**: fichas (chaves `t:` → `ImageUtil.getScryfallTokenDownloadUrl`), e imagens no idioma escolhido quando o Scryfall
   as tem (tentar `lang`, cair para inglês; incluir a língua no nome do ficheiro em cache).
 - **Layouts por skin** (opcional): o Terminal com adversários em lista e tabela de atacantes, como no estudo de design.

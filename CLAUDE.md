@@ -29,6 +29,7 @@ docs/       PLAN.md (roadmap).
 | `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `NetworkGuiGame`, including remote delta sync). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
 | `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses and cleanup. One online session per process. |
 | `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
+| `AmountAssignment` | Forge's damage/amount constraints: exact total, per-target bounds, lethal damage, ordering and trample. Shared validation and prompt metadata. |
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons; sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
 | `Settings` | `<data>/reforge.properties`: chosen `language`, `skin` and separate phase stops for own/opponents' turns. Atomic writes; missing language/skin = first run. |
@@ -43,6 +44,10 @@ docs/       PLAN.md (roadmap).
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
 - `table/GameMenu.tsx` — in-game skin, saved phase stops, reset and concede. Escape closes it; a Forge choice takes precedence. Live phase changes use Forge's `YieldUpdate` path for local/remote controllers.
+- `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
+
+`engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
+fixture. It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 
 ## Environment (Windows dev machine)
 
@@ -64,6 +69,7 @@ npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, bl
 npm run engine:smoke-import   # import a decklist fixture, play it, delete it
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
+npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
 ```
 
 ### Checking the UI in a browser
@@ -107,3 +113,5 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 - `ImageFetcher` asserts it runs on the GUI thread, so `ImageServer` builds Scryfall URLs itself (`ImageUtil`). Tokens have no
   picture yet.
 - Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).
+- Choice bots should start `amounts` from `initialAmounts`, honor the prompt's constraints, and return a full permutation
+  for `arrange`. Hidden choice cards have no label/details; explicit reveals authorize only the listed cards.

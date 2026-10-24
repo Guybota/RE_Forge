@@ -107,9 +107,17 @@ final class GameSnapshot {
 
     private JsonObject card(CardView c, WebGuiGame gui) {
         cards.put(c.getId(), c);
+        return describeCard(c, gui);
+    }
+
+    static JsonObject describeCard(CardView c, WebGuiGame gui) {
+        return describeCard(c, gui, false);
+    }
+
+    static JsonObject describeCard(CardView c, WebGuiGame gui, boolean revealed) {
         JsonObject o = new JsonObject();
         o.addProperty("id", c.getId());
-        if (!gui.mayView(c)) {
+        if (!revealed && !gui.mayView(c)) {
             o.addProperty("hidden", true);
             return o;
         }

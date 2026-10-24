@@ -49,11 +49,21 @@ public final class EngineServer extends WebSocketServer {
 
     private final String imageBase;
     private final Settings settings;
+    @FunctionalInterface
+    interface MatchFactory {
+        HostedMatch start(WebGuiGame gui, String deck, int opponents);
+    }
+    private final MatchFactory matches;
 
     public EngineServer(InetSocketAddress address, String imageBase, Settings settings) {
+        this(address, imageBase, settings, MatchStarter::startCommander);
+    }
+
+    EngineServer(InetSocketAddress address, String imageBase, Settings settings, MatchFactory matches) {
         super(address);
         this.imageBase = imageBase;
         this.settings = settings;
+        this.matches = matches;
         setReuseAddr(true);
         // The library drops a connection (code 1006) when a ping isn't answered in time. The UI is a
         // local process that lives and dies with us; the parent-watch already handles it going away.
@@ -181,7 +191,7 @@ public final class EngineServer extends WebSocketServer {
         WebGuiGame gui = new WebGuiGame(c.session, settings);
         try {
             c.gui = gui;
-            c.match = MatchStarter.startCommander(gui, deck, opponents);
+            c.match = matches.start(gui, deck, opponents);
         } catch (RuntimeException e) {
             c.gui = null;
             gui.dispose();

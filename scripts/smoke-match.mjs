@@ -61,7 +61,9 @@ function play(port) {
       choices++;
       const n = msg.options?.length ?? 0;
       if (msg.kind === 'amounts') {
-        send({ type: 'answer', id: msg.id, amounts: [msg.total, ...Array(n - 1).fill(0)] });
+        send({ type: 'answer', id: msg.id, amounts: msg.initialAmounts ?? [msg.total, ...Array(Math.max(0, n - 1)).fill(0)] });
+      } else if (msg.kind === 'arrange') {
+        send({ type: 'answer', id: msg.id, picked: [...Array(n).keys()] });
       } else if (msg.kind === 'text') {
         send({ type: 'answer', id: msg.id, value: msg.initial ?? '' });
       } else {

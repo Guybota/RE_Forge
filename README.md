@@ -42,10 +42,13 @@ npm run engine:smoke-combat   # plays an active game (lands, spells, targets, at
 npm run engine:smoke-import   # imports scripts/fixtures/riders-of-rohan-arena.txt, plays it, deletes it
 npm run engine:smoke-online   # two engines: lobby, chat, private hands, remote turns and concession
 npm run engine:smoke-settings # settings survive restart; phase stops change live priority
+npm run engine:smoke-dialogs  # deterministic choices, invalid answers, scry/surveil and a real double block
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.
 `SMOKE_ONLINE_AI=1` adds an AI to the online smoke test. All smoke tests use temporary data folders.
+Build the engine first: the dialog smoke test also uses compiled test classes from `engine/target/test-classes`.
+Its test launcher and native Forge fixture are excluded from the production engine jar.
 
 ## Online Commander
 
@@ -101,14 +104,24 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `setReady`, `addSlot`, `removeSlot`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove: `index`. Host controls seats/start; one online session per engine |
 | UI → engine | `chat` | `text` (up to 2000 characters) |
 | UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave` |
-| UI → engine | `answer` | Reply to a `choice`: `picked` indices, `amounts`, or `value` |
+| UI → engine | `answer` | Reply to a `choice` by `id`: `picked` indices, `amounts`, `value`, or `skip: true` when allowed |
 | engine → UI | `state` | Full board snapshot (players, zones, stack, combat, log, prompt), at most every 40 ms |
-| engine → UI | `choice` | A question the game waits on: `choose`, `reveal`, `confirm`, `order`, `amounts`, `text` |
+| engine → UI | `choice` | A question the game waits on: `choose`, `reveal`, `confirm`, `order`, `arrange`, `amounts`, `text` |
 | engine → UI | `notice` | `incorrectAction`, `alert`, `message`, `error` |
 | engine → UI | `lobby` | Full lobby snapshot: `host`, `localSlot`, `port`, `addresses`, `slots` (kind, name, deck, ready, editable, controllable) |
 | engine → UI | `chatMessage`, `lobbyClosed` | Chat `source`, `text`, `kind`; lobby closure also clears the game/choice in the UI |
 
 Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
+Choice options may include `card` metadata for previews; hidden options have an empty label and no card details.
+An explicit reveal exposes only the listed cards. Invalid answers repeat the choice with a fresh `id` and `invalid: true`.
+
+`choose`/`order` validate unique, in-range `picked` indices and the `min`/`max` count. `arrange` expects every option
+index exactly once, preserving the relative order of fixed cards; `movable`, `toTop`, `toBottom` and `toAnywhere`
+describe the permitted moves. `amounts` supplies `total`, `minimums`, `maximums`, `initialAmounts`, optional `lethal`,
+`ordered`, `divideFreely`, `defenderIndex` and `maySkip`. Amounts must be integers, meet the bounds and total, and
+respect the lethal/order constraints supplied by Forge. `skip` is accepted only when `maySkip` is true.
+Numeric `text` prompts include `numeric`, `numberMin` and `numberMax`; `value: null` cancels the input.
+
 `engineInfo` also includes `phaseOptions` (supported Forge phase names) and `phaseStops` (current two rows).
 Card `name`, `type` and `text` are in the chosen language; `typeEn` is the English type line for UI logic.
 Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other languages fall back to English).

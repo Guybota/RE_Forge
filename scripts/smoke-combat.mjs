@@ -50,7 +50,8 @@ function play(port) {
     if (msg.type === 'choice') {
       seen.choices++;
       const n = msg.options?.length ?? 0;
-      if (msg.kind === 'amounts') send({ type: 'answer', id: msg.id, amounts: [msg.total, ...Array(n - 1).fill(0)] });
+      if (msg.kind === 'amounts') send({ type: 'answer', id: msg.id, amounts: msg.initialAmounts ?? [msg.total, ...Array(Math.max(0, n - 1)).fill(0)] });
+      else if (msg.kind === 'arrange') send({ type: 'answer', id: msg.id, picked: [...Array(n).keys()] });
       else if (msg.kind === 'text') send({ type: 'answer', id: msg.id, value: msg.initial ?? '' });
       // Take optional things too (first option), so spells actually get cast.
       else send({ type: 'answer', id: msg.id, picked: [...Array(Math.min(Math.max(1, msg.min ?? 0), n)).keys()].slice(0, Math.max(0, msg.max ?? 1) || n) });

@@ -496,6 +496,28 @@
 .choice .btn--ghost { border-color: var(--panel-ink-muted); }
 .choice .input { flex: 1; background: var(--panel-raised); color: var(--panel-ink); border-color: var(--panel-line); }
 .choice .muted { color: var(--panel-ink-muted); margin-right: auto; }
+.choice.choice--cards { width: min(860px, calc(100vw - 32px)); }
+.choice__layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.choice--cards .choice__layout { grid-template-columns: minmax(0, 1fr) 210px; }
+.choice__question { min-width: 0; }
+.choice__preview { min-width: 0; max-height: 55vh; overflow-y: auto; }
+.choice__preview img { display: block; width: 100%; border-radius: var(--card-radius); }
+.choice__preview h3 { font-family: var(--font-display); font-weight: var(--display-weight); margin: 0 0 8px; }
+.choice__preview p { white-space: pre-line; font-size: 13px; }
+.choice__error { color: var(--danger); }
+.choice__search { width: 100%; margin-bottom: 12px; }
+.choice__ordered-row { display: flex; align-items: center; gap: 6px; }
+.choice__ordered-row .choice__option { flex: 1; min-width: 0; }
+.choice__ordered-row > .btn { padding-inline: 12px; min-width: 44px; }
+.choice__arrange-row { padding-block: 8px; border-bottom: 1px solid var(--panel-line); }
+.choice__arrange-row > div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.choice__fixed { padding: 12px; color: var(--panel-ink-muted); border-block: 1px solid var(--panel-line); }
+.choice__amount small { display: block; color: var(--panel-ink-muted); font-size: 12px; }
+.choice__buttons { flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .choice--cards .choice__layout { grid-template-columns: minmax(0, 1fr); }
+  .choice__preview { max-height: 230px; max-width: 210px; justify-self: center; }
+}
 
 .toast {
   position: fixed;

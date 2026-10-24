@@ -86,18 +86,33 @@ export type GameState = {
   };
 };
 
-export type ChoiceOption = { label: string; cardId?: number; playerId?: number };
+export type ChoiceOption = { label: string; cardId?: number; playerId?: number; card?: CardState };
 
 export type Choice = {
   type: 'choice';
   id: number;
-  kind: 'choose' | 'reveal' | 'confirm' | 'order' | 'amounts' | 'text';
+  kind: 'choose' | 'reveal' | 'confirm' | 'order' | 'arrange' | 'amounts' | 'text';
   title: string;
   min?: number;
   max?: number;
   total?: number;
   initial?: string;
   numeric?: boolean;
+  numberMin?: number;
+  numberMax?: number;
+  invalid?: boolean;
+  minimums?: number[];
+  maximums?: number[];
+  initialAmounts?: number[];
+  lethal?: number[];
+  ordered?: boolean;
+  divideFreely?: boolean;
+  defenderIndex?: number;
+  maySkip?: boolean;
+  movable?: number[];
+  toTop?: boolean;
+  toBottom?: boolean;
+  toAnywhere?: boolean;
   options?: ChoiceOption[];
   preselected?: number[];
 };
@@ -156,7 +171,7 @@ export type ClientMessage =
   | { type: 'removeSlot'; index: number }
   | { type: 'chat'; text: string }
   | { type: 'action'; action: Action; id?: number }
-  | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null };
+  | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null; skip?: boolean };
 
 export type EngineHandlers = {
   onInfo: (info: EngineInfo) => void;

@@ -79,7 +79,8 @@ function autoplay(peer) {
       if (msg.type === 'choice') {
         const n = msg.options?.length ?? 0;
         const answer = msg.kind === 'text' ? { value: msg.initial ?? '' }
-          : msg.kind === 'amounts' ? { amounts: [msg.total, ...Array(Math.max(0, n - 1)).fill(0)] }
+          : msg.kind === 'amounts' ? { amounts: msg.initialAmounts ?? [msg.total, ...Array(Math.max(0, n - 1)).fill(0)] }
+          : msg.kind === 'arrange' ? { picked: [...Array(n).keys()] }
           : { picked: [...Array(Math.min(Math.max(0, msg.min ?? 0), n)).keys()] };
         peer.send({ type: 'answer', id: msg.id, ...answer });
       }
