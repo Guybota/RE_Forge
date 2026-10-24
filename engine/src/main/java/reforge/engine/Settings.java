@@ -57,6 +57,20 @@ final class Settings {
         return LANGUAGES.containsKey(lang) ? lang : null;
     }
 
+    /** The chosen skin id, or null before the player has picked one. The UI owns the list of skins. */
+    String skin() {
+        String skin = props.getProperty("skin");
+        return skin != null && skin.matches("[a-z]{1,20}") ? skin : null;
+    }
+
+    void changeSkin(String id) throws IOException {
+        if (id == null || !id.matches("[a-z]{1,20}")) {
+            throw new IllegalArgumentException("Invalid skin: " + id);
+        }
+        props.setProperty("skin", id);
+        save();
+    }
+
     private void save() throws IOException {
         file.getParentFile().mkdirs();
         try (OutputStream out = Files.newOutputStream(file.toPath())) {

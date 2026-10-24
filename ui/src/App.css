@@ -10,9 +10,9 @@
 
 .home h1 {
   margin: 0;
-  font-family: var(--font-card);
+  font-family: var(--font-display);
   font-size: 72px;
-  font-weight: 600;
+  font-weight: var(--display-weight);
 }
 
 .home p {
@@ -32,7 +32,7 @@
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  color: var(--on-felt-muted);
+  color: var(--on-table-muted);
 }
 
 .segmented {
@@ -51,30 +51,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  border: 1px solid var(--felt-line);
+  border-radius: min(8px, var(--radius-control));
+  border: 1px solid var(--table-line);
   cursor: pointer;
   font-weight: 600;
 }
 .segmented label.is-on {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 .segmented input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
-.home__language {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
+.home__corner button {
   min-height: 44px;
   padding: 0 14px;
-  border: 1px solid var(--felt-line);
-  border-radius: 22px;
+  border: 1px solid var(--table-line);
+  border-radius: var(--radius-control);
   background: transparent;
-  color: var(--on-felt-muted);
+  color: var(--on-table-muted);
   cursor: pointer;
 }
 
@@ -90,17 +87,80 @@
 .languages__option {
   width: 100%;
   min-height: 52px;
-  border: 1px solid var(--felt-line);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--table-line);
+  border-radius: min(10px, var(--radius-control));
+  background: transparent;
   font-size: 17px;
   font-weight: 500;
   cursor: pointer;
 }
 .languages__option:hover,
 .languages__option.is-on {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Skin picker: each tile carries its own data-skin, so it is drawn in that skin. */
+.skins {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  width: min(1120px, 100%);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 900px) {
+  .skins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.skin-tile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid var(--table-line);
+  border-radius: 12px;
+  background-color: var(--table);
+  background-image: var(--table-texture);
+  background-size: var(--table-texture-size, auto);
+  color: var(--on-table);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+.skin-tile:hover { transform: translateY(-4px); }
+.skin-tile.is-on { outline: 3px solid var(--select); outline-offset: 3px; }
+.skin-tile__table {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  pointer-events: none;
+}
+.skin-tile__table .life {
+  display: grid;
+  place-items: center;
+}
+.skin-tile__ok {
+  display: inline-flex;
+  align-items: center;
+}
+.skin-tile__name {
+  padding: 14px;
+  border-top: 1px solid var(--table-line);
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: 19px;
+}
+
+.home__corner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 8px;
 }
 
 .segmented label:has(input:focus-visible) {

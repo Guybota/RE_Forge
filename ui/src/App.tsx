@@ -1,17 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Home } from './Home';
 import { I18n, translator } from './i18n';
 import { LanguagePicker } from './LanguagePicker';
+import { DEFAULT_SKIN } from './skins';
+import { SkinPicker } from './SkinPicker';
 import { Table } from './table/Table';
 import { useEngine } from './useEngine';
 import './App.css';
 
 export default function App() {
   const engine = useEngine();
-  const [pickingLanguage, setPickingLanguage] = useState(false);
+  const [picking, setPicking] = useState<'language' | 'skin' | null>(null);
   // Before the engine says which language was chosen, follow the system's.
   const language = engine.info?.language ?? navigator.language;
   const t = useMemo(() => translator(language), [language]);
+  const skin = engine.info?.skin ?? DEFAULT_SKIN;
+
+  useEffect(() => {
+    document.documentElement.dataset.skin = skin;
+    document.documentElement.lang = language;
+  }, [skin, language]);
 
   let screen;
   if (engine.status !== 'ready') {
@@ -23,11 +31,13 @@ export default function App() {
     );
   } else if (engine.game) {
     screen = <Table engine={engine} game={engine.game} />;
-  } else if (!engine.info?.language || pickingLanguage) {
-    // First run: language comes first. The skin choice will follow here once skins exist.
-    screen = <LanguagePicker engine={engine} onDone={() => setPickingLanguage(false)} />;
+  } else if (!engine.info?.language || picking === 'language') {
+    // First run: 1. language, 2. skin, 3. play.
+    screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
+  } else if (!engine.info?.skin || picking === 'skin') {
+    screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} />;
   } else {
-    screen = <Home engine={engine} onChangeLanguage={() => setPickingLanguage(true)} />;
+    screen = <Home engine={engine} onPick={setPicking} />;
   }
 
   return <I18n.Provider value={t}>{screen}</I18n.Provider>;

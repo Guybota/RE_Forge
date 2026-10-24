@@ -112,6 +112,7 @@ public final class EngineServer extends WebSocketServer {
             case "hello" -> c.session.send(engineInfo());
             case "listDecks" -> c.session.send(decks());
             case "setLanguage" -> c.actions.execute(() -> setLanguage(c, msg));
+            case "setSkin" -> setSkin(c, msg);
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "action" -> c.actions.execute(() -> action(c, msg));
             case "answer" -> c.session.onAnswer(msg);
@@ -127,6 +128,16 @@ public final class EngineServer extends WebSocketServer {
         }
         try {
             settings.changeLanguage(msg.has("language") ? msg.get("language").getAsString() : "");
+            c.session.send(engineInfo());
+        } catch (IllegalArgumentException | java.io.IOException e) {
+            c.session.send(error(e.getMessage()));
+        }
+    }
+
+    /** Purely visual, so allowed at any time, mid-game included. */
+    private void setSkin(Connection c, JsonObject msg) {
+        try {
+            settings.changeSkin(msg.has("skin") ? msg.get("skin").getAsString() : null);
             c.session.send(engineInfo());
         } catch (IllegalArgumentException | java.io.IOException e) {
             c.session.send(error(e.getMessage()));
@@ -200,6 +211,7 @@ public final class EngineServer extends WebSocketServer {
         o.addProperty("version", Main.VERSION);
         o.addProperty("imageBase", imageBase);
         o.addProperty("language", settings.language());
+        o.addProperty("skin", settings.skin());
         JsonArray languages = new JsonArray();
         Settings.LANGUAGES.forEach((code, name) -> {
             JsonObject l = new JsonObject();

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useT } from './i18n';
+import { SKINS } from './skins';
 import type { Engine } from './useEngine';
 
 const RANDOM = '';
 
-export function Home({ engine, onChangeLanguage }: { engine: Engine; onChangeLanguage: () => void }) {
+export function Home({ engine, onPick }: { engine: Engine; onPick: (what: 'language' | 'skin') => void }) {
   const t = useT();
   const [deck, setDeck] = useState(RANDOM);
   const [opponents, setOpponents] = useState(1);
@@ -42,9 +43,14 @@ export function Home({ engine, onChangeLanguage }: { engine: Engine; onChangeLan
         </button>
         {engine.error && <p className="error">{engine.error}</p>}
       </form>
-      <button type="button" className="home__language" onClick={onChangeLanguage} title={t('language')}>
-        {languageName}
-      </button>
+      <div className="home__corner">
+        <button type="button" onClick={() => onPick('skin')} title={t('skin')}>
+          {t(SKINS.find((s) => s.id === info?.skin)?.name ?? 'skinMesa')}
+        </button>
+        <button type="button" onClick={() => onPick('language')} title={t('language')}>
+          {languageName}
+        </button>
+      </div>
     </main>
   );
 }

@@ -60,6 +60,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 |---|---|---|
 | UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); the Commander precon names |
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
+| UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
 | UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3 |
 | UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave` |
 | UI → engine | `answer` | Reply to a `choice`: `picked` indices, `amounts`, or `value` |

@@ -4,21 +4,63 @@
 @import '@fontsource/work-sans/700.css';
 @import '@fontsource/eb-garamond/500.css';
 @import '@fontsource/eb-garamond/600.css';
+@import '@fontsource/inter-tight/400.css';
+@import '@fontsource/inter-tight/600.css';
+@import '@fontsource/inter-tight/800.css';
+@import '@fontsource/im-fell-english/400.css';
+@import '@fontsource/im-fell-english-sc/400.css';
+@import '@fontsource/crimson-pro/400.css';
+@import '@fontsource/crimson-pro/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/700.css';
 
-/* Skin tokens: "Mesa física" (felt table, paper cards). Other skins override these. */
-:root {
-  --felt: #1f3b2d;
-  --felt-line: rgba(243, 235, 221, 0.16);
-  --paper: #f3ebdd;
-  --paper-shade: #bfb49e;
-  --notepad: #efe6d2;
-  --notepad-line: #d9cdb4;
-  --wood: #4a2e1c;
-  --ink: #1c1a17;
-  --ink-muted: #4a453d;
-  --on-felt: #efe7d6;
-  --on-felt-muted: #c9d3c6;
+/*
+  Skins. Every colour, font and frame the UI draws comes from these tokens; a skin is a
+  [data-skin] block that redefines them. The selector also works on any element, so the skin
+  picker previews each skin inside its own tile.
+*/
+
+/* ---- A · Mesa física (default): felt table, paper cards, wooden notepad */
+:root,
+[data-skin='mesa'] {
+  --table: #1f3b2d;
+  --table-texture: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  --table-texture-size: 3px 3px;
+  --table-line: rgba(243, 235, 221, 0.16);
+  --on-table: #efe7d6;
+  --on-table-muted: #c9d3c6;
+
+  --panel: #efe6d2;
+  --panel-raised: #f8f3e8;
+  --panel-line: #d9cdb4;
+  --panel-ink: #1c1a17;
+  --panel-ink-muted: #4a453d;
+  --panel-edge: 14px solid #4a2e1c;
+  --panel-radius: 12px;
+
+  --card-bg: #f3ebdd;
+  --card-ink: #1c1a17;
+  --card-ink-muted: #4a453d;
+  --card-border: 0;
+  --card-radius: 7px;
+  --card-shadow: 0 2px 0 rgba(0, 0, 0, 0.25), 0 6px 14px rgba(0, 0, 0, 0.35);
+  --card-shadow-lifted: 0 16px 24px rgba(0, 0, 0, 0.5);
+  --card-back: repeating-linear-gradient(45deg, #3a2a20 0 6px, #4a2e1c 6px 12px);
+
+  --accent: #f3ebdd;
+  --accent-ink: #1c1a17;
+  --accent-shadow: 0 3px 0 #bfb49e;
+  --ghost-line: rgba(243, 235, 221, 0.5);
+  --radius-control: 22px;
+
+  --life-bg: #f3ebdd;
+  --life-ink: #1c1a17;
+  --life-radius: 10px;
+  --life-border: 0;
+  --life-shadow: 0 3px 0 #bfb49e, 0 6px 12px rgba(0, 0, 0, 0.35);
+
   --danger: #b9472e;
+  --danger-text: #ff8a6e;
   --select: #f3d58a;
 
   --c-W: #d9cfae;
@@ -30,14 +72,188 @@
   --c-M: #c4a766;
 
   --font-ui: 'Work Sans', system-ui, sans-serif;
-  --font-card: 'EB Garamond', Georgia, serif;
+  --font-display: 'EB Garamond', Georgia, serif;
+  --display-weight: 600;
 
   color-scheme: dark;
+}
+
+/* ---- B · Editorial: off-white page, black ink, flat cards, no ornament */
+[data-skin='editorial'] {
+  --table: #f2f0eb;
+  --table-texture: none;
+  --table-line: #141414;
+  --on-table: #141414;
+  --on-table-muted: #625e57;
+
+  --panel: #f2f0eb;
+  --panel-raised: #ffffff;
+  --panel-line: #d6d2ca;
+  --panel-ink: #141414;
+  --panel-ink-muted: #625e57;
+  --panel-edge: 1px solid #141414;
+  --panel-radius: 0;
+
+  --card-bg: #ffffff;
+  --card-ink: #141414;
+  --card-ink-muted: #625e57;
+  --card-border: 1px solid #141414;
+  --card-radius: 3px;
+  --card-shadow: none;
+  --card-shadow-lifted: none;
+  --card-back: repeating-linear-gradient(90deg, #141414 0 2px, #f2f0eb 2px 6px);
+
+  --accent: #141414;
+  --accent-ink: #f2f0eb;
+  --accent-shadow: none;
+  --ghost-line: #141414;
+  --radius-control: 0;
+
+  --life-bg: transparent;
+  --life-ink: #141414;
+  --life-radius: 0;
+  --life-border: 0;
+  --life-shadow: none;
+
+  --danger: #b3361f;
+  --danger-text: #b3361f;
+  --select: #2f6fd0;
+
+  --c-W: #e3d7a8;
+  --c-U: #2f6fd0;
+  --c-B: #3a3a3a;
+  --c-R: #d2452c;
+  --c-G: #2e8a4e;
+  --c-C: #b9b4aa;
+  --c-M: #c9a227;
+
+  --font-ui: 'Inter Tight', system-ui, sans-serif;
+  --font-display: 'Inter Tight', system-ui, sans-serif;
+  --display-weight: 800;
+
+  color-scheme: light;
+}
+
+/* ---- C · Retro 1993: parchment, black-bordered cards, old type */
+[data-skin='retro'] {
+  --table: #e9dfc7;
+  --table-texture: radial-gradient(rgba(70, 50, 20, 0.07) 1px, transparent 1px);
+  --table-texture-size: 4px 4px;
+  --table-line: rgba(46, 34, 22, 0.45);
+  --on-table: #2e2216;
+  --on-table-muted: #5e4e3a;
+
+  --panel: #ded2b4;
+  --panel-raised: #efe6cf;
+  --panel-line: rgba(46, 34, 22, 0.3);
+  --panel-ink: #2e2216;
+  --panel-ink-muted: #5e4e3a;
+  --panel-edge: 3px double #2e2216;
+  --panel-radius: 2px;
+
+  --card-bg: #efe6cf;
+  --card-ink: #1a1612;
+  --card-ink-muted: #5e4e3a;
+  --card-border: 4px solid #1a1612;
+  --card-radius: 7px;
+  --card-shadow: 0 3px 6px rgba(46, 34, 22, 0.3);
+  --card-shadow-lifted: 0 12px 18px rgba(46, 34, 22, 0.4);
+  --card-back: repeating-linear-gradient(45deg, #3b2a1a 0 5px, #5e4e3a 5px 10px);
+
+  --accent: #2e2216;
+  --accent-ink: #e9dfc7;
+  --accent-shadow: none;
+  --ghost-line: #2e2216;
+  --radius-control: 2px;
+
+  --life-bg: transparent;
+  --life-ink: #2e2216;
+  --life-radius: 50%;
+  --life-border: 3px double #2e2216;
+  --life-shadow: none;
+
+  --danger: #8e2f1c;
+  --danger-text: #8e2f1c;
+  --select: #b8954a;
+
+  --c-W: #cfc4a4;
+  --c-U: #3f5f82;
+  --c-B: #2f2b28;
+  --c-R: #8a3f2a;
+  --c-G: #3a5c37;
+  --c-C: #7a756b;
+  --c-M: #8e7136;
+
+  --font-ui: 'Crimson Pro', Georgia, serif;
+  --font-display: 'IM Fell English', Georgia, serif;
+  --display-weight: 400;
+
+  color-scheme: light;
+}
+
+/* ---- D · Terminal: black screen, monospace, boxes and amber prompts */
+[data-skin='terminal'] {
+  --table: #0c0c0c;
+  --table-texture: none;
+  --table-line: #2b2b2b;
+  --on-table: #d4d4d4;
+  --on-table-muted: #8a8a8a;
+
+  --panel: #0c0c0c;
+  --panel-raised: #141414;
+  --panel-line: #2b2b2b;
+  --panel-ink: #d4d4d4;
+  --panel-ink-muted: #8a8a8a;
+  --panel-edge: 1px solid #2b2b2b;
+  --panel-radius: 0;
+
+  --card-bg: #0c0c0c;
+  --card-ink: #d4d4d4;
+  --card-ink-muted: #8a8a8a;
+  --card-border: 1px solid #3a3a3a;
+  --card-radius: 0;
+  --card-shadow: none;
+  --card-shadow-lifted: none;
+  --card-back: repeating-linear-gradient(0deg, #1a1a1a 0 2px, #0c0c0c 2px 4px);
+
+  --accent: #ffb000;
+  --accent-ink: #0c0c0c;
+  --accent-shadow: none;
+  --ghost-line: #3a3a3a;
+  --radius-control: 0;
+
+  --life-bg: transparent;
+  --life-ink: #d4d4d4;
+  --life-radius: 0;
+  --life-border: 1px solid #3a3a3a;
+  --life-shadow: none;
+
+  --danger: #ff6b4a;
+  --danger-text: #ff6b4a;
+  --select: #ffb000;
+
+  --c-W: #f2e7b6;
+  --c-U: #6fa8ff;
+  --c-B: #b7a6d9;
+  --c-R: #ff6b4a;
+  --c-G: #5fd07a;
+  --c-C: #9a9a9a;
+  --c-M: #ffb000;
+
+  --font-ui: 'JetBrains Mono', ui-monospace, monospace;
+  --font-display: 'JetBrains Mono', ui-monospace, monospace;
+  --display-weight: 700;
+
+  color-scheme: dark;
+}
+
+/* The page itself wears the skin (data-skin on <html>). */
+:root {
   font: 15px/1.4 var(--font-ui);
-  color: var(--on-felt);
-  background-color: var(--felt);
-  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 3px 3px;
+  color: var(--on-table);
+  background-color: var(--table);
+  background-image: var(--table-texture);
+  background-size: var(--table-texture-size, auto);
 }
 
 * {
@@ -62,7 +278,7 @@ button {
 .btn {
   height: 44px;
   padding: 0 18px;
-  border-radius: 22px;
+  border-radius: var(--radius-control);
   border: 1px solid transparent;
   cursor: pointer;
   font-weight: 500;
@@ -73,36 +289,39 @@ button {
   cursor: default;
 }
 .btn--primary {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
-  box-shadow: 0 3px 0 var(--paper-shade);
+  box-shadow: var(--accent-shadow);
 }
 .btn--ghost {
   background: transparent;
-  border-color: rgba(243, 235, 221, 0.5);
+  border-color: var(--ghost-line);
 }
 .btn--big {
   height: 56px;
   padding: 0 32px;
-  border-radius: 28px;
   font-size: 17px;
 }
 
 .input {
   height: 44px;
   padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--felt-line);
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--on-felt);
+  border-radius: min(8px, var(--radius-control));
+  border: 1px solid var(--table-line);
+  background: transparent;
+  color: var(--on-table);
   font: inherit;
+}
+.input option {
+  background: var(--panel);
+  color: var(--panel-ink);
 }
 
 .muted {
-  color: var(--on-felt-muted);
+  color: var(--on-table-muted);
 }
 .error,
 .danger {
-  color: #ff8a6e;
+  color: var(--danger-text);
 }

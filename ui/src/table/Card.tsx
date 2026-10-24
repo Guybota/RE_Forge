@@ -54,10 +54,13 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
   }
   const art = cardImage(card.imageKey, 'crop');
   const pt = card.power !== undefined ? `${card.power}/${card.toughness}` : card.loyalty ?? card.defense;
+  // Without a click handler (e.g. a skin preview inside another button) it's just a picture.
+  const Tag = onClick ? 'button' : 'div';
 
   return (
-    <button
-      type="button"
+    <Tag
+      type={onClick ? 'button' : undefined}
+      role={onClick ? undefined : 'img'}
       className={classes}
       onClick={onClick}
       onMouseEnter={() => onHover?.(card)}
@@ -90,6 +93,6 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
         </span>
       )}
       {attackLabel && <span className="card__attack">→ {attackLabel}</span>}
-    </button>
+    </Tag>
   );
 }

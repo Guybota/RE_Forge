@@ -10,6 +10,8 @@ export type EngineInfo = {
   /** Forge language code; missing until the player has chosen one (first run). */
   language?: string;
   languages: { code: string; name: string }[];
+  /** Skin id; missing until the player has chosen one (first run). */
+  skin?: string;
 };
 
 export type CardState = {
@@ -110,6 +112,7 @@ export type ClientMessage =
   | { type: 'hello' }
   | { type: 'listDecks' }
   | { type: 'setLanguage'; language: string }
+  | { type: 'setSkin'; skin: string }
   | { type: 'startMatch'; deck: string | null; opponents: number }
   | { type: 'action'; action: Action; id?: number }
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null };
