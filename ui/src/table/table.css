@@ -129,7 +129,19 @@
 }
 .card--field { width: 92px; height: 128px; }
 .card--land { width: 60px; height: 84px; }
-.card--hand { width: 124px; height: 172px; padding: 7px; }
+.card--hand { width: 150px; height: 209px; padding: 7px; }
+.card--printed {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #111;
+}
+.card--printed img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .card--mini { width: 46px; height: 64px; padding: 3px; border-radius: 5px; }
 
 /* A tapped card turns sideways; widen its slot so it doesn't overlap its neighbours. */
@@ -317,17 +329,19 @@
 
 /* ---------- hand */
 
+/* The hand peeks up from the bottom edge; a hovered card rises fully into view, above the table. */
 .hand {
-  flex: 0 0 196px;
+  flex: 0 0 170px;
   display: flex;
   justify-content: center;
   padding-top: 14px;
-  overflow: hidden;
+  position: relative;
+  z-index: 2;
 }
-.hand__slot { margin-left: -22px; transition: transform 160ms ease; }
+.hand__slot { margin-left: -30px; transition: transform 160ms ease; }
 .hand__slot:first-child { margin-left: 0; }
 .hand__slot:hover { z-index: 1; }
-.hand__slot:hover .card { --lift: -18px; }
+.hand__slot:hover .card { --lift: -70px; }
 
 /* ---------- side panel */
 

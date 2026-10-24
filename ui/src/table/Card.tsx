@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
 import { colorKey, manaSymbols } from './cards';
@@ -14,6 +15,10 @@ type Props = {
 };
 
 export function Card({ card, size, selectable, chosen, target, attackLabel, onClick, onHover }: Props) {
+  // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
+  const [fullFailed, setFullFailed] = useState(false);
+  const full = size === 'hand' && !fullFailed ? cardImage(card.imageKey, 'full') : null;
+
   if (card.hidden) {
     return <div className={`card card--${size} card--back`} aria-label="Carta escondida" />;
   }
@@ -26,7 +31,25 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
     selectable && 'is-selectable',
     chosen && 'is-chosen',
     target && 'is-target',
+    full && 'card--printed',
   ].filter(Boolean).join(' ');
+
+  if (full) {
+    return (
+      <button
+        type="button"
+        className={classes}
+        onClick={onClick}
+        onMouseEnter={() => onHover?.(card)}
+        onMouseLeave={() => onHover?.(null)}
+        onFocus={() => onHover?.(card)}
+        aria-label={card.name}
+        aria-pressed={chosen}
+      >
+        <img src={full} alt="" decoding="async" onError={() => setFullFailed(true)} />
+      </button>
+    );
+  }
   const art = cardImage(card.imageKey, 'crop');
   const pt = card.power !== undefined ? `${card.power}/${card.toughness}` : card.loyalty ?? card.defense;
 
