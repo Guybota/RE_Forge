@@ -330,8 +330,8 @@
 }
 
 /* Decks: list on the left, the chosen deck on the right (same lines as the import preview). */
-.decks__import { margin-left: auto; }
-.decks__empty { flex: 1; display: grid; place-items: center; }
+.decks__new { margin-left: auto; display: flex; gap: 8px; }
+.decks__empty { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .decks__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 32px; }
 .decks__list { margin: 0; padding: 0; list-style: none; overflow-y: auto; max-height: calc(100vh - 120px); border-top: 1px solid var(--table-line); }
 .decks__item {
@@ -354,4 +354,67 @@
 @media (max-width: 800px) {
   .decks__body { grid-template-columns: 1fr; }
   .decks__list { max-height: 30vh; }
+}
+
+/* Deck builder: catalog (filters + picture grid) on the left, the deck on the right. */
+.builder { height: 100vh; display: flex; flex-direction: column; gap: 12px; padding: 16px 24px; }
+.builder .import__head .decks__name { flex: 1; max-width: 520px; }
+.builder__count { font-weight: 700; margin-left: auto; cursor: help; }
+.builder__body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 24px; }
+.builder__catalog { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.builder__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.builder__filters .input { width: auto; }
+.builder__query { flex: 1 1 220px; }
+.builder__colors { display: flex; gap: 4px; }
+.builder__color { width: 30px; height: 30px; border: 2px solid transparent; cursor: pointer; opacity: 0.45; }
+.builder__color[aria-pressed='true'] { opacity: 1; border-color: var(--select); }
+.builder__toggle { white-space: nowrap; }
+.builder__results, .builder__printings {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 4px 0 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+.builder__result { width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: center; font-size: 12px; }
+.builder__result img { display: block; width: 100%; aspect-ratio: 0.716; object-fit: cover; border-radius: 4.5% / 3.3%; background: color-mix(in srgb, var(--on-table) 10%, transparent); }
+.builder__result:hover img, .builder__result.is-on img { outline: 3px solid var(--select); }
+.builder__result span { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.builder__more { align-self: center; }
+.builder__deck { min-height: 0; overflow-y: auto; padding-right: 4px; }
+.builder__curve { display: flex; align-items: flex-end; gap: 6px; height: 72px; margin-bottom: 14px; }
+.builder__bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 2px; text-align: center; }
+.builder__bar > span { min-height: 2px; background: var(--accent); border-radius: 2px 2px 0 0; }
+.builder__bar small { font-size: 11px; color: var(--on-table-muted); }
+.builder__line { display: flex; align-items: center; gap: 4px; padding: 2px 0 !important; }
+.builder__line::before { display: none; }
+.builder__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.builder__cost { display: flex; gap: 1px; }
+.builder__cost .pip { width: 13px; height: 13px; font-size: 9px; }
+.builder__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.builder__step:hover:not(:disabled) { border-color: var(--table-line); }
+.builder__step:disabled { opacity: 0.3; cursor: default; }
+.builder__step[aria-pressed='true'] { color: var(--select); }
+.builder__step svg { width: 16px; height: 16px; }
+.builder__printings { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); max-height: 70vh; }
+@media (max-width: 900px) {
+  .builder { height: auto; min-height: 100vh; }
+  .builder__body { grid-template-columns: 1fr; }
+  .builder__results { max-height: 60vh; }
 }

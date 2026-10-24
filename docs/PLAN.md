@@ -211,7 +211,10 @@ importação agrupada por tipo com imagem e impressões originais, ecrã online 
 Decks e zoom (`feat/decks-zoom`): ecrã Decks (ver agrupado, mudar nome, editar, exportar, apagar, jogar) e zoom de qualquer
 carta com clique direito ou toque prolongado.
 
-Passo 4 concluído. Sideboard entre jogos e escolhas de modos futuros
+Passo 4 concluído.
+
+Passo 5 (`feat/deck-builder`): construtor com catálogo e filtros, comandante e identidade de cor, curva de mana,
+validação do Forge, impressões e novo deck. Falta: coleção, filtros avançados (texto, raridade, edição), estatísticas. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).

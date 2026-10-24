@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DeckCards } from './DeckCards';
+import type { DeckDetail } from './engine';
 import { useT } from './i18n';
 import type { Engine } from './useEngine';
 
@@ -10,11 +11,12 @@ type Props = {
   onBack: () => void;
   onPlay: (deck: string) => void;
   onImport: () => void;
-  onEdit: (deck: { name: string; text: string }) => void;
+  /** Opens the builder: with a deck to change it, without one for a new deck. */
+  onBuild: (deck?: DeckDetail) => void;
 };
 
 /** The player's own decks (imported or edited here): look through, rename, edit, export, delete or play one. */
-export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onEdit }: Props) {
+export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }: Props) {
   const t = useT();
   const { send, decks } = engine;
   const [selected, setSelected] = useState(initialDeck && decks.mine.includes(initialDeck) ? initialDeck : decks.mine[0]);
@@ -54,10 +56,16 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onEdit }:
       <header className="import__head">
         <button type="button" className="btn btn--ghost" onClick={onBack}>{t('back')}</button>
         <h1>{t('decks')}</h1>
-        {decks.mine.length > 0 && <button type="button" className="btn btn--ghost decks__import" onClick={onImport}>{t('import')}</button>}
+        {decks.mine.length > 0 && <span className="decks__new">
+          <button type="button" className="btn btn--ghost" onClick={onImport}>{t('import')}</button>
+          <button type="button" className="btn btn--primary" onClick={() => onBuild()}>{t('newDeck')}</button>
+        </span>}
       </header>
       {decks.mine.length === 0 ? (
-        <div className="decks__empty"><button type="button" className="btn btn--primary btn--big" onClick={onImport}>{t('importDeck')}</button></div>
+        <div className="decks__empty">
+          <button type="button" className="btn btn--primary btn--big" onClick={() => onBuild()}>{t('newDeck')}</button>
+          <button type="button" className="btn btn--ghost btn--big" onClick={onImport}>{t('importDeck')}</button>
+        </div>
       ) : (
         <div className="decks__body">
           <ul className="decks__list" aria-label={t('myDecks')}>
@@ -73,7 +81,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onEdit }:
                 <input className="input decks__name" aria-label={t('deckName')} value={name} onChange={(e) => setName(e.target.value)}
                   onBlur={rename} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setName(selected); }} />
                 <button type="button" className="btn btn--primary" onClick={() => onPlay(selected)}>{t('playDeck')}</button>
-                <button type="button" className="btn btn--ghost" disabled={!detail} onClick={() => detail && onEdit({ name: selected, text: detail.text })}>{t('editDeck')}</button>
+                <button type="button" className="btn btn--ghost" disabled={!detail} onClick={() => detail && onBuild(detail)}>{t('editDeck')}</button>
                 <button type="button" className="btn btn--ghost" disabled={!detail} title={t('exportHint')} onClick={async () => {
                   if (!detail) return;
                   try { await navigator.clipboard.writeText(detail.text); setCopied(true); } catch { setCopied(false); }

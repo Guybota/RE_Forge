@@ -132,8 +132,10 @@ export type ChatMessage = { type: 'chatMessage'; source?: string; text: string; 
 
 export type DeckPreview = {
   type: 'deckPreview';
-  /** Card lines also carry the translated name, quantity, type group and picture of the chosen printing. */
-  lines: { text: string; status: 'ok' | 'warning' | 'error'; message?: string; name?: string; qty?: number; group?: string; imageKey?: string }[];
+  /** Card lines also carry the card as the catalog describes it, its quantity and ("commander" group) its section. */
+  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string } & Partial<CatalogCard>)[];
+  /** The commanders' combined colour identity (bits W 1, U 2, B 4, R 8, G 16). */
+  identity?: number;
   unknown: number;
   name?: string;
   cards?: number;
@@ -141,6 +143,24 @@ export type DeckPreview = {
   /** Why the deck isn't Commander-legal (still playable against the AI). */
   problem?: string;
 };
+
+/** A card in the deck builder's catalog (also the fields of a decklist line). */
+export type CatalogCard = {
+  nameEn: string;
+  name: string;
+  set: string;
+  number: string;
+  imageKey: string;
+  cost: string;
+  cmc: number;
+  type: string;
+  /** creature, planeswalker, instant, sorcery, artifact, enchantment, battle, land, other; "commander" on deck lines. */
+  group: string;
+  canCommand: boolean;
+  identity: number;
+};
+export type CardResults = { type: 'cardResults'; total: number; offset: number; cards: CatalogCard[] };
+export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string }[] };
 
 /** One of the player's decks: its decklist (with printings) and the grouped preview. */
 export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string };
@@ -158,6 +178,8 @@ type EngineMessage =
   | { type: 'decks'; mine: string[]; commander: string[] }
   | DeckPreview
   | DeckDetail
+  | CardResults
+  | Printings
   | { type: 'error'; message: string };
 
 export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave';
@@ -172,6 +194,8 @@ export type ClientMessage =
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
+  | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; offset?: number }
+  | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; opponents: number; aiProfiles: string[] }
   | { type: 'hostGame'; name: string; port: number; upnp: boolean }
@@ -189,6 +213,8 @@ export type EngineHandlers = {
   onDecks: (decks: DeckLists) => void;
   onDeckPreview: (preview: DeckPreview) => void;
   onDeckDetail: (detail: DeckDetail) => void;
+  onCardResults: (results: CardResults) => void;
+  onPrintings: (printings: Printings) => void;
   onState: (state: GameState) => void;
   onChoice: (choice: Choice) => void;
   onNotice: (notice: Notice) => void;
@@ -230,6 +256,8 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander }); break;
       case 'deckPreview': h.onDeckPreview(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;
+      case 'cardResults': h.onCardResults(msg); break;
+      case 'printings': h.onPrintings(msg); break;
       case 'state': h.onState(msg); break;
       case 'choice': h.onChoice(msg); break;
       case 'notice': h.onNotice(msg); break;

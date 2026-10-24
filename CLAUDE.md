@@ -33,13 +33,17 @@ docs/       PLAN.md (roadmap).
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons, each with its chosen Forge AI profile (`res/ai`); sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
 | `Settings` | `<data>/reforge.properties`: chosen `language`, `skin` and separate phase stops for own/opponents' turns. Atomic writes; missing language/skin = first run. |
+| `CardCatalog` | Deck builder catalog: `search` (Commander-legal, no Arena `A-` or Un-only cards, exact names first, 60 per page) and `printings`. `card()` fields are shared with decklist lines. |
 | `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`), `rename` copies then deletes. |
 
 ### UI (ui/src)
 
 - `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` (→ `Decks` → `ImportDeck`) → `Table`.
-- `Decks.tsx` — the player's own decks: grouped list (`DeckCards`), rename, edit (opens `ImportDeck` with the deck's
-  list; a new name replaces the old deck), export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
+- `Decks.tsx` — the player's own decks: grouped list (`DeckCards`), rename, edit or new (opens `DeckBuilder`), import,
+  export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
+- `DeckBuilder.tsx` — catalog search (name in any language, colours, type, mana value, commanders only, commander's
+  identity) and the deck as entries with exact printings; serialised to a decklist for `previewDeck`/`saveDeck`.
+  Singleton enforced on add (basics excepted); mana curve; printing picker; a new name replaces the opened deck.
 - `table/CardZoom.tsx` — right click (long press on touch) on any card or deck line shows it big, in a modal `<dialog>`
   so it sits above other dialogs; also exports the shared `Preview`.
 - `Lobby.tsx` — host/join form and online lobby, up to four mixed human/AI seats, deck selection and chat.
@@ -87,6 +91,7 @@ npm run engine:smoke-import   # import a decklist fixture, play it, export, rena
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
+npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
 npm run engine:smoke-images   # image URLs (cards, tokens), per-language cache, English fallback, retries
 ```
 

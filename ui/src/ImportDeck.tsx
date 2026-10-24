@@ -3,18 +3,11 @@ import { DeckCards } from './DeckCards';
 import { useT } from './i18n';
 import type { Engine } from './useEngine';
 
-/**
- * Paste a decklist (Moxfield, Archidekt, MTG Arena, MTGO), check it line by line, save it.
- * With `editing`, the same screen changes one of the player's decks (a new name replaces the old deck).
- */
-export function ImportDeck({ engine, onDone, editing }: {
-  engine: Engine;
-  onDone: (savedName: string | null) => void;
-  editing?: { name: string; text: string };
-}) {
+/** Paste a decklist (Moxfield, Archidekt, MTG Arena, MTGO), check it line by line, save it. */
+export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedName: string | null) => void }) {
   const t = useT();
-  const [text, setText] = useState(editing?.text ?? '');
-  const [name, setName] = useState(editing?.name ?? '');
+  const [text, setText] = useState('');
+  const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const preview = text.trim() ? engine.deckPreview : null;
   const { send } = engine;
@@ -41,9 +34,8 @@ export function ImportDeck({ engine, onDone, editing }: {
   const decksAtSave = useRef(engine.decks);
   useEffect(() => {
     if (!saving || engine.decks === decksAtSave.current || !engine.decks.mine.includes(name.trim())) return;
-    if (editing && editing.name !== name.trim()) send({ type: 'deleteDeck', name: editing.name });
     onDone(name.trim());
-  }, [saving, engine.decks, name, onDone, editing, send]);
+  }, [saving, engine.decks, name, onDone]);
   useEffect(() => {
     if (engine.error) setSaving(false);
   }, [engine.error]);
@@ -54,7 +46,7 @@ export function ImportDeck({ engine, onDone, editing }: {
     <main className={`import ${preview ? 'import--preview' : ''}`}>
       <header className="import__head">
         <button type="button" className="btn btn--ghost" onClick={() => onDone(null)}>{t('back')}</button>
-        <h1>{editing ? editing.name : t('importDeck')}</h1>
+        <h1>{t('importDeck')}</h1>
       </header>
       <div className="import__body">
         <div className="import__left">

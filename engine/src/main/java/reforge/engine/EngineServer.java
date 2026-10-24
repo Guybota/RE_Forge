@@ -133,6 +133,8 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
+            case "searchCards" -> c.actions.execute(() -> c.session.send(CardCatalog.search(msg)));
+            case "getPrintings" -> c.actions.execute(() -> c.session.send(CardCatalog.printings(string(msg, "name"))));
             case "getDeck" -> c.actions.execute(() -> {
                 JsonObject detail = DeckImporter.detail(string(msg, "name"));
                 c.session.send(detail != null ? detail : error("Unknown deck"));

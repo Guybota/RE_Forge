@@ -3,6 +3,8 @@ import { Home } from './Home';
 import { Lobby } from './Lobby';
 import { ImportDeck } from './ImportDeck';
 import { Decks } from './Decks';
+import { DeckBuilder } from './DeckBuilder';
+import type { DeckDetail } from './engine';
 import { I18n, translator } from './i18n';
 import { LanguagePicker } from './LanguagePicker';
 import { DEFAULT_SKIN } from './skins';
@@ -14,10 +16,10 @@ import './App.css';
 
 export default function App() {
   const engine = useEngine();
-  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'online' | null>(null);
+  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
-  const [editing, setEditing] = useState<{ name: string; text: string } | undefined>();
+  const [building, setBuilding] = useState<DeckDetail | undefined>();
   // Before the engine says which language was chosen, follow the system's.
   const language = engine.info?.language ?? navigator.language;
   const t = useMemo(() => translator(language), [language]);
@@ -45,19 +47,14 @@ export default function App() {
     screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
   } else if (!engine.info?.skin || picking === 'skin') {
     screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} onBack={() => setPicking('language')} />;
-  } else if (picking === 'import') {
-    screen = (
-      <ImportDeck
-        key={editing?.name ?? ''}
-        engine={engine}
-        editing={editing}
-        onDone={(saved) => {
-          if (saved) setLastDeck(saved);
-          setEditing(undefined);
-          setPicking('decks');
-        }}
-      />
-    );
+  } else if (picking === 'import' || picking === 'builder') {
+    const done = (saved: string | null) => {
+      if (saved) setLastDeck(saved);
+      setPicking('decks');
+    };
+    screen = picking === 'import'
+      ? <ImportDeck engine={engine} onDone={done} />
+      : <DeckBuilder key={building?.name ?? ''} engine={engine} initial={building} onDone={done} />;
   } else if (picking === 'decks') {
     screen = (
       <Decks
@@ -65,8 +62,8 @@ export default function App() {
         initialDeck={lastDeck}
         onBack={() => setPicking(null)}
         onPlay={(deck) => { setLastDeck(deck); setPicking(null); }}
-        onImport={() => { setEditing(undefined); setPicking('import'); }}
-        onEdit={(deck) => { setEditing(deck); setPicking('import'); }}
+        onImport={() => setPicking('import')}
+        onBuild={(deck) => { setBuilding(deck); setPicking('builder'); }}
       />
     );
   } else {

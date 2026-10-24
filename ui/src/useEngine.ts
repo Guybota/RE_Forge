@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MessageKey } from './i18n';
 import type { LobbyState, ChatMessage } from './engine';
 import { setImageBase } from './images';
-import { connectEngine, enginePort, type Choice, type ClientMessage, type DeckDetail, type DeckLists, type DeckPreview, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
+import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
   status: 'connecting' | 'ready' | 'failed';
@@ -13,6 +13,9 @@ export type Engine = {
   deckPreview: DeckPreview | null;
   /** The latest reply to getDeck. */
   deckDetail: DeckDetail | null;
+  /** The latest replies to searchCards and getPrintings (deck builder). */
+  cardResults: CardResults | null;
+  printings: Printings | null;
   game: GameState | null;
   choice: Choice | null;
   notice: (Notice & { at: number }) | null;
@@ -33,6 +36,8 @@ export function useEngine(): Engine {
   const [decks, setDecks] = useState<DeckLists>({ mine: [], precons: [] });
   const [deckPreview, setDeckPreview] = useState<DeckPreview | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
+  const [cardResults, setCardResults] = useState<CardResults | null>(null);
+  const [printings, setPrintings] = useState<Printings | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [notice, setNotice] = useState<Engine['notice']>(null);
@@ -54,6 +59,8 @@ export function useEngine(): Engine {
       onDecks: setDecks,
       onDeckPreview: setDeckPreview,
       onDeckDetail: setDeckDetail,
+      onCardResults: setCardResults,
+      onPrintings: setPrintings,
       onState: (g) => { if (!left.current) setGame(g); },
       onChoice: (q) => { if (!left.current) setChoice(q); },
       onNotice: (n) => setNotice({ ...n, at: Date.now() }),
@@ -93,5 +100,5 @@ export function useEngine(): Engine {
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckPreview, deckDetail, game, choice, notice, error, lobby, chat, send, answer, leaveGame };
+  return { status, failure, info, decks, deckPreview, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, send, answer, leaveGame };
 }

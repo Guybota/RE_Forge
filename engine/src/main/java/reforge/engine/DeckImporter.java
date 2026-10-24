@@ -17,7 +17,6 @@ import forge.gui.interfaces.ICheckBox;
 import forge.gui.interfaces.IComboBox;
 import forge.item.PaperCard;
 import forge.model.FModel;
-import forge.util.CardTranslation;
 import forge.util.storage.IStorage;
 
 /**
@@ -48,11 +47,12 @@ final class DeckImporter {
             if (message != null && !message.isEmpty()) l.addProperty("message", message);
             PaperCard card = t.getCard();
             if (card != null) {
-                // For the grouped list: translated name, a type group and the picture of the chosen printing.
-                l.addProperty("name", CardTranslation.getTranslatedName(card.getName()));
+                // For the grouped list and the builder: the card as the catalog describes it, its count and section.
+                CardCatalog.card(card).entrySet().forEach(e -> l.add(e.getKey(), e.getValue()));
                 l.addProperty("qty", t.getQuantity());
-                l.addProperty("group", t.getTokenSection() == DeckSection.Commander ? "commander" : group(card));
-                l.addProperty("imageKey", card.getImageKey(false));
+                // "commander" replaces the type group for display; typeGroup keeps it for the builder.
+                l.addProperty("typeGroup", group(card));
+                if (t.getTokenSection() == DeckSection.Commander) l.addProperty("group", "commander");
             }
             lines.add(l);
         }
@@ -71,6 +71,12 @@ final class DeckImporter {
                 for (PaperCard c : deck.get(DeckSection.Commander).toFlatList()) commanders.add(c.getName());
             }
             o.add("commanders", commanders);
+            // The commanders' combined colour identity (Forge's W U B R G bits), for the builder's card filter.
+            int identity = 0;
+            if (deck.has(DeckSection.Commander)) {
+                for (PaperCard c : deck.get(DeckSection.Commander).toFlatList()) identity |= c.getRules().getColorIdentity().getColor();
+            }
+            o.addProperty("identity", identity);
             String problem = DeckFormat.Commander.getDeckConformanceProblem(deck);
             if (problem != null) o.addProperty("problem", problem);
         }
@@ -140,7 +146,7 @@ final class DeckImporter {
         return FModel.getDecks().getCommander();
     }
 
-    private static String group(PaperCard card) {
+    static String group(PaperCard card) {
         var type = card.getRules().getType();
         if (type.isLand()) return "land";
         if (type.isCreature()) return "creature";

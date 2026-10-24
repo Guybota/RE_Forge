@@ -44,6 +44,7 @@ npm run engine:smoke-online   # two engines: lobby, chat, private hands, remote 
 npm run engine:smoke-settings # settings survive restart; phase stops change live priority
 npm run engine:smoke-dialogs  # deterministic choices, invalid answers, scry/surveil and a real double block
 npm run engine:smoke-images   # card/token image URLs, per-language cache, English fallback, retries (simulated Scryfall)
+npm run engine:smoke-builder  # deck builder catalog: names in two languages, filters, identity, pages, printings
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.
@@ -96,6 +97,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | Direction | `type` | What |
 |---|---|---|
 | UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); `decks` with `mine` (imported) and `commander` (precons) |
+| UI → engine | `searchCards` / `getPrintings` | `query`, `colors` (mask W1 U2 B4 R8 G16, 32 colourless), `identity`, `cardType`, `cmc` (7 = 7+), `commanders`, `offset` → `cardResults` (`total`, 60 `cards`); `name` → `printings` |
 | UI → engine | `getDeck` / `renameDeck` | `name` → `deckDetail` (same fields as `deckPreview` plus `name` and the exported `text`); `name`, `to` → `decks` |
 | UI → engine | `previewDeck` / `saveDeck` / `deleteDeck` | Decklist `text` (+ `name`) → `deckPreview` (lines with status — card lines also `name`, `qty`, type `group`, `imageKey` — cards, commanders, legality `problem`); save/delete answer `decks` |
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |

@@ -5,7 +5,7 @@ import { cardImage } from './images';
 import { CardZoom } from './table/CardZoom';
 
 type Line = DeckPreview['lines'][number];
-const GROUPS: { id: string; label: MessageKey }[] = [
+export const GROUPS: { id: string; label: MessageKey }[] = [
   { id: 'commander', label: 'commander' }, { id: 'creature', label: 'groupCreatures' }, { id: 'planeswalker', label: 'groupPlaneswalkers' },
   { id: 'instant', label: 'groupInstants' }, { id: 'sorcery', label: 'groupSorceries' }, { id: 'artifact', label: 'groupArtifacts' },
   { id: 'enchantment', label: 'groupEnchantments' }, { id: 'battle', label: 'groupBattles' }, { id: 'land', label: 'groupLands' },
