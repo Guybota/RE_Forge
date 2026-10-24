@@ -118,6 +118,7 @@ final class GameSnapshot {
         o.addProperty("type", s.getType() == null ? "" : s.getType().toString());
         o.addProperty("colors", s.getColors() == null ? "" : s.getColors().toString());
         o.addProperty("set", s.getSetCode());
+        o.addProperty("imageKey", s.getImageKey());
         o.addProperty("text", s.getOracleText());
         if (s.getType() != null && s.getType().isCreature()) {
             o.addProperty("power", s.getPower());

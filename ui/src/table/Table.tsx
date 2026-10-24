@@ -1,11 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import type { Engine } from '../useEngine';
+import { cardImage } from '../images';
 import { Card } from './Card';
 import { ChoiceDialog } from './ChoiceDialog';
 import { PHASE_TRACK, manaSymbols, phaseLabel } from './cards';
 import { PlayerArea, type TableContext } from './PlayerArea';
 import './table.css';
+
+/** The printed card when there is a picture (it already shows name, cost and text); the text otherwise. */
+function Preview({ card }: { card: CardState }) {
+  const [failed, setFailed] = useState(false);
+  const src = cardImage(card.imageKey, 'full');
+  if (src && !failed) {
+    return <img className="side__image" src={src} alt={`${card.name}: ${card.text ?? ''}`} onError={() => setFailed(true)} />;
+  }
+  return (
+    <>
+      <h2>{card.name}</h2>
+      <p className="side__cost">{manaSymbols(card.cost).join(' ')}</p>
+      <p className="side__type">{card.type}</p>
+      <p className="side__text">{card.text}</p>
+      {card.power !== undefined && <p className="side__pt">{card.power}/{card.toughness}</p>}
+    </>
+  );
+}
 
 // Forge's priority prompt repeats what the phase track and stack already show.
 const REDUNDANT_PROMPT_LINE = /^(Priority|Turn|Phase|Stack):/;
@@ -120,15 +139,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
       <aside className="side">
         <section className="side__preview" aria-live="polite">
-          {hovered && !hovered.hidden ? (
-            <>
-              <h2>{hovered.name}</h2>
-              <p className="side__cost">{manaSymbols(hovered.cost).join(' ')}</p>
-              <p className="side__type">{hovered.type}</p>
-              <p className="side__text">{hovered.text}</p>
-              {hovered.power !== undefined && <p className="side__pt">{hovered.power}/{hovered.toughness}</p>}
-            </>
-          ) : null}
+          {hovered && !hovered.hidden ? <Preview key={hovered.id} card={hovered} /> : null}
         </section>
         <section>
           <h2>Stack</h2>

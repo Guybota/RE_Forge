@@ -186,8 +186,16 @@
 .card__cost { display: flex; gap: 1px; flex-shrink: 0; }
 .card__art {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
   border-radius: 3px;
   background: var(--art, var(--c-C));
+}
+.card__art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .card--cW { --art: var(--c-W); }
 .card--cU { --art: var(--c-U); }
@@ -347,6 +355,13 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 .side__preview p { margin: 4px 0 0; font-size: 13px; }
+.side__preview:has(.side__image) { padding: 0; background: none; box-shadow: none; }
+.side__image {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
 .side__cost, .side__type { color: var(--ink-muted); }
 .side__text { white-space: pre-line; }
 .side__pt { font-weight: 700; text-align: right; }

@@ -1,4 +1,5 @@
 import type { CardState } from '../engine';
+import { cardImage } from '../images';
 import { colorKey, manaSymbols } from './cards';
 
 type Props = {
@@ -26,6 +27,7 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
     chosen && 'is-chosen',
     target && 'is-target',
   ].filter(Boolean).join(' ');
+  const art = cardImage(card.imageKey, 'crop');
   const pt = card.power !== undefined ? `${card.power}/${card.toughness}` : card.loyalty ?? card.defense;
 
   return (
@@ -50,7 +52,9 @@ export function Card({ card, size, selectable, chosen, target, attackLabel, onCl
           </span>
         )}
       </span>
-      <span className="card__art" />
+      <span className="card__art">
+        {art && <img src={art} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true; }} />}
+      </span>
       {size !== 'land' && size !== 'mini' && <span className="card__type">{card.type}</span>}
       {(pt !== undefined || !!card.damage) && size !== 'land' && (
         <span className="card__pt">{pt}{card.damage ? <em> −{card.damage}</em> : null}</span>

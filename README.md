@@ -48,6 +48,10 @@ The engine keeps Forge's preferences, decks and caches in `%APPDATA%\RE-Forge` (
 never in the `%APPDATA%\Forge` folder an installed Forge uses. It does this by writing `forge/forge-gui/forge.profile.properties`
 (ignored by Forge's git) on every start.
 
+Card pictures are served by the engine at `<imageBase>?key=<imageKey>&format=crop|full` (`imageBase` comes in `engineInfo`,
+`imageKey` on each card). The first request downloads from Scryfall through Forge's rate limiter; after that it is read
+from `cache/reforge-art/`. Tokens have no picture yet.
+
 ## Engine protocol
 
 JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed in `ui/src/engine.ts`.

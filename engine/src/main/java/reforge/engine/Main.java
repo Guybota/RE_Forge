@@ -37,7 +37,8 @@ public final class Main {
         GuiBase.setInterface(new HeadlessGui(assets));
         FModel.initialize(null, null);
 
-        EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port));
+        int imagePort = new ImageServer().start();
+        EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card");
         server.start();
         System.out.println("READY " + server.awaitPort());
         System.out.flush();

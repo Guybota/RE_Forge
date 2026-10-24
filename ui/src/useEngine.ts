@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { setImageBase } from './images';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
@@ -32,6 +33,7 @@ export function useEngine(): Engine {
     if (!port) return;
     const c = connectEngine(port, {
       onInfo: (i) => {
+        setImageBase(i.imageBase);
         setInfo(i);
         setStatus('ready');
       },

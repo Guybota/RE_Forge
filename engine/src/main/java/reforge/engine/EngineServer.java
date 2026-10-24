@@ -46,8 +46,11 @@ public final class EngineServer extends WebSocketServer {
         }
     }
 
-    public EngineServer(InetSocketAddress address) {
+    private final String imageBase;
+
+    public EngineServer(InetSocketAddress address, String imageBase) {
         super(address);
+        this.imageBase = imageBase;
         setReuseAddr(true);
     }
 
@@ -171,10 +174,11 @@ public final class EngineServer extends WebSocketServer {
         }
     }
 
-    private static JsonObject engineInfo() {
+    private JsonObject engineInfo() {
         JsonObject o = new JsonObject();
         o.addProperty("type", "engineInfo");
         o.addProperty("version", Main.VERSION);
+        o.addProperty("imageBase", imageBase);
         o.addProperty("cards", FModel.getMagicDb().getCommonCards().getUniqueCards().size());
         o.addProperty("editions", FModel.getMagicDb().getEditions().size());
         return o;

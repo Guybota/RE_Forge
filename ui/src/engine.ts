@@ -1,7 +1,7 @@
 // Connection to the Java engine bridge. The Electron shell passes its port as ?enginePort=N.
 // Message shapes mirror engine/src/main/java/reforge/engine (GameSnapshot, WebGuiGame, EngineServer).
 
-export type EngineInfo = { type: 'engineInfo'; version: string; cards: number; editions: number };
+export type EngineInfo = { type: 'engineInfo'; version: string; cards: number; editions: number; imageBase?: string };
 
 export type CardState = {
   id: number;
@@ -11,6 +11,7 @@ export type CardState = {
   type?: string;
   colors?: string;
   set?: string;
+  imageKey?: string;
   text?: string;
   power?: number;
   toughness?: number;
