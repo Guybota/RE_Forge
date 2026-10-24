@@ -1,0 +1,102 @@
+# RE:Forge — guide for AI assistants and new contributors
+
+A new desktop interface for [Forge](https://github.com/Card-Forge/forge), the open-source Magic: The Gathering
+rules engine. Forge runs unchanged in Java; our UI is React inside Electron. **The roadmap and the next tasks are
+in [docs/PLAN.md](docs/PLAN.md)** — read it before starting work. The wire protocol is in [README.md](README.md).
+
+The project owner writes in Portuguese (Portugal). Reply in Portuguese unless asked otherwise.
+
+## Layout
+
+```
+forge/      Forge source, git submodule. Treat as upstream: do not edit it.
+engine/     Java bridge (package reforge.engine). Loads Forge headless, serves the UI over a local WebSocket.
+ui/         React + TypeScript + Vite. Everything the player sees.
+desktop/    Electron shell: starts the engine, opens the UI (main.cjs).
+scripts/    mvn.mjs (Maven launcher), smoke tests, package script (on feat/packaging).
+pom.xml     Maven reactor: builds forge-core/game/ai/gui + engine together (Forge's ${revision} needs this).
+docs/       PLAN.md (roadmap).
+```
+
+### Engine (engine/src/main/java/reforge/engine)
+
+| File | Job |
+|---|---|
+| `Main` | Args (`--assets`, `--data`, `--port`, `--exit-with-parent`), writes `forge.profile.properties`, starts Forge, prints `READY <port>`. |
+| `HeadlessGui` | Forge's `IGuiBase` with no windows. `invokeInEdt*` run inline. `getNewGuiGame()` throws (no match support outside `EngineServer` yet). |
+| `EngineServer` | WebSocket server. Routes `hello`, `listDecks`, `setLanguage`, `setSkin`, `startMatch`, `action`, `answer`. UI actions run on a per-connection `ui-actions` executor. |
+| `Session` | One UI connection: `send()` and blocking `ask()` (question → answer by id). |
+| `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `AbstractGuiGame`). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
+| `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
+| `MatchStarter` | Commander vs 1–3 AIs from Forge's precons; sets the Forge prefs we rely on. |
+| `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
+| `Settings` | `<data>/reforge.properties`: chosen `language` and `skin` (missing = first run). |
+
+### UI (ui/src)
+
+- `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` → `Table`.
+- `useEngine.ts` / `engine.ts` — the socket and every message type (keep in sync with the engine).
+- `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
+- `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
+- `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
+
+## Environment (Windows dev machine)
+
+- JDK 21 (Temurin) at `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`. Old shells may still have Java 8 first on
+  PATH: set `JAVA_HOME` to the JDK 21 path when running Maven or the engine.
+- Maven: `.tools/maven` (git-ignored), used automatically by `scripts/mvn.mjs`; falls back to `mvn` on PATH.
+- Node 24. `npm install` at the root (workspaces `ui`, `desktop`). npm blocks install scripts: Electron is allowed in
+  `package.json` → `allowScripts`.
+
+## Commands
+
+```bash
+npm run engine:build          # Forge modules + bridge → engine/target/re-forge-engine.jar (1–2 min)
+npm run build                 # UI type-check + build → ui/dist
+npm run dev                   # Vite + Electron; Electron starts the engine
+npm run engine:smoke          # engine loads the card DB (~15 s)
+npm run engine:smoke-match    # passive game through the socket, concedes on turn 4 (SMOKE_OPPONENTS=3 for 4 players)
+npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
+```
+
+### Checking the UI in a browser
+
+Start an engine on a fixed port with a throw-away data folder, then open Vite with `?enginePort=`:
+
+```bash
+D=$(mktemp -d); printf "language=pt-BR\nskin=mesa\n" > "$D/reforge.properties"
+"$JAVA_HOME/bin/java" -jar engine/target/re-forge-engine.jar --port 7777 --assets forge/forge-gui --data "$D"
+npm run dev -w ui    # then http://localhost:5173/?enginePort=7777
+```
+
+Leave `reforge.properties` out to see the first-run screens. Never test against the real data folder
+(`%APPDATA%\RE-Forge`) unless asked: it holds the owner's choices.
+
+## Rules that matter
+
+- **Design:** no subtitles or descriptions that repeat what is visible. Explanations go in a tooltip (hover on desktop,
+  long-press on mobile). No emoji in the UI. Accessibility: real buttons, labels, 44 px targets, visible focus.
+- **Text:** every new UI string goes in `i18n.ts` in both `pt` and `en`. Card logic must use `typeEn`, never `type`.
+- **Skins:** never hard-code a colour, font or radius in component CSS; add or reuse a token and define it in all four skins.
+- **Ids:** card, player and stack ids are separate number spaces. Keep them in separate fields/lists.
+- **Threads (engine):** never block the WebSocket thread — actions go through the `ui-actions` executor because Forge may ask
+  a question back. Things that mutate game state from outside the game thread (e.g. concede) go through
+  `WebGuiGame.runWhenAwaitingInput`. `ask()` blocks the game thread until the UI answers; a closed session answers `null`.
+- **State:** the UI receives full snapshots, not deltas. Reading Forge's views from another thread is expected (Forge's own
+  desktop UI does it); `pushStateNow` retries on a concurrent-modification failure.
+- **Data:** the engine must never write to `%APPDATA%\Forge` (an installed Forge's folder). `Main.writeProfile` points Forge
+  at our data dir; keep it that way.
+- **Forge prefs we set** (in `MatchStarter`/`Settings`): `PLAYER_NAME`, `UI_RECORD_REPLAYS=false`,
+  `UI_SHOW_ACTIONABLE_HIGHLIGHTS=true`, `UI_LANGUAGE`. Rules: `warnAboutAICards=false`, `gamesPerMatch=1`.
+- **Git:** work on a `feat/...` branch; the owner approves commits and merges (fast-forward into `main`). There is no remote.
+
+## Gotchas already paid for
+
+- Forge's poms use `${revision}`; they only resolve inside a reactor → root `pom.xml`. Don't `mvn install` Forge separately.
+- `forge/.mvn/maven.config` points at a settings file relative to `forge/`; the root reactor build avoids it.
+- Java-WebSocket's ping timeout closed idle local connections (code 1006) → `setConnectionLostTimeout(0)`.
+- Forge's priority prompt starts with Priority/Turn/Phase/Stack lines; `WebGuiGame` strips them in any language.
+- Forge only marks playable/attacking/blocking cards (`actionable`) when `UI_SHOW_ACTIONABLE_HIGHLIGHTS` is on.
+- `ImageFetcher` asserts it runs on the GUI thread, so `ImageServer` builds Scryfall URLs itself (`ImageUtil`). Tokens have no
+  picture yet.
+- Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).
