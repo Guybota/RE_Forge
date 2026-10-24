@@ -100,7 +100,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
 | UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
 | UI → engine | `setPhaseStops` | `stops: {mine: [phase names], opponents: [phase names]}`, or `stops: null` to restore defaults. Both rows are validated before saving; applies live |
-| UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3 |
+| UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3, `aiProfiles` (one Forge AI profile per opponent; `""` = random, missing = `Default`) |
 | UI → engine | `hostGame` / `joinGame` | Player `name`; host: `port` (1024–65535), optional `upnp`; join: `address` (`host:port`) |
 | UI → engine | `setSlot` | `index`, optional `slotType` (`ai` or `open`, host only), optional `deck` (own/AI slot only) |
 | UI → engine | `setReady`, `addSlot`, `removeSlot`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove: `index`. Host controls seats/start; one online session per engine |
@@ -124,7 +124,8 @@ describe the permitted moves. `amounts` supplies `total`, `minimums`, `maximums`
 respect the lethal/order constraints supplied by Forge. `skip` is accepted only when `maySkip` is true.
 Numeric `text` prompts include `numeric`, `numberMin` and `numberMax`; `value: null` cancels the input.
 
-`engineInfo` also includes `phaseOptions` (supported Forge phase names) and `phaseStops` (current two rows).
+`engineInfo` also includes `phaseOptions` (supported Forge phase names), `phaseStops` (current two rows) and `aiProfiles`
+(Forge's AI profiles, easiest first).
 Card `name`, `type` and `text` are in the chosen language; `typeEn` is the English type line for UI logic.
 Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other languages fall back to English).
 

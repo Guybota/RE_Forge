@@ -72,6 +72,20 @@
   padding: 0;
   border: 0;
 }
+.home__ai {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.home__ai legend {
+  margin-bottom: 6px;
+}
+.home__ai .input {
+  flex: 1;
+  min-width: 0;
+}
 .segmented legend {
   margin-bottom: 6px;
 }

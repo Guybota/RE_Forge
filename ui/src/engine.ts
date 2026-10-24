@@ -16,6 +16,8 @@ export type EngineInfo = {
   skin?: string;
   phaseStops: PhaseStops;
   phaseOptions: string[];
+  /** Forge's AI profiles, easiest first. */
+  aiProfiles: string[];
 };
 
 export type CardState = {
@@ -162,7 +164,7 @@ export type ClientMessage =
   | { type: 'previewDeck'; text: string; name?: string }
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'deleteDeck'; name: string }
-  | { type: 'startMatch'; deck: string | null; opponents: number }
+  | { type: 'startMatch'; deck: string | null; opponents: number; aiProfiles: string[] }
   | { type: 'hostGame'; name: string; port: number; upnp: boolean }
   | { type: 'joinGame'; name: string; address: string }
   | { type: 'setSlot'; index: number; slotType?: 'ai' | 'open'; deck?: string }

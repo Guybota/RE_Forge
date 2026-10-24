@@ -43,7 +43,9 @@ function play(port) {
   let choices = 0;
 
   let left = false;
-  ws.onopen = () => send({ type: 'startMatch', opponents: OPPONENTS });
+  // First an unknown AI profile must be refused; then the real match uses chosen profiles ('' = random).
+  let started = false, rejectedAi = false;
+  ws.onopen = () => send({ type: 'hello' });
   let finished = false;
   // Report how the socket closed (code/reason) rather than a bare error, so failures can be diagnosed.
   // The delay lets an engine crash report its exit code first.
@@ -54,6 +56,17 @@ function play(port) {
       console.log(msg.type, msg.type === 'state'
         ? `t${msg.turn} ${msg.phase} prompt="${msg.prompt.message}" ok=${msg.prompt.ok.enabled}:${msg.prompt.ok.label}`
         : JSON.stringify(msg).slice(0, 300));
+    }
+    if (msg.type === 'engineInfo' && !started) {
+      if (!msg.aiProfiles?.includes('Default') || !msg.aiProfiles.includes('Hard')) fail(`AI profiles missing: ${msg.aiProfiles}`);
+      started = true;
+      send({ type: 'startMatch', opponents: OPPONENTS, aiProfiles: ['NoSuchProfile'] });
+      return;
+    }
+    if (msg.type === 'error' && !rejectedAi && msg.message.includes('Unknown AI profile')) {
+      rejectedAi = true;
+      send({ type: 'startMatch', opponents: OPPONENTS, aiProfiles: ['Hard', '', 'Cautious'].slice(0, OPPONENTS) });
+      return;
     }
     if (msg.type === 'error') fail(`engine error: ${msg.message}`);
 
@@ -90,6 +103,7 @@ function play(port) {
       clearTimeout(timeout);
       finished = true;
       assert.ok(sawOpeningHand, 'saw an opening hand');
+      assert.ok(rejectedAi, 'unknown AI profile was refused');
       assert.ok(msg.turn >= TURNS_BEFORE_CONCEDE, `reached turn ${TURNS_BEFORE_CONCEDE}`);
       console.log(`OK: game over on turn ${msg.turn}, winner ${msg.winner}, ${choices} choices answered, ` +
         `log has ${msg.log.length} lines, life ${me.life} vs ${opp.life}`);

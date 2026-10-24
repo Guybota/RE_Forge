@@ -12,6 +12,7 @@ import forge.gamemodes.match.HostedMatch;
 import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
+import forge.ai.AiProfileUtil;
 import forge.util.Localizer;
 
 /** Starts a Commander game: the local player against 1–3 AI opponents, using Forge's precon decks. */
@@ -36,10 +37,25 @@ final class MatchStarter {
         return names;
     }
 
-    /** {@code deckName} null picks a random precon; opponents always get random ones. */
-    static HostedMatch startCommander(WebGuiGame gui, String deckName, int opponents) {
+    /** Forge's AI profiles (res/ai), easiest first; ones we don't know go last. */
+    static List<String> aiProfiles() {
+        List<String> order = List.of("Default", "Cautious", "Reckless", "Hard", "Hardest", "Experimental");
+        List<String> names = new ArrayList<>(AiProfileUtil.getAvailableProfiles());
+        names.sort(java.util.Comparator.comparing((String n) -> order.contains(n) ? order.indexOf(n) : order.size()).thenComparing(n -> n));
+        return names;
+    }
+
+    /**
+     * {@code deckName} null picks a random precon; opponents always get random ones.
+     * {@code aiProfiles[i]} is opponent i's Forge AI profile: blank picks one at random, missing means Forge's default.
+     */
+    static HostedMatch startCommander(WebGuiGame gui, String deckName, int opponents, List<String> aiProfiles) {
         if (opponents < 1 || opponents > 3) {
             throw new IllegalArgumentException("opponents must be 1 to 3");
+        }
+        List<String> available = aiProfiles();
+        for (String profile : aiProfiles) {
+            if (!profile.isEmpty() && !available.contains(profile)) throw new IllegalArgumentException("Unknown AI profile: " + profile);
         }
         List<Deck> precons = new ArrayList<>();
         FModel.getDecks().getCommanderPrecons().forEach(precons::add);
@@ -74,7 +90,9 @@ final class MatchStarter {
         for (int i = 0; i < opponents; i++) {
             Deck deck = precons.get(i);
             RegisteredPlayer ai = RegisteredPlayer.forCommander(deck);
-            ai.setPlayer(GamePlayerUtil.createAiPlayer(deck.getName(), i + 1));
+            String profile = i >= aiProfiles.size() ? "Default"
+                    : aiProfiles.get(i).isEmpty() ? AiProfileUtil.getRandomProfile() : aiProfiles.get(i);
+            ai.setPlayer(GamePlayerUtil.createAiPlayer(deck.getName(), i + 1, profile));
             players.add(ai);
         }
 

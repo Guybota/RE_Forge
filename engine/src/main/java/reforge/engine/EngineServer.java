@@ -51,7 +51,7 @@ public final class EngineServer extends WebSocketServer {
     private final Settings settings;
     @FunctionalInterface
     interface MatchFactory {
-        HostedMatch start(WebGuiGame gui, String deck, int opponents);
+        HostedMatch start(WebGuiGame gui, String deck, int opponents, java.util.List<String> aiProfiles);
     }
     private final MatchFactory matches;
 
@@ -188,10 +188,14 @@ public final class EngineServer extends WebSocketServer {
         }
         String deck = msg.has("deck") && !msg.get("deck").isJsonNull() ? msg.get("deck").getAsString() : null;
         int opponents = msg.has("opponents") ? msg.get("opponents").getAsInt() : 1;
+        java.util.List<String> aiProfiles = new java.util.ArrayList<>();
+        if (msg.has("aiProfiles") && msg.get("aiProfiles").isJsonArray()) {
+            msg.getAsJsonArray("aiProfiles").forEach(p -> aiProfiles.add(p.isJsonNull() ? "" : p.getAsString()));
+        }
         WebGuiGame gui = new WebGuiGame(c.session, settings);
         try {
             c.gui = gui;
-            c.match = matches.start(gui, deck, opponents);
+            c.match = matches.start(gui, deck, opponents, aiProfiles);
         } catch (RuntimeException e) {
             c.gui = null;
             gui.dispose();
@@ -300,6 +304,9 @@ public final class EngineServer extends WebSocketServer {
         JsonArray phaseOptions = new JsonArray();
         Settings.PHASES.forEach(phaseOptions::add);
         o.add("phaseOptions", phaseOptions);
+        JsonArray aiProfiles = new JsonArray();
+        MatchStarter.aiProfiles().forEach(aiProfiles::add);
+        o.add("aiProfiles", aiProfiles);
         JsonArray languages = new JsonArray();
         Settings.LANGUAGES.forEach((code, name) -> {
             JsonObject l = new JsonObject();

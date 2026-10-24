@@ -194,7 +194,11 @@ Zonas (`feat/zones`): os contadores de cemitério e exílio abrem `ZoneViewer` c
 quando há uma carta jogável (flashback) e essa carta é lançada dali. Cartas viradas para baixo continuam escondidas.
 Verificado no browser com `DialogHarness --scenario zones`.
 
-Por fazer neste passo: opções de IA. Sideboard entre jogos e escolhas de modos futuros
+Opções de IA (`feat/ai-options`): no início, um perfil de IA do Forge por adversário (Normal, Cautelosa, Imprudente, Difícil,
+Muito difícil, Experimental ou Aleatório), lembrado no browser/Electron (`localStorage`). `smoke-match` recusa um perfil
+desconhecido e joga com perfis escolhidos. Os lugares de IA do lobby online continuam com o perfil padrão.
+
+Passo 4 concluído. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).
