@@ -189,7 +189,11 @@ Imagens concluídas no ramo `feat/card-images`:
   válida. Pedidos iguais em simultâneo partilham um download.
 - `engine:smoke-images` (`ImageHarness`, Scryfall simulado) e verificação real: carta em português, ficha e cache por idioma.
 
-Por fazer neste passo: opções de IA e consulta das zonas. Sideboard entre jogos e escolhas de modos futuros
+Zonas (`feat/zones`): os contadores de cemitério e exílio abrem `ZoneViewer` com as cartas; o contador fica destacado
+quando há uma carta jogável (flashback) e essa carta é lançada dali. Cartas viradas para baixo continuam escondidas.
+Verificado no browser com `DialogHarness --scenario zones`.
+
+Por fazer neste passo: opções de IA. Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).

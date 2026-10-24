@@ -52,10 +52,24 @@
 }
 .player__stats {
   display: flex;
+  align-items: center;
   gap: 12px;
   font-size: 12px;
   color: var(--on-table-muted);
 }
+.player__zone {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.player__zone:hover:not(:disabled) { border-color: var(--on-table-muted); }
+.player__zone:disabled { cursor: default; }
+.player__zone.is-selectable { border-color: var(--select); color: var(--on-table); }
 .player__command {
   margin-left: auto;
   display: flex;
@@ -401,6 +415,8 @@
 
 /* One settings sheet, using the same paper/material as the card preview and choices. */
 .choice.game-menu { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.choice.zone { width: min(860px, calc(100vw - 32px)); }
+.zone__cards { display: flex; flex-wrap: wrap; gap: 10px; }
 .game-menu[open] { display: flex; flex-direction: column; gap: 18px; }
 .game-menu__head, .game-menu__skin, .game-menu__footer { display: flex; align-items: center; gap: 16px; }
 .game-menu__head { justify-content: space-between; }

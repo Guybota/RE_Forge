@@ -6,6 +6,7 @@ import { Card } from './Card';
 import { ChoiceDialog } from './ChoiceDialog';
 import { CombatArrows } from './CombatArrows';
 import { GameMenu } from './GameMenu';
+import { ZoneViewer, type OpenZone } from './ZoneViewer';
 import { PHASE_TRACK, manaSymbols, phaseKey } from './cards';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
@@ -33,6 +34,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const [hovered, setHovered] = useState<CardState | null>(null);
   const [shake, setShake] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [zone, setZone] = useState<OpenZone | null>(null);
   const { send } = engine;
   const t = useT();
 
@@ -58,6 +60,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       onCard: (id) => send({ type: 'action', action: 'card', id }),
       onPlayer: (id) => send({ type: 'action', action: 'player', id }),
       onHover: setHovered,
+      onZone: (playerId, z) => setZone({ playerId, zone: z }),
     };
   }, [game, prompt, send]);
 
@@ -73,7 +76,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // Space = OK, Escape = cancel, unless a dialog or text field has focus.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (menuOpen || engine.choice || (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, dialog'))) return;
+      if (menuOpen || zone || engine.choice || (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, dialog'))) return;
       if (e.code === 'Space' && prompt.ok.enabled) {
         e.preventDefault();
         send({ type: 'action', action: 'ok' });
@@ -85,7 +88,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [menuOpen, engine.choice, prompt, send]);
+  }, [menuOpen, zone, engine.choice, prompt, send]);
 
   // The engine already dropped the status lines the table shows itself.
   const promptText = prompt.message.split('\n').join(' ');
@@ -161,6 +164,11 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       </aside>
 
       {menuOpen && !engine.choice && !game.gameOver && !me.hasLost && <GameMenu engine={engine} onClose={() => setMenuOpen(false)} />}
+
+      {zone && !menuOpen && !engine.choice && (() => {
+        const owner = game.players.find((p) => p.id === zone.playerId);
+        return owner && <ZoneViewer player={owner} zone={zone.zone} ctx={ctx} onClose={() => setZone(null)} />;
+      })()}
 
       {engine.choice && <ChoiceDialog key={engine.choice.id} choice={engine.choice} answer={engine.answer} onHover={setHovered} cards={game} />}
 

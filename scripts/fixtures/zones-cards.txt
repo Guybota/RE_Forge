@@ -1,0 +1,14 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Island|Set:M11;Island|Set:M11;Island|Set:M11
+p1battlefield=Forest|Set:M11
+p0hand=Sol Ring|Set:VOC
+p0graveyard=Think Twice|Set:TSP;Lightning Bolt|Set:M11;Llanowar Elves|Set:M11
+p1graveyard=Giant Growth|Set:M11
+p1exile=Serra Angel|Set:M11;Shivan Dragon|Set:M11|FaceDown
+p0library=Forest;Island;Plains;Mountain;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

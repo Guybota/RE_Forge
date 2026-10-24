@@ -50,8 +50,8 @@ public final class DialogHarness {
         match.setStartGameHook(() -> {
             try {
                 GameState state = new GameState();
-                state.parse(Files.readAllLines(Path.of(scenario.equals("images")
-                        ? "scripts/fixtures/image-cards.txt" : "scripts/fixtures/dialog-combat.txt")));
+                state.parse(Files.readAllLines(Path.of(scenario.equals("images") || scenario.equals("zones")
+                        ? "scripts/fixtures/" + scenario.replace("images", "image") + "-cards.txt" : "scripts/fixtures/dialog-combat.txt")));
                 // Applying a native Forge state on the game thread creates real cards/combat.
                 state.applyToGame(match.getGame());
                 gui.pushStateNow();

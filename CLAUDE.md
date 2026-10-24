@@ -44,10 +44,12 @@ docs/       PLAN.md (roadmap).
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
 - `table/GameMenu.tsx` — in-game skin, saved phase stops, reset and concede. Escape closes it; a Forge choice takes precedence. Live phase changes use Forge's `YieldUpdate` path for local/remote controllers.
+- `table/ZoneViewer.tsx` — a player's graveyard or exile (the counters in `PlayerArea` open it). Usable cards, e.g. flashback,
+  are cast from here; face-down cards stay hidden.
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
 
 `engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
-fixture. It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
+fixture (`--scenario suite|combat|images|zones`, fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 
 ## Environment (Windows dev machine)
 

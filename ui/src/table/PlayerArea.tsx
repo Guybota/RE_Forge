@@ -14,6 +14,7 @@ export type TableContext = {
   onCard: (id: number) => void;
   onPlayer: (id: number) => void;
   onHover: (card: CardState | null) => void;
+  onZone: (playerId: number, zone: 'graveyard' | 'exile') => void;
 };
 
 type Props = {
@@ -61,8 +62,15 @@ export function PlayerArea({ player, active, compact, attackedBy, ctx }: Props) 
         <span className="player__stats">
           <span>{t('handCount', { n: player.handSize })}</span>
           <span title={t('library')}>{t('libraryShort', { n: player.librarySize })}</span>
-          <span title={t('graveyard')}>{t('graveyardShort', { n: player.zones.graveyard.length })}</span>
-          {player.zones.exile.length > 0 && <span title={t('exile')}>{t('exileShort', { n: player.zones.exile.length })}</span>}
+          {(['graveyard', 'exile'] as const).map((zone) => {
+            const n = player.zones[zone].length;
+            if (zone === 'exile' && n === 0) return null;
+            const playable = player.zones[zone].some((c) => c.actionable || ctx.selectableCards.has(c.id));
+            return <button type="button" key={zone} className={`player__zone ${playable ? 'is-selectable' : ''}`} title={t(zone)}
+              aria-haspopup="dialog" disabled={n === 0} onClick={() => ctx.onZone(player.id, zone)}>
+              {t(zone === 'graveyard' ? 'graveyardShort' : 'exileShort', { n })}
+            </button>;
+          })}
           {player.poison > 0 && <span className="danger">{t('poison', { n: player.poison })}</span>}
           {cmdDamage.map((d) => (
             <span key={d.commanderId} title={t('commanderDamageFrom', { name: ctx.playerNames.get(d.fromPlayerId) ?? '' })}>
