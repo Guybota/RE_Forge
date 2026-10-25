@@ -57,6 +57,7 @@ export type CampaignRequest = { type: 'campaign'; action: 'list' | 'create' | 'o
 export type EngineInfo = {
   type: 'engineInfo';
   version: string;
+  relayAvailable: boolean;
   cards: number;
   editions: number;
   imageBase?: string;
@@ -178,6 +179,7 @@ export type DeckLists = { mine: string[]; precons: string[] };
 
 export type LobbyState = {
   type: 'lobby'; host: boolean; localSlot: number; port: number; addresses: string[];
+  transport: 'direct' | 'relay'; roomCode?: string;
   slots: { index: number; kind: 'human' | 'ai' | 'open'; name?: string; deck?: string;
     ready: boolean; editable: boolean; controllable: boolean }[];
 };
@@ -234,7 +236,7 @@ type EngineMessage =
   | DeckDetail
   | CardResults
   | Printings
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string; code?: string };
 
 export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave';
 
@@ -253,8 +255,10 @@ export type ClientMessage =
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; opponents: number; aiProfiles: string[] }
-  | { type: 'hostGame'; name: string; port: number; upnp: boolean }
-  | { type: 'joinGame'; name: string; address: string }
+  | { type: 'hostGame'; name: string; port: number; upnp: boolean; transport?: 'direct' }
+  | { type: 'joinGame'; name: string; address: string; transport?: 'direct' }
+  | { type: 'hostGame'; name: string; transport: 'relay' }
+  | { type: 'joinGame'; name: string; transport: 'relay'; code: string }
   | { type: 'setSlot'; index: number; slotType?: 'ai' | 'open'; deck?: string }
   | { type: 'setReady'; ready: boolean }
   | { type: 'addSlot' | 'startOnlineMatch' | 'leaveLobby' }
@@ -324,7 +328,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'lobby': h.onLobby(msg); break;
       case 'lobbyClosed': h.onLobby(null); break;
       case 'chatMessage': h.onChat(msg); break;
-      case 'error': h.onError(msg.message); break;
+      case 'error': h.onError(msg.code ?? msg.message); break;
     }
   };
   ws.onclose = () => {

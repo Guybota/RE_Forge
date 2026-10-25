@@ -87,6 +87,15 @@ Its test launcher and native Forge fixture are excluded from the production engi
 
 ## Online Commander
 
+Room-code hosting is available when a relay is configured: select **Room code**, create a room,
+and share its eight-character code. All players connect outwards over WebSocket; no router port
+forwarding is needed. The host still runs Forge and must keep the app open. A Cloudflare Worker
+with one Durable Object per room forwards the native Forge protocol, with up to three guests.
+The local UI WebSocket is never exposed. Setup, local tests, limits and deployment are in
+[docs/ONLINE_RELAY.md](docs/ONLINE_RELAY.md). No public relay is deployed or configured by default.
+
+For direct connections:
+
 Choose **Play online**, enter a player name, then **Host game** or **Join game**. Each human chooses
 their own deck and marks themselves ready; the host may add AI or open seats (up to four players)
 and starts the match. Imported decks and precons use the same Forge netplay protocol.
@@ -142,7 +151,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
 | UI → engine | `setPhaseStops` | `stops: {mine: [phase names], opponents: [phase names]}`, or `stops: null` to restore defaults. Both rows are validated before saving; applies live |
 | UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3, `aiProfiles` (one Forge AI profile per opponent; `""` = random, missing = `Default`) |
-| UI → engine | `hostGame` / `joinGame` | Player `name`; host: `port` (1024–65535), optional `upnp`; join: `address` (`host:port`) |
+| UI → engine | `hostGame` / `joinGame` | Player `name`; direct host: `port` (1024–65535), optional `upnp`; direct join: `address` (`host:port`). Room host: `transport: "relay"`; room join: `transport: "relay"`, `code` (8 characters). Relay origin is engine configuration, never a UI-supplied URL |
 | UI → engine | `setSlot` | `index`, optional `slotType` (`ai` or `open`, host only), optional `deck` (own/AI slot only) |
 | UI → engine | `setReady`, `addSlot`, `removeSlot`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove: `index`. Host controls seats/start; one online session per engine |
 | UI → engine | `chat` | `text` (up to 2000 characters) |
@@ -151,7 +160,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | engine → UI | `state` | Full board snapshot (players, zones, stack, combat, log, prompt), at most every 40 ms |
 | engine → UI | `choice` | A question the game waits on: `choose`, `reveal`, `confirm`, `order`, `arrange`, `amounts`, `text` |
 | engine → UI | `notice` | `incorrectAction`, `alert`, `message`, `error` |
-| engine → UI | `lobby` | Full lobby snapshot: `host`, `localSlot`, `port`, `addresses`, `slots` (kind, name, deck, ready, editable, controllable) |
+| engine → UI | `lobby` | Full lobby snapshot: `host`, `localSlot`, `port`, `addresses`, `transport` (`direct`/`relay`), optional `roomCode`, `slots` (kind, name, deck, ready, editable, controllable). Relay lobbies do not publish IP addresses |
 | engine → UI | `chatMessage`, `lobbyClosed` | Chat `source`, `text`, `kind`; lobby closure also clears the game/choice in the UI |
 
 Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
@@ -168,6 +177,8 @@ Numeric `text` prompts include `numeric`, `numberMin` and `numberMax`; `value: n
 
 `engineInfo` also includes `phaseOptions` (supported Forge phase names), `phaseStops` (current two rows) and `aiProfiles`
 (Forge's AI profiles, easiest first).
+`relayAvailable` indicates whether the engine has a configured relay origin. The room-code option is disabled otherwise.
+Relay `error` messages also carry an optional `code` for translated room/connection errors; `message` retains the diagnostic text.
 Card `name`, `type` and `text` are in the chosen language; `typeEn` is the English type line for UI logic.
 Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other languages fall back to English).
 

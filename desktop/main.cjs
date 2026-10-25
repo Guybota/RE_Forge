@@ -41,6 +41,7 @@ function startEngine() {
     engine = spawn(paths.java, ['-Xmx2g', '-jar', paths.engineJar, '--port', '0', '--assets', paths.forgeAssets, '--exit-with-parent'], {
       cwd: paths.cwd,
       windowsHide: true,
+      env: { ...process.env, RE_FORGE_RELAY_URL: process.env.RE_FORGE_RELAY_URL || require('./package.json').config?.relayUrl || '' },
     });
     engine.on('error', (err) => { clearTimeout(timeout); reject(err); });
     engine.on('exit', (code) => {

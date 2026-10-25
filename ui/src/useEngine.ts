@@ -77,7 +77,7 @@ export function useEngine(): Engine {
       onChoice: (q) => { if (!left.current) setChoice(q); },
       onNotice: (n) => setNotice({ ...n, at: Date.now() }),
       onLobby: (l) => {
-        if (l) left.current = false;
+        left.current = !l;
         setLobby(l);
         if (!l) { previousSoundState.current = null; setGame(null); setChoice(null); setChat([]); }
       },

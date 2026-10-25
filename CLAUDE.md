@@ -13,6 +13,7 @@ forge/      Forge source, git submodule. Treat as upstream: do not edit it.
 engine/     Java bridge (package reforge.engine). Loads Forge headless, serves the UI over a local WebSocket.
 ui/         React + TypeScript + Vite. Everything the player sees.
 desktop/    Electron shell: starts the engine, opens the UI (main.cjs).
+relay/      Cloudflare Worker + SQLite Durable Object rooms; tunnels Forge netplay over outbound WebSockets.
 scripts/    mvn.mjs (Maven launcher), smoke tests, Windows package script.
 pom.xml     Maven reactor: builds forge-core/game/ai/gui + engine together (Forge's ${revision} needs this).
 docs/       PLAN.md (roadmap).
@@ -28,6 +29,8 @@ docs/       PLAN.md (roadmap).
 | `Session` | One UI connection: `send()` and blocking `ask()` (question → answer by id). |
 | `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `NetworkGuiGame`, including remote delta sync). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
 | `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses and cleanup. One online session per process. |
+| `RelayTunnel` | Native Forge TCP streams over a multiplexed WebSocket; outbound-only rooms configured by `RE_FORGE_RELAY_URL`. Separate bounded queues per guest; local UI stays in loopback. |
+| `OnlineController` | Adapts the remote wire controller to release its pending input after an individual concession; delegates rules and all other input to Forge's real human controller. |
 | `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
 | `AmountAssignment` | Forge's damage/amount constraints: exact total, per-target bounds, lethal damage, ordering and trample. Shared validation and prompt metadata. |
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons, each with its chosen Forge AI profile (`res/ai`); sets the Forge prefs we rely on. |
@@ -87,7 +90,7 @@ fixtures in `scripts/fixtures`). It exercises choices and real multi-block comba
 - JDK 21 (Temurin) at `C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`. Old shells may still have Java 8 first on
   PATH: set `JAVA_HOME` to the JDK 21 path when running Maven or the engine.
 - Maven: `.tools/maven` (git-ignored), used automatically by `scripts/mvn.mjs`; falls back to `mvn` on PATH.
-- Node 24. `npm install` at the root (workspaces `ui`, `desktop`). npm blocks install scripts: Electron is allowed in
+- Node 24. `npm install` at the root (workspaces `ui`, `desktop`, `relay`). npm blocks install scripts: Electron is allowed in
   `package.json` → `allowScripts`.
 
 ## Commands
@@ -106,6 +109,8 @@ npm run engine:smoke-match    # passive game through the socket, concedes on tur
 npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
 npm run engine:smoke-import   # import a decklist fixture, play it, export, rename, delete it
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
+npm run relay:smoke          # actual local Cloudflare Worker: room auth, isolation, ordering, limits and cleanup
+npm run engine:smoke-relay   # netplay through local Worker (SMOKE_ONLINE_HUMANS=4 for four humans)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
 npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
@@ -161,3 +166,9 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 - Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).
 - Choice bots should start `amounts` from `initialAmounts`, honor the prompt's constraints, and return a full permutation
   for `arrange`. Hidden choice cards have no label/details; explicit reveals authorize only the listed cards.
+- Relay setup and deployment: `docs/ONLINE_RELAY.md`. No public endpoint is configured by default. Never publish the UI
+  WebSocket through the relay; only the Forge netplay byte streams. `desktop/package.json` → `config.relayUrl` supplies a
+  packaged default, overridden by `RE_FORGE_RELAY_URL`. Keep Cloudflare on its Free plan unless the owner requests otherwise.
+- In netplay, an individual concession must release that player's pending input even when the whole game has not ended.
+  `OnlineController` adapts the server's remote wire controllers and releases their shared input queue after concession.
+  Never send a separate OK RPC to do this: Forge dispatches those RPCs on independent threads. Cover four humans and mixed AI.

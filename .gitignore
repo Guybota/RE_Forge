@@ -5,3 +5,5 @@ build/
 dist-app/
 .tools/
 *.log
+relay/.wrangler/
+relay/.dev.vars

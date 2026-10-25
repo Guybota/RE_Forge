@@ -93,6 +93,15 @@ Critério de feito: colar uma exportação do Moxfield de 100 cartas, guardar e 
 
 ## Passo 3 — Multijogador online
 
+Salas por código implementadas localmente no ramo `feat/online-relay`: Worker Cloudflare com Durable Objects SQLite,
+ponte Java TCP/WebSocket sobre o protocolo Forge, códigos de oito caracteres e escolha entre código e ligação direta.
+Configuração e limites em [ONLINE_RELAY.md](ONLINE_RELAY.md). Não existe serviço público publicado/configurado por omissão.
+Validação: UI e motor compilam; testes do Worker, partida com quatro humanos e partida com dois humanos + IA pelo
+relay local passam. Cobrem privacidade, paragens remotas, cancelar/conceder e criar outra sala. `OnlineController`
+liberta o input do humano remoto depois de uma concessão individual, sem alterar o Forge nem enviar outro RPC.
+A regressão direta com dois motores também passou. Verificado no browser: criação/entrada por código, erro de sala
+inexistente em português, copiar o código e sair. Publicação e ligação entre redes reais continuam por validar.
+
 Implementado: adaptador `OnlineLobby`, criar/entrar/sair, lugares humanos/IA até 4,
 decks, pronto, chat e ecrã `Lobby.tsx`. `WebGuiGame` usa `NetworkGuiGame` para aplicar os deltas do Forge; cancela o
 temporizador de espera quando chega uma decisão nova. WebSocket e imagens continuam em loopback.
@@ -127,8 +136,9 @@ Passos:
    `NetConnectUtil.collectHostedServerAddresses()`), e no `Home` "Criar jogo online" / "Entrar". A mesa não muda.
 4. **Testar em local** com duas instâncias: motores em portas diferentes e pastas de dados diferentes (`--data`), e
    `FNetPref.NET_PORT` diferente para o servidor. Script de fumo com dois clientes WebSocket a jogar um contra o outro.
-5. **Internet**: o anfitrião precisa de porta aberta. O Forge tenta UPnP (`FServerManager`); mostrar o endereço externo e
-   explicar a falha em tooltip. Fase posterior: servidor intermediário (relay) para quem não pode abrir portas — projeto à parte.
+5. **Internet**: por código, os jogadores ligam-se de saída ao relay e o anfitrião executa o Forge. Em ligação direta,
+   o anfitrião precisa de porta acessível; o Forge pode tentar UPnP (`FServerManager`). O endereço externo descoberto
+   não garante acesso. Ver configuração e limites do serviço em [ONLINE_RELAY.md](ONLINE_RELAY.md).
 6. Segurança: só aceitar eventos do protocolo do Forge; nunca expor o WebSocket da UI (continua em 127.0.0.1); a porta do
    jogo é a única aberta.
 

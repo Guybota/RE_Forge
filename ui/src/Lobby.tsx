@@ -3,11 +3,16 @@ import { useT } from './i18n';
 import type { Engine } from './useEngine';
 
 const NAME_STORAGE = 'reforge.playerName';
+const RELAY_ERRORS = ['relayUnavailable', 'relayInvalidCode', 'relayRoomMissing', 'relayRoomFull', 'relayRateLimited', 'relayDisconnected'] as const;
 
 export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }) {
   const t = useT();
   const { lobby, send } = engine;
+  const errorKey = RELAY_ERRORS.find(key => key === engine.error);
+  const errorText = errorKey ? t(errorKey) : engine.error;
   const [mode, setMode] = useState<'host' | 'join'>('host');
+  const [transport, setTransport] = useState<'relay' | 'direct'>(() => engine.info?.relayAvailable ? 'relay' : 'direct');
+  const [code, setCode] = useState('');
   const [name, setName] = useState(() => {
     try { return localStorage.getItem(NAME_STORAGE) ?? ''; } catch { return ''; }
   });
@@ -36,7 +41,8 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
         event.preventDefault();
         setBusy(true);
         try { localStorage.setItem(NAME_STORAGE, name.trim()); } catch { /* typed again next time */ }
-        send(mode === 'host' ? { type: 'hostGame', name, port, upnp } : { type: 'joinGame', name, address });
+        if (transport === 'relay') send(mode === 'host' ? { type: 'hostGame', name, transport } : { type: 'joinGame', name, transport, code });
+        else send(mode === 'host' ? { type: 'hostGame', name, port, upnp } : { type: 'joinGame', name, address });
       }}>
         <fieldset className="segmented" disabled={busy}>
           {(['host', 'join'] as const).map((m) => (
@@ -46,13 +52,21 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
             </label>
           ))}
         </fieldset>
+        <fieldset className="segmented" disabled={busy} aria-label={t('connectionMethod')}>
+          <label className={transport === 'relay' ? 'is-on' : ''} title={engine.info?.relayAvailable ? t('roomHint') : t('roomsUnavailable')}>
+            <input type="radio" name="online-transport" checked={transport === 'relay'} disabled={!engine.info?.relayAvailable} onChange={() => setTransport('relay')} />{t('byCode')}
+          </label>
+          <label className={transport === 'direct' ? 'is-on' : ''} title={t('portHint')}>
+            <input type="radio" name="online-transport" checked={transport === 'direct'} onChange={() => setTransport('direct')} />{t('directConnection')}
+          </label>
+        </fieldset>
         <label className="field-label">{t('playerName')}<input className="input" required maxLength={40} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} autoComplete="nickname" /></label>
-        {mode === 'host' ? <>
+        {transport === 'relay' ? (mode === 'join' && <label className="field-label">{t('roomCode')}<input className="input" required minLength={8} maxLength={9} value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[ -]/g, ''))} disabled={busy} autoCapitalize="characters" autoComplete="off" spellCheck={false} placeholder="ABCD2345" /></label>) : mode === 'host' ? <>
           <label className="field-label" title={t('portHint')}>{t('port')}<input className="input" type="number" min={1024} max={65535} required value={port} onChange={(e) => setPort(Number(e.target.value))} disabled={busy} /></label>
           <label className="online__check" title={t('portHint')}><input type="checkbox" checked={upnp} onChange={(e) => setUpnp(e.target.checked)} disabled={busy} />{t('autoPort')}</label>
         </> : <label className="field-label">{t('address')}<input className="input" required value={address} onChange={(e) => setAddress(e.target.value)} disabled={busy} placeholder="192.168.1.10:36743" /></label>}
-        <button type="submit" className="btn btn--primary" disabled={busy || !name.trim()}>{busy ? t('connecting') : t(mode === 'host' ? 'hostGame' : 'joinGame')}</button>
-        {engine.error && <p className="error" role="alert">{engine.error}</p>}
+        <button type="submit" className="btn btn--primary" disabled={busy || !name.trim() || transport === 'relay' && mode === 'join' && !/^[A-HJ-NP-Z2-9]{8}$/.test(code)}>{busy ? t('connectingOnline') : t(mode === 'host' ? 'hostGame' : 'joinGame')}</button>
+        {errorText && <p className="error" role="alert">{errorText}</p>}
       </form>
     </main>
   );
@@ -63,10 +77,10 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
   return (
     <main className="online">
       <header className="online__head"><h1>{t('lobby')}</h1><button type="button" className="btn btn--ghost" onClick={back}>{t('leaveLobby')}</button></header>
-      {lobby.host && <div className="online__addresses" title={t('portHint')}>
-        <span className="muted">{t('shareAddress')}</span>
-        {lobby.addresses.map((url) => <div className="online__address" key={url}>
-          <input className="input" aria-label={t('shareAddress')} readOnly value={url} onFocus={(e) => e.target.select()} />
+      {(lobby.host || lobby.roomCode) && <div className="online__addresses" title={t(lobby.roomCode ? 'roomHint' : 'portHint')}>
+        <span className="muted">{t(lobby.roomCode ? 'roomCode' : 'shareAddress')}</span>
+        {(lobby.roomCode ? [lobby.roomCode] : lobby.addresses).map((url) => <div className="online__address" key={url}>
+          <input className="input" aria-label={t(lobby.roomCode ? 'roomCode' : 'shareAddress')} readOnly value={url} onFocus={(e) => e.target.select()} />
           <button type="button" className="btn btn--ghost" onClick={async () => {
             try { await navigator.clipboard.writeText(url); setCopied(url); setCopyError(false); }
             catch { setCopyError(true); }
@@ -96,7 +110,7 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
             {me ? <button type="button" className={`btn ${me.ready ? 'btn--ghost' : 'btn--primary'}`} disabled={!me.deck} onClick={() => send({ type: 'setReady', ready: !me.ready })}>{t(me.ready ? 'unready' : 'ready')}</button> : <span role="status">{t('waitingSeat')}</span>}
             {lobby.host && <button type="button" className="btn btn--primary" disabled={!canStart} onClick={() => send({ type: 'startOnlineMatch' })}>{t('startOnline')}</button>}
           </div>
-          {engine.error && <p className="error" role="alert">{engine.error}</p>}
+          {errorText && <p className="error" role="alert">{errorText}</p>}
         </section>
         <section className="online__chat" aria-label={t('chat')}>
           <h2>{t('chat')}</h2>

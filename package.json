@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "workspaces": [
     "ui",
-    "desktop"
+    "desktop",
+    "relay"
   ],
   "scripts": {
     "engine:build": "node scripts/mvn.mjs -q -pl engine -am -DskipTests package",
@@ -20,6 +21,9 @@
     "engine:smoke-combat": "node scripts/smoke-combat.mjs",
     "engine:smoke-import": "node scripts/smoke-import.mjs",
     "engine:smoke-online": "node scripts/smoke-online.mjs",
+    "relay:dev": "npm run dev -w reforge-relay",
+    "relay:smoke": "node scripts/smoke-relay.mjs",
+    "engine:smoke-relay": "node scripts/smoke-online.mjs --relay",
     "engine:smoke-settings": "node scripts/smoke-settings.mjs",
     "engine:smoke-dialogs": "node scripts/smoke-dialogs.mjs",
     "engine:smoke-images": "node scripts/smoke-images.mjs",
@@ -34,5 +38,8 @@
   },
   "allowScripts": {
     "electron@45.0.0": true
+  },
+  "overrides": {
+    "miniflare": { "undici": "^7.30.1" }
   }
 }

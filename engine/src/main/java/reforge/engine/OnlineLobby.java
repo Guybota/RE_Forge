@@ -44,6 +44,9 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
     private int port;
     private volatile List<String> addresses = List.of();
     private WebGuiGame gui;
+    private RelayTunnel tunnel;
+    private boolean relayed;
+    private boolean opening = true;
 
     OnlineLobby(Session session, Settings settings, Executor actions, Consumer<WebGuiGame> attachGui) {
         this.session = session;
@@ -55,6 +58,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
     void open(JsonObject msg, boolean hosting) {
         HeadlessGui.claimOnline(this);
         host = hosting;
+        relayed = "relay".equals(text(msg, "transport"));
         String name = text(msg, "name");
         if (name == null || name.isBlank() || name.length() > 40) {
             throw new IllegalArgumentException("Enter a player name (1–40 characters)");
@@ -64,7 +68,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
         FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
         FModel.getPreferences().setPref(FPref.UI_MATCHES_PER_GAME, "1");
         if (host) {
-            port = msg.has("port") ? msg.get("port").getAsInt() : 36743;
+            port = relayed ? unusedPort() : msg.has("port") ? msg.get("port").getAsInt() : 36743;
             if (port < 1024 || port > 65535) throw new IllegalArgumentException("Port must be 1024–65535");
             try (java.net.ServerSocket probe = new java.net.ServerSocket(port)) {
                 // Fail before Forge allocates its Netty groups when the port is already occupied.
@@ -73,9 +77,16 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             }
             FModel.getNetPreferences().setPref(FNetPref.NET_PORT, String.valueOf(port));
             FModel.getNetPreferences().setPref(FNetPref.UPnP,
-                    msg.has("upnp") && msg.get("upnp").getAsBoolean() ? "ALWAYS" : "NEVER");
-            addMessage(NetConnectUtil.host(this, this));
+                    !relayed && msg.has("upnp") && msg.get("upnp").getAsBoolean() ? "ALWAYS" : "NEVER");
+            ChatMessage hosted = NetConnectUtil.host(this, this);
+            if (!relayed) addMessage(hosted);
             lobby.applyVariant(GameType.Commander);
+            if (relayed) {
+                tunnel = RelayTunnel.host(port, this::closeConn);
+                opening = false;
+                publish();
+                return;
+            }
             addresses = List.of("127.0.0.1:" + port);
             publish();
             // External-address discovery can block on the network; never hold the UI action queue.
@@ -86,7 +97,8 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             discovery.setDaemon(true);
             discovery.start();
         } else {
-            String address = text(msg, "address");
+            if (relayed) tunnel = RelayTunnel.join(text(msg, "code"), this::closeConn);
+            String address = relayed ? tunnel.localAddress() : text(msg, "address");
             if (address == null || address.isBlank()) throw new IllegalArgumentException("Enter a server address");
             ChatMessage result = NetConnectUtil.join(address.trim(), this, this);
             if (result.getMessage().equals(ForgeConstants.INVALID_HOST_COMMAND)) {
@@ -97,6 +109,14 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             }
             addMessage(result);
         }
+        opening = false;
+        publish();
+    }
+
+    private static int unusedPort() {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress())) {
+            return socket.getLocalPort();
+        } catch (java.io.IOException e) { throw new IllegalStateException("Could not allocate a game port", e); }
     }
 
     synchronized WebGuiGame newGui() {
@@ -122,6 +142,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             JsonObject error = new JsonObject();
             error.addProperty("type", "error");
             error.addProperty("message", message);
+            if (relayed) error.addProperty("code", "relayDisconnected");
             session.send(error);
         });
     }
@@ -201,6 +222,11 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
                 Runnable start = lobby.startGame();
                 if (start == null) throw new IllegalStateException("Forge could not start the match; check the decks");
                 start.run();
+                // The remote GUI has no local FControlGameEventHandler to release inputs on individual loss.
+                // Keep the real player/controller intact; adapt only the controller used for wire calls.
+                lobby.getHostedMatch().gameControllers.replaceAll((slot, controller) ->
+                        slot.getType() == LobbySlotType.REMOTE && controller instanceof forge.player.PlayerControllerHuman human
+                                ? new OnlineController(human) : controller);
             }
             default -> throw new IllegalArgumentException("Unknown lobby action");
         }
@@ -218,12 +244,14 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
 
     private void publish() {
         GameLobby current = lobby;
-        if (closed || current == null) return;
+        if (closed || opening || current == null) return;
         JsonObject out = new JsonObject();
         out.addProperty("type", "lobby");
         out.addProperty("host", host);
         out.addProperty("localSlot", localSlot());
         out.addProperty("port", port);
+        out.addProperty("transport", relayed ? "relay" : "direct");
+        if (tunnel != null) out.addProperty("roomCode", tunnel.code());
         JsonArray urls = new JsonArray();
         addresses.forEach(urls::add);
         out.add("addresses", urls);
@@ -257,6 +285,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
     void close() {
         if (closed) return;
         closed = true;
+        if (tunnel != null) tunnel.close();
         if (gui != null && gui.getGameView() != null && !gui.getGameView().isGameOver()) {
             if (host && lobby != null && lobby.getHostedMatch() != null) {
                 var match = lobby.getHostedMatch();

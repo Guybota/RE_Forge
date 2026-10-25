@@ -258,7 +258,9 @@ public final class EngineServer extends WebSocketServer {
         } catch (RuntimeException e) {
             online.close();
             c.gui = null;
-            c.session.send(error(e.getMessage()));
+            JsonObject failure = error(e.getMessage());
+            if (e instanceof RelayTunnel.Problem problem) failure.addProperty("code", problem.code);
+            c.session.send(failure);
         }
     }
 
@@ -337,6 +339,7 @@ public final class EngineServer extends WebSocketServer {
         JsonObject o = new JsonObject();
         o.addProperty("type", "engineInfo");
         o.addProperty("version", Main.VERSION);
+        o.addProperty("relayAvailable", !RelayTunnel.configuredUrl().isBlank());
         o.addProperty("imageBase", imageBase);
         o.addProperty("language", settings.language());
         o.addProperty("skin", settings.skin());
