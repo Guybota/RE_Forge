@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { CardState, PlayerState } from '../engine';
 import { Card } from './Card';
 import { groupCards, isLand } from './cards';
@@ -13,6 +14,8 @@ export type TableContext = {
   /** E.g. the player your attackers are aimed at while declaring attacks. */
   chosenPlayers: Set<number>;
   targetCards: Set<number>;
+  /** Equipment, auras and fortifications by the id of the battlefield card they are attached to. */
+  attachments: Map<number, CardState[]>;
   playerNames: Map<number, string>;
   onCard: (id: number) => void;
   onPlayer: (id: number) => void;
@@ -38,11 +41,12 @@ type Props = {
 };
 
 export function PlayerArea({ player, active, compact, focused, collapsed, maximized, attackedBy, ctx }: Props) {
-  const field = player.zones.battlefield;
-  // Auras/equipment and what they're attached to stay apart so each pile is really interchangeable.
-  const attached = new Set(field.flatMap((c) => (c.attachedToId ? [c.id, c.attachedToId] : [])));
+  // Attachments are drawn behind their host (possibly on another board), never as loose cards.
+  const hosted = new Set([...ctx.attachments.values()].flat().map((c) => c.id));
+  const field = player.zones.battlefield.filter((c) => !hosted.has(c.id));
+  // Hosts stay apart so each pile is really interchangeable.
   const piles = (cards: typeof field) => groupCards(cards,
-    (c) => attached.has(c.id) || ctx.combatCards.has(c.id) || !!c.attacking || !!c.blocking,
+    (c) => ctx.attachments.has(c.id) || c.attachedToId !== undefined || ctx.combatCards.has(c.id) || !!c.attacking || !!c.blocking,
     (c) => [ctx.selectableCards.has(c.id), ctx.chosenCards.has(c.id)]);
   const lands = piles(field.filter(isLand));
   const others = piles(field.filter((c) => !isLand(c)));
@@ -60,6 +64,20 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
     onClick: () => ctx.onCard(c.id),
     onHover: ctx.onHover,
   });
+
+  // An aura on an equipment goes behind the same host, after it.
+  const behind = (id: number): CardState[] => (ctx.attachments.get(id) ?? []).flatMap((a) => [a, ...behind(a.id)]);
+  const place = (g: CardState[], size: 'field' | 'land') => {
+    const card = <Card key={g[0].id} size={size} count={g.length} {...cardProps(g[0])} />;
+    const under = behind(g[0].id);
+    if (!under.length) return card;
+    return (
+      <span key={g[0].id} className="attach" style={{ '--attached': under.length } as CSSProperties}>
+        {under.map((a, i) => <span key={a.id} className="attach__under" style={{ '--i': i } as CSSProperties}><Card size={size} {...cardProps(a)} /></span>)}
+        {card}
+      </span>
+    );
+  };
 
   const command = (
     <span className="player__command">
@@ -121,10 +139,10 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
         {/* In a narrow column the commander joins the board instead of making the header two lines tall. */}
         {compact && command}
         <div className="field__row">
-          {others.map((g) => <Card key={g[0].id} size="field" count={g.length} {...cardProps(g[0])} />)}
+          {others.map((g) => place(g, 'field'))}
         </div>
         <div className="field__row field__row--lands">
-          {lands.map((g) => <Card key={g[0].id} size="land" count={g.length} {...cardProps(g[0])} />)}
+          {lands.map((g) => place(g, 'land'))}
         </div>
       </div>}
     </section>

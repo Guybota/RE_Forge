@@ -102,7 +102,8 @@ try {
   const defaults = initial.phaseStops;
   assert.deepEqual(defaults.mine, ['MAIN1', 'COMBAT_DECLARE_BLOCKERS', 'MAIN2']);
   assert.deepEqual(defaults.opponents, ['COMBAT_DECLARE_BLOCKERS', 'END_OF_TURN']);
-  const custom = { mine: ['UPKEEP'], opponents: [] };
+  assert.equal(defaults.autoPass, false);
+  const custom = { mine: ['UPKEEP'], opponents: [], autoPass: true };
   let info = await peer.request({ type: 'setPhaseStops', stops: custom });
   assert.deepEqual(info.phaseStops, custom);
   let error = await peer.request({ type: 'setPhaseStops', stops: { mine: ['DRAW'], opponents: ['NOT_A_PHASE'] } }, 'error');
@@ -130,7 +131,7 @@ try {
   peer.messages.splice(peer.messages.indexOf(error), 1);
   const since = peer.messages.length;
   info = await peer.request({ type: 'setPhaseStops', stops: { mine: [], opponents: [] } });
-  assert.deepEqual(info.phaseStops, { mine: [], opponents: [] });
+  assert.deepEqual(info.phaseStops, { mine: [], opponents: [], autoPass: false }, 'autoPass is optional and off when left out');
   await peer.wait((m) => m.type === 'state' && (m.turn > stop.turn || m.phase !== 'UPKEEP'), since);
   console.log('match: custom upkeep stop reached; disabling it advances without pressing OK; live skin and language guard OK');
   info = await peer.request({ type: 'setPhaseStops', stops: null });

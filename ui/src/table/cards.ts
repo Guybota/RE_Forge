@@ -37,6 +37,17 @@ export function groupCards(cards: CardState[], apart: (c: CardState) => boolean,
   return [...groups.values()];
 }
 
+/** Battlefield cards attached to another battlefield card (equipment, auras, fortifications), by host id. */
+export function attachmentsByHost(battlefield: CardState[]): Map<number, CardState[]> {
+  const ids = new Set(battlefield.map((c) => c.id));
+  const hosts = new Map<number, CardState[]>();
+  for (const c of battlefield) {
+    if (c.attachedToId === undefined || c.attachedToId === c.id || !ids.has(c.attachedToId)) continue;
+    hosts.set(c.attachedToId, [...(hosts.get(c.attachedToId) ?? []), c]);
+  }
+  return hosts;
+}
+
 const PHASES: Record<string, MessageKey> = {
   UNTAP: 'stepUntap',
   UPKEEP: 'phaseUpkeep',

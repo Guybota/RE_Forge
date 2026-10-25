@@ -11,7 +11,7 @@ export function GameMenu({ engine, onClose, onLeave }: { engine: Engine; onClose
   const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
-  const [stops, setStops] = useState<PhaseStops>(engine.info?.phaseStops ?? { mine: [], opponents: [] });
+  const [stops, setStops] = useState<PhaseStops>(engine.info?.phaseStops ?? { mine: [], opponents: [], autoPass: false });
   useEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
@@ -28,12 +28,13 @@ export function GameMenu({ engine, onClose, onLeave }: { engine: Engine; onClose
     }
   }, [engine.error, engine.info]);
 
-  const changeStop = (row: keyof PhaseStops, phase: string, checked: boolean) => {
-    const next = { ...stops, [row]: checked ? [...stops[row], phase] : stops[row].filter((p) => p !== phase) };
+  const save = (next: PhaseStops) => {
     setStops(next);
     setBusy(true);
     engine.send({ type: 'setPhaseStops', stops: next });
   };
+  const changeStop = (row: 'mine' | 'opponents', phase: string, checked: boolean) =>
+    save({ ...stops, [row]: checked ? [...stops[row], phase] : stops[row].filter((p) => p !== phase) });
 
   return (
     <dialog ref={ref} className="choice game-menu" aria-labelledby="game-menu-title" onCancel={(e) => { e.preventDefault(); onClose(); }}>
@@ -54,6 +55,10 @@ export function GameMenu({ engine, onClose, onLeave }: { engine: Engine; onClose
         <SoundSettings />
         <AnimationSettings />
         <h3 className="game-menu__section" title={t('phaseStopsHint')}>{t('phaseStops')}</h3>
+        <label className="game-menu__toggle" title={t('autoPassHint')}>
+          <input type="checkbox" checked={stops.autoPass} disabled={busy} onChange={(e) => save({ ...stops, autoPass: e.target.checked })} />
+          <span>{t('autoPass')}</span>
+        </label>
         <table className="game-menu__phases">
           <thead><tr><th scope="col">{t('phase')}</th><th scope="col">{t('yourTurn')}</th><th scope="col">{t('opponentsTurn')}</th></tr></thead>
           <tbody>

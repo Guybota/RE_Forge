@@ -1,8 +1,10 @@
 package reforge.engine;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -15,6 +17,8 @@ import forge.game.card.CardView.CardStateView;
 import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
 import forge.game.combat.CombatView;
+import forge.game.keyword.Keyword;
+import forge.game.keyword.KeywordView;
 import forge.game.player.PlayerView;
 import forge.game.spellability.StackItemView;
 import forge.game.zone.ZoneType;
@@ -160,6 +164,8 @@ final class GameSnapshot {
         o.addProperty("faceDown", c.isFaceDown());
         o.addProperty("damage", c.getDamage());
         if (c.getAttachedTo() != null) o.addProperty("attachedToId", c.getAttachedTo().getId());
+        JsonArray keywords = keywords(s);
+        if (!keywords.isEmpty()) o.add("keywords", keywords);
         if (c.getCounters() != null && !c.getCounters().isEmpty()) {
             JsonObject counters = new JsonObject();
             for (CounterType t : c.getCounters().elementSet()) {
@@ -168,6 +174,27 @@ final class GameSnapshot {
             o.add("counters", counters);
         }
         return o;
+    }
+
+    /**
+     * Forge's keywords (English, like its reminder texts): the enum name for the UI's own translations,
+     * the title ("Ward {2}"), what follows the keyword's name ("{2}") and the formatted reminder text.
+     */
+    private static JsonArray keywords(CardStateView s) {
+        JsonArray out = new JsonArray();
+        if (s.getKeywords() == null) return out;
+        Set<String> seen = new HashSet<>();
+        for (KeywordView k : s.getKeywords()) {
+            if (k.keyword() == null || k.keyword() == Keyword.UNDEFINED || k.title() == null || !seen.add(k.title())) continue;
+            String name = k.keyword().toString();
+            JsonObject kw = new JsonObject();
+            kw.addProperty("id", k.keyword().name());
+            kw.addProperty("title", k.title());
+            kw.addProperty("detail", k.title().regionMatches(true, 0, name, 0, name.length()) ? k.title().substring(name.length()).trim() : "");
+            kw.addProperty("reminder", k.reminderText() == null ? "" : k.reminderText());
+            out.add(kw);
+        }
+        return out;
     }
 
     /** The card's name in Forge's current language (English when there's no translation). */

@@ -27,15 +27,15 @@ docs/       PLAN.md (roadmap).
 | `HeadlessGui` | Forge's `IGuiBase` with no windows. `invokeInEdt*` run inline. `getNewGuiGame()` creates a `WebGuiGame` for the active online session. |
 | `EngineServer` | WebSocket server. Routes `hello`, `listDecks`, `setLanguage`, `setSkin`, `startMatch`, `action`, `answer`. UI actions run on a per-connection `ui-actions` executor. |
 | `Session` | One UI connection: `send()` and blocking `ask()` (question → answer by id). |
-| `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `NetworkGuiGame`, including remote delta sync). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
+| `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `NetworkGuiGame`, including remote delta sync). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. `syncAutoPass` turns Forge's `YIELD_AUTO_PASS_NO_ACTIONS` on only during opponents' turns (local controller via the pref, remote via `setYieldPref`). |
 | `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses, kick and cleanup. One online session per process; `close()` always releases it, step by step. A guest whose host vanishes outside a running game closes at once (`WebGuiGame.onReconnectStateChanged`) instead of waiting for Forge's 2-minute reconnect. Kick = a private system notice, then the host closes that guest's channel (Forge has no kick; the channel is read by reflection). |
 | `RelayTunnel` | Native Forge TCP streams over a multiplexed WebSocket; outbound-only rooms configured by `RE_FORGE_RELAY_URL`. Separate bounded queues per guest; local UI stays in loopback. |
 | `OnlineController` | Adapts the remote wire controller to release its pending input after an individual concession; delegates rules and all other input to Forge's real human controller. |
-| `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
+| `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`; `keywords` (Forge's enum name, title, detail and English reminder text). |
 | `AmountAssignment` | Forge's damage/amount constraints: exact total, per-target bounds, lethal damage, ordering and trample. Shared validation and prompt metadata. |
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons, each with its chosen Forge AI profile (`res/ai`); sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
-| `Settings` | `<data>/reforge.properties`: chosen `language`, `skin` and separate phase stops for own/opponents' turns. Atomic writes; missing language/skin = first run. |
+| `Settings` | `<data>/reforge.properties`: chosen `language`, `skin`, separate phase stops for own/opponents' turns and `autoPass` (sent with the stops). Atomic writes; missing language/skin = first run. |
 | `CardCatalog` | Deck builder catalog: `search` (Commander-legal, no Arena `A-` or Un-only cards, exact names first, 60 per page) and `printings`. `card()` fields are shared with decklist lines. |
 | `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
 | `AdventureCampaign` | Adventure character, deck and battles on `AdventureWorld` (seeded Shandalar: biomes, POIs, wandering enemies), `AdventureMap` (Forge's Tiled maps without libGDX), `AdventureSprites` (libGDX atlases as text) and `AdventureQuests` (side quests from `quests.json`: town offers, Defeat/Hunt/Travel/Clear/Leave stages, rewards from the epilogues). Towns are entered like dungeons: inn, quest giver and `AdventureShops` (shops.json, stock from `AdventureCards`, Forge's reward filters). |
@@ -55,7 +55,8 @@ docs/       PLAN.md (roadmap).
   `DeckStatistics.tsx` + `deckAnalysis.ts` show interactive mana/color/source statistics and draw probabilities.
   A new name replaces the opened deck.
 - `table/CardZoom.tsx` — right click (long press on touch) on any card or deck line shows it big, in a modal `<dialog>`
-  so it sits above other dialogs; also exports the shared `Preview`.
+  so it sits above other dialogs, with its counters and keywords (`kw_*`/`kwHelp_*` in `i18n.ts`, else Forge's English
+  reminder text); also exports the shared `Preview`.
 - `Lobby.tsx` — host/join form and online lobby, up to four mixed human/AI seats, deck selection and chat.
 - `useEngine.ts` / `engine.ts` — the socket and every message type (keep in sync with the engine).
 - `audio/` — offline Web Audio effects, local volume/mute settings and consecutive-snapshot game cues.
@@ -74,6 +75,8 @@ docs/       PLAN.md (roadmap).
   has items; the panel keeps the last card looked at. Phones (≤ 760 px): the panel is a drawer, opponents are header rows
   (maximize to see a board), the bar wraps. Compact headers keep one line: hand/library move to the name's tooltip.
   Commander tax shows as a badge on the command-zone card (`commanderCasts` in the state).
+  Equipment, auras and fortifications are drawn behind their host (`attachmentsByHost` in `cards.ts`, `ctx.attachments`),
+  on the host's board even when another player controls them; hosts never fold into piles.
 - `table/animationPlan.ts` (pure snapshot diff, like the sound cues) → `animationRunner.ts` (Web Animations on the real
   cards plus loose "ghost" cards in `.anim-layer`), run from `Table`'s layout effect with the previous render's card
   rects. Forge takes a spell out of the hand while costs are paid, so `rememberLocations` keeps each card's last place.
@@ -86,8 +89,9 @@ docs/       PLAN.md (roadmap).
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
 
 `engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
-fixture (`--scenario suite|combat|images|zones|table|sounds|animations`, `table` = busy four-player board, `sounds` = known spells and attacker,
+fixture (`--scenario suite|combat|images|zones|table|sounds|animations|autopass|attachments`, `table` = busy four-player board, `sounds` = known spells and attacker,
 `animations` = legendary mythic, equipment, counters, mill and discard,
+`autopass` = AI turn with nothing to play, `attachments` = equipment/auras on both boards with counters and keywords,
 fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 
 ## Environment (Windows dev machine)
@@ -121,6 +125,7 @@ npm run relay:smoke          # actual local Cloudflare Worker: room auth, isolat
 npm run engine:smoke-relay   # netplay through local Worker (SMOKE_ONLINE_HUMANS=4 for four humans)
 npm run engine:smoke-online-lobby # leave/rejoin, closed window, host closes room, kick (--relay; RE_FORGE_RELAY_URL tests the published relay)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
+npm run engine:smoke-autopass # opponent's turn passes by itself once auto-pass is switched on live; own turn stops again
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
 npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
 npm run engine:smoke-images   # image URLs (cards, tokens), per-language cache, English fallback, retries

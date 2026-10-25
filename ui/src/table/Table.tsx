@@ -7,7 +7,7 @@ import { CombatArrows } from './CombatArrows';
 import { GameMenu } from './GameMenu';
 import { ZoneViewer, type OpenZone } from './ZoneViewer';
 import { PanelIcon } from './icons';
-import { PHASE_TRACK, phaseKey } from './cards';
+import { PHASE_TRACK, attachmentsByHost, phaseKey } from './cards';
 import { Preview } from './CardZoom';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
@@ -128,6 +128,8 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       targetCards: new Set(top?.targetCardIds ?? []),
       combatCards: new Set([...game.combat.flatMap((a) => [a.attackerId, ...a.blockerIds, ...(a.defenderCardId ? [a.defenderCardId] : [])]),
         ...game.stack.flatMap((s) => s.targetCardIds ?? [])]),
+      // On whichever board the host is, also when the attachment's controller is someone else.
+      attachments: attachmentsByHost(game.players.flatMap((p) => p.zones.battlefield)),
       playerNames: names,
       onCard: (id) => send({ type: 'action', action: 'card', id }),
       onPlayer: (id) => send({ type: 'action', action: 'player', id }),

@@ -36,7 +36,8 @@ final class Settings {
     private static final Set<String> DEFAULT_MINE = Set.of("MAIN1", "MAIN2", "COMBAT_DECLARE_BLOCKERS");
     private static final Set<String> DEFAULT_OPPONENTS = Set.of("COMBAT_DECLARE_BLOCKERS", "END_OF_TURN");
 
-    record PhaseStops(Set<String> mine, Set<String> opponents) {
+    /** autoPass: Forge's "auto-pass when no actions", applied only during opponents' turns. */
+    record PhaseStops(Set<String> mine, Set<String> opponents, boolean autoPass) {
         PhaseStops { mine = Set.copyOf(mine); opponents = Set.copyOf(opponents); }
     }
     /** Forge's translations (res/languages), shown by their own names. */
@@ -68,7 +69,7 @@ final class Settings {
             }
         }
         phaseStops = new PhaseStops(readStops("phaseStops.mine", DEFAULT_MINE),
-                readStops("phaseStops.opponents", DEFAULT_OPPONENTS));
+                readStops("phaseStops.opponents", DEFAULT_OPPONENTS), Boolean.parseBoolean(props.getProperty("autoPass")));
     }
 
     private Set<String> readStops(String key, Set<String> fallback) {
@@ -82,11 +83,16 @@ final class Settings {
         return (myTurn ? stops.mine() : stops.opponents()).contains(phase);
     }
 
+    boolean autoPass() {
+        return phaseStops.autoPass();
+    }
+
     JsonObject phaseStopsJson() {
         PhaseStops stops = phaseStops;
         JsonObject out = new JsonObject();
         out.add("mine", phasesJson(stops.mine()));
         out.add("opponents", phasesJson(stops.opponents()));
+        out.addProperty("autoPass", stops.autoPass());
         return out;
     }
 
@@ -98,11 +104,12 @@ final class Settings {
 
     /** Validate both rows before saving, so an invalid update cannot partially change settings. */
     synchronized void changePhaseStops(JsonObject value) throws IOException {
-        PhaseStops next = value == null ? new PhaseStops(DEFAULT_MINE, DEFAULT_OPPONENTS)
-                : new PhaseStops(parseStops(value.get("mine")), parseStops(value.get("opponents")));
+        PhaseStops next = value == null ? new PhaseStops(DEFAULT_MINE, DEFAULT_OPPONENTS, false)
+                : new PhaseStops(parseStops(value.get("mine")), parseStops(value.get("opponents")), parseAutoPass(value.get("autoPass")));
         Properties before = (Properties) props.clone();
         props.setProperty("phaseStops.mine", PHASES.stream().filter(next.mine()::contains).collect(Collectors.joining(",")));
         props.setProperty("phaseStops.opponents", PHASES.stream().filter(next.opponents()::contains).collect(Collectors.joining(",")));
+        props.setProperty("autoPass", String.valueOf(next.autoPass()));
         try {
             save();
             phaseStops = next;
@@ -111,6 +118,12 @@ final class Settings {
             props.putAll(before);
             throw e;
         }
+    }
+
+    private static boolean parseAutoPass(JsonElement value) {
+        if (value == null) return false;
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) throw new IllegalArgumentException("autoPass must be a boolean");
+        return value.getAsBoolean();
     }
 
     private static Set<String> parseStops(JsonElement value) {

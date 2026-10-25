@@ -1,0 +1,12 @@
+# The AI's main phase with nothing the human could play: auto-pass must answer priority on its own.
+activeplayer=p1
+activephase=MAIN1
+turn=2
+p0life=40
+p1life=40
+p0battlefield=Forest
+p1battlefield=Forest
+p0hand=
+p1hand=Forest
+p0library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest
+p1library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest

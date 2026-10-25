@@ -59,6 +59,8 @@ const pt = {
   opponentsTurn: 'Adversários',
   phaseStopFor: '{phase}: {turn}',
   resetPhaseStops: 'Repor paragens',
+  autoPass: 'Passar nos turnos dos adversários',
+  autoPassHint: 'Nos turnos dos adversários passa a prioridade sozinho quando não tens nada que possas jogar. Bloqueios e escolhas obrigatórias continuam a ser pedidos.',
   saving: 'A guardar…',
   online: 'Jogar online',
   connectionMethod: 'Ligação',
@@ -287,6 +289,29 @@ const pt = {
   stepDamage: 'Dano',
   stepEndCombat: 'Fim do combate',
   stepCleanup: 'Limpeza',
+  kw_FLYING: 'Voar', kwHelp_FLYING: 'Só pode ser bloqueada por criaturas com voar ou alcance.',
+  kw_REACH: 'Alcance', kwHelp_REACH: 'Pode bloquear criaturas com voar.',
+  kw_TRAMPLE: 'Atropelar', kwHelp_TRAMPLE: 'O dano de combate que sobra depois do dano letal aos bloqueadores vai para o jogador ou planeswalker atacado.',
+  kw_DEATHTOUCH: 'Toque mortífero', kwHelp_DEATHTOUCH: 'Qualquer quantidade de dano que cause a uma criatura chega para a destruir.',
+  kw_FIRST_STRIKE: 'Iniciativa', kwHelp_FIRST_STRIKE: 'Causa dano de combate antes das criaturas sem iniciativa.',
+  kw_DOUBLE_STRIKE: 'Golpe duplo', kwHelp_DOUBLE_STRIKE: 'Causa dano de combate duas vezes: com a iniciativa e no passo normal.',
+  kw_HASTE: 'Ímpeto', kwHelp_HASTE: 'Pode atacar e usar habilidades com {T} no turno em que entra.',
+  kw_VIGILANCE: 'Vigilância', kwHelp_VIGILANCE: 'Atacar não a vira.',
+  kw_LIFELINK: 'Vínculo com a vida', kwHelp_LIFELINK: 'O dano que causa também te faz ganhar essa quantidade de vida.',
+  kw_MENACE: 'Ameaçar', kwHelp_MENACE: 'Só pode ser bloqueada por duas ou mais criaturas.',
+  kw_HEXPROOF: 'Resistência a magia', kwHelp_HEXPROOF: 'Não pode ser alvo de feitiços nem habilidades dos adversários.',
+  kw_SHROUD: 'Mortalha', kwHelp_SHROUD: 'Não pode ser alvo de feitiços nem habilidades.',
+  kw_INDESTRUCTIBLE: 'Indestrutível', kwHelp_INDESTRUCTIBLE: 'Dano letal e efeitos que dizem "destruir" não a destroem.',
+  kw_DEFENDER: 'Defensor', kwHelp_DEFENDER: 'Não pode atacar.',
+  kw_FLASH: 'Lampejo', kwHelp_FLASH: 'Pode ser jogada sempre que puderes jogar um instantâneo.',
+  kw_WARD: 'Salvaguarda', kwHelp_WARD: 'Quando um feitiço ou habilidade de um adversário a escolhe como alvo, é anulado a menos que esse jogador pague {detail}.',
+  kw_PROTECTION: 'Proteção', kwHelp_PROTECTION: 'Não pode ser bloqueada, alvo, encantada, equipada nem sofrer dano por aquilo de que tem proteção.',
+  kw_INFECT: 'Infectar', kwHelp_INFECT: 'Causa dano a criaturas como marcadores -1/-1 e a jogadores como marcadores de veneno.',
+  kw_PROWESS: 'Destreza', kwHelp_PROWESS: 'Sempre que conjuras um feitiço que não seja de criatura, ganha +1/+1 até ao fim do turno.',
+  kw_EQUIP: 'Equipar', kwHelp_EQUIP: '{detail}: anexa-a a uma criatura alvo que controlas. Só quando podes jogar um feitiço.',
+  kw_ENCHANT: 'Encantar', kwHelp_ENCHANT: 'Entra anexada àquilo que encanta e vai para o cemitério se deixar de estar anexada.',
+  counter_Loyalty: 'Lealdade', counter_Charge: 'Carga', counter_Shield: 'Escudo', counter_Stun: 'Atordoamento', counter_Lore: 'Conhecimento', counter_Time: 'Tempo', counter_Oil: 'Óleo', counter_Age: 'Idade', counter_Finality: 'Finalidade', counter_Defense: 'Defesa', counter_Level: 'Nível', counter_Quest: 'Missão',
+  counterLine: '{name}: {n}', zoomCounters: 'Marcadores', zoomKeywords: 'Habilidades',
 };
 
 export type MessageKey = keyof typeof pt;
@@ -347,6 +372,8 @@ const en: Record<MessageKey, string> = {
   opponentsTurn: 'Opponents',
   phaseStopFor: '{phase}: {turn}',
   resetPhaseStops: 'Reset stops',
+  autoPass: "Pass during opponents' turns",
+  autoPassHint: "During opponents' turns, passes priority for you when you have nothing you could play. Blocks and mandatory choices are still asked.",
   saving: 'Saving…',
   online: 'Play online',
   connectionMethod: 'Connection',
@@ -575,6 +602,29 @@ const en: Record<MessageKey, string> = {
   stepDamage: 'Damage',
   stepEndCombat: 'End of combat',
   stepCleanup: 'Cleanup',
+  kw_FLYING: 'Flying', kwHelp_FLYING: "Can't be blocked except by creatures with flying or reach.",
+  kw_REACH: 'Reach', kwHelp_REACH: 'Can block creatures with flying.',
+  kw_TRAMPLE: 'Trample', kwHelp_TRAMPLE: 'Combat damage left over after lethal damage to its blockers goes to the attacked player or planeswalker.',
+  kw_DEATHTOUCH: 'Deathtouch', kwHelp_DEATHTOUCH: 'Any amount of damage it deals to a creature is enough to destroy it.',
+  kw_FIRST_STRIKE: 'First strike', kwHelp_FIRST_STRIKE: 'Deals combat damage before creatures without first strike.',
+  kw_DOUBLE_STRIKE: 'Double strike', kwHelp_DOUBLE_STRIKE: 'Deals both first-strike and regular combat damage.',
+  kw_HASTE: 'Haste', kwHelp_HASTE: 'Can attack and use {T} abilities the turn it comes under your control.',
+  kw_VIGILANCE: 'Vigilance', kwHelp_VIGILANCE: "Attacking doesn't cause it to tap.",
+  kw_LIFELINK: 'Lifelink', kwHelp_LIFELINK: 'Damage it deals also causes you to gain that much life.',
+  kw_MENACE: 'Menace', kwHelp_MENACE: "Can't be blocked except by two or more creatures.",
+  kw_HEXPROOF: 'Hexproof', kwHelp_HEXPROOF: "Can't be the target of spells or abilities your opponents control.",
+  kw_SHROUD: 'Shroud', kwHelp_SHROUD: "Can't be the target of spells or abilities.",
+  kw_INDESTRUCTIBLE: 'Indestructible', kwHelp_INDESTRUCTIBLE: 'Lethal damage and effects that say “destroy” don’t destroy it.',
+  kw_DEFENDER: 'Defender', kwHelp_DEFENDER: "Can't attack.",
+  kw_FLASH: 'Flash', kwHelp_FLASH: 'You may cast it any time you could cast an instant.',
+  kw_WARD: 'Ward', kwHelp_WARD: 'Whenever it becomes the target of a spell or ability an opponent controls, counter that unless its controller pays {detail}.',
+  kw_PROTECTION: 'Protection', kwHelp_PROTECTION: "Can't be blocked, targeted, enchanted, equipped or dealt damage by what it has protection from.",
+  kw_INFECT: 'Infect', kwHelp_INFECT: 'Deals damage to creatures as -1/-1 counters and to players as poison counters.',
+  kw_PROWESS: 'Prowess', kwHelp_PROWESS: 'Whenever you cast a noncreature spell, it gets +1/+1 until end of turn.',
+  kw_EQUIP: 'Equip', kwHelp_EQUIP: '{detail}: attach to target creature you control. Equip only as a sorcery.',
+  kw_ENCHANT: 'Enchant', kwHelp_ENCHANT: "Enters attached to what it enchants and goes to the graveyard if it's no longer attached.",
+  counter_Loyalty: 'Loyalty', counter_Charge: 'Charge', counter_Shield: 'Shield', counter_Stun: 'Stun', counter_Lore: 'Lore', counter_Time: 'Time', counter_Oil: 'Oil', counter_Age: 'Age', counter_Finality: 'Finality', counter_Defense: 'Defense', counter_Level: 'Level', counter_Quest: 'Quest',
+  counterLine: '{name}: {n}', zoomCounters: 'Counters', zoomKeywords: 'Keywords',
 };
 
 const TABLES: Record<string, Record<MessageKey, string>> = { pt, en };
@@ -586,6 +636,9 @@ export function translator(language: string | undefined): Translate {
   const table = TABLES[(language ?? 'en').slice(0, 2)] ?? en;
   return (key, vars) => table[key].replace(/\{(\w+)\}/g, (_, v) => String(vars?.[v] ?? ''));
 }
+
+/** For keys built at run time, e.g. from a Forge keyword or counter name. */
+export const isMessageKey = (key: string): key is MessageKey => key in pt;
 
 export const I18n = createContext<Translate>(translator(undefined));
 export const useT = () => useContext(I18n);

@@ -1,7 +1,7 @@
 // Connection to the Java engine bridge. The Electron shell passes its port as ?enginePort=N.
 // Message shapes mirror engine/src/main/java/reforge/engine (GameSnapshot, WebGuiGame, EngineServer).
 
-export type PhaseStops = { mine: string[]; opponents: string[] };
+export type PhaseStops = { mine: string[]; opponents: string[]; autoPass: boolean };
 
 export type CampaignMode = 'quest' | 'adventure';
 export type CampaignCard = CatalogCard & { key: string; owned: number; qty: number };
@@ -104,6 +104,8 @@ export type CardState = {
   damage?: number;
   attachedToId?: number;
   counters?: Record<string, number>;
+  /** Forge's keywords, in English: `id` is the enum name, `detail` what follows the name (e.g. "{2}" of "Ward {2}"). */
+  keywords?: { id: string; title: string; detail: string; reminder: string }[];
 };
 
 export type PlayerState = {

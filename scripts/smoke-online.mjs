@@ -214,7 +214,7 @@ try {
   for (const peer of humans) peer.send({ type: 'setReady', ready: true });
   await host.wait((m) => m.type === 'lobby' && m.slots.every((s) => s.ready));
   console.log(`lobby: ${humanCount} human seats, deck exchange, AI seat, readiness and chat OK`);
-  guest.send({ type: 'setPhaseStops', stops: { mine: ['UPKEEP'], opponents: [] } });
+  guest.send({ type: 'setPhaseStops', stops: { mine: ['UPKEEP'], opponents: [], autoPass: true } });
   await guest.wait((m) => m.type === 'engineInfo' && m.phaseStops.mine.length === 1 && m.phaseStops.mine[0] === 'UPKEEP');
   host.send({ type: 'startOnlineMatch' });
   humans.forEach(autoplay);

@@ -76,8 +76,8 @@ export function runAnimations(plans: AnimationPlan[], before: Map<number, DOMRec
       el?.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35)', offset: 0.4 }, { transform: 'scale(1)' }],
         { duration: time(500), easing: 'ease-out', composite: 'add' });
     } else if (plan.kind === 'equip' && animationOn('equip')) {
-      // The board keeps equipment in its own place, so a copy shows it travelling onto the host.
-      const from = cardEl(root, plan.card.id)?.getBoundingClientRect() ?? before.get(plan.card.id), host = cardEl(root, plan.hostId);
+      // The card is already drawn behind its host: a copy flies there from where it was, then the card shows.
+      const from = before.get(plan.card.id) ?? cardEl(root, plan.card.id)?.getBoundingClientRect(), host = cardEl(root, plan.hostId);
       const to = host?.getBoundingClientRect();
       if (!host || !visible(from) || !visible(to)) continue;
       const w = from.width, h = w * 7 / 5, el = ghost(layer, plan.card, w);
@@ -89,6 +89,7 @@ export function runAnimations(plans: AnimationPlan[], before: Map<number, DOMRec
       ], { duration: time(700), easing: 'ease-in-out', fill: 'both' }).finished.finally(() => el.remove());
       host.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.08)', offset: 0.5 }, { transform: 'scale(1)' }],
         { duration: time(350), delay: time(600), easing: 'ease-out', composite: 'add' });
+      cardEl(root, plan.card.id)?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.85 }, { opacity: 1 }], { duration: time(700) });
     } else if (plan.kind === 'zones' && animationOn('zones')) {
       const from = (plan.from === 'hand' ? before.get(plan.card.id) : undefined) ?? zoneRect(root, plan.playerId, plan.from);
       const to = zoneRect(root, plan.playerId, plan.to);

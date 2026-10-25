@@ -200,6 +200,14 @@
   cursor: default;
 }
 
+/* Equipment, auras and fortifications peek out above the permanent they are attached to. */
+.attach { --attach-peek: 20px; position: relative; display: flex; flex-shrink: 0; isolation: isolate;
+  padding-top: calc(var(--attached) * var(--attach-peek)); }
+.attach > .card { z-index: 1; }
+.attach__under { position: absolute; top: calc(var(--i) * var(--attach-peek)); left: 50%; transform: translateX(-50%); }
+.field__row--lands .attach, .player--compact .attach, .table--narrow .attach { --attach-peek: 13px; }
+.player--max .attach { --attach-peek: 30px; }
+
 /* A pile of identical permanents: offset edges behind the top card and a count. */
 .card--pile { box-shadow: 3px -3px 0 -1px var(--card-bg), 3px -3px 0 0 var(--card-ink), var(--card-shadow); margin-right: 3px; }
 .card__count {
@@ -462,7 +470,8 @@
 .game-menu__phases :is(th, td) { border-bottom: 1px solid var(--panel-line); }
 .game-menu__phases :is(th, td):not(:first-child) { width: 100px; text-align: center; }
 .game-menu__check { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
-.game-menu__check input { width: 20px; height: 20px; accent-color: var(--panel-ink); cursor: pointer; }
+.game-menu__toggle { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.game-menu__check input, .game-menu__toggle input { width: 20px; height: 20px; accent-color: var(--panel-ink); cursor: pointer; }
 .game-menu__footer { flex-wrap: wrap; justify-content: space-between; }
 .game-menu__footer .muted { margin: 0; font-size: 12px; }
 .game-menu__concede { color: var(--danger); }
@@ -803,6 +812,19 @@
 .zoom__card:not(:has(.side__image)) { padding: 20px 24px; border-radius: var(--panel-radius); background: var(--panel); }
 .zoom__card h2 { margin: 0 0 8px; font-family: var(--font-display); }
 .zoom:focus-visible { outline: none; }
+.zoom__body { display: flex; align-items: center; gap: 20px; }
+.zoom__info { width: min(320px, 90vw); max-height: 86vh; overflow-y: auto; padding: 16px 18px; border-radius: var(--panel-radius); background: var(--panel); color: var(--panel-ink); }
+.zoom__counters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+.zoom__counters:last-child { margin-bottom: 0; }
+.zoom__counters .chip { background: var(--accent); color: var(--accent-ink); font-size: 14px; }
+.zoom__keywords { margin: 0; display: grid; gap: 10px; }
+.zoom__keywords dt { font-family: var(--font-display); font-weight: var(--display-weight); }
+.zoom__keywords dd { margin: 2px 0 0; color: var(--panel-ink-muted); font-size: 14px; }
+@media (max-width: 760px) {
+  .zoom__body { flex-direction: column; gap: 12px; }
+  .zoom__body:has(.zoom__info) .zoom__card { width: min(300px, 80vw, calc(52vh * 0.716)); }
+  .zoom__info { max-height: 34vh; }
+}
 
 /* ---- Animations (table/animationRunner.ts): loose cards above the table, never catching the pointer */
 .anim-layer { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }

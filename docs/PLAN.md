@@ -227,6 +227,14 @@ importação agrupada por tipo com imagem e impressões originais, ecrã online 
 Decks e zoom (`feat/decks-zoom`): ecrã Decks (ver agrupado, mudar nome, editar, exportar, apagar, jogar) e zoom de qualquer
 carta com clique direito ou toque prolongado.
 
+Mesa ao estilo Arena (`feat/arena-table`): "Passar nos turnos dos adversários" no menu da partida (a preferência nativa
+`YIELD_AUTO_PASS_NO_ACTIONS` do Forge, ligada só no turno de um adversário, também para jogadores remotos; bloqueios e
+escolhas obrigatórias continuam a ser pedidos), equipamentos/auras/fortificações desenhados por trás do permanente a que
+estão anexados (também no campo de outro jogador) e zoom com marcadores e keywords explicadas (21 keywords comuns
+traduzidas; as outras com o texto de lembrete do Forge, só em inglês). Testes: `engine:smoke-autopass`, cenário
+`attachments` do `DialogHarness`. Limite conhecido: num convidado remoto a troca de turno chega com atraso de rede, por isso
+a primeira prioridade do próprio turno pode ainda ser passada se não houver nada para jogar.
+
 Passo 4 concluído.
 
 Passo 5 (`feat/deck-builder`): construtor com catálogo e filtros, comandante e identidade de cor, curva de mana,

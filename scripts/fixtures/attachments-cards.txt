@@ -1,0 +1,13 @@
+# Attachments on both boards (equipment and aura on a countered creature, an opponent's aura on a creature) and keywords for the zoom.
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Forest;Forest;Mountain;Craw Wurm|Id:1|Counters:P1P1=2;Bonesplitter|AttachedTo:1;Rancor|AttachedTo:1;Serra Angel|Id:2;Grizzly Bears;Grizzly Bears
+p1battlefield=Hill Giant|Id:3;Pacifism|AttachedTo:3;Vampire Nighthawk;Island
+p0hand=Lightning Bolt
+p1hand=
+p0library=Forest;Forest;Forest;Forest;Forest
+p1library=Forest;Forest;Forest;Forest;Forest
+removesummoningsickness=true

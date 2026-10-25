@@ -30,8 +30,11 @@ import forge.gamemodes.net.NetworkGuiGame;
 import forge.gamemodes.net.client.FGameClient;
 import forge.gamemodes.match.Selection;
 import forge.gui.interfaces.IGuiGame;
+import forge.interfaces.IGameController;
 import forge.item.PaperCard;
+import forge.localinstance.properties.ForgePreferences.FPref;
 import forge.localinstance.skin.FSkinProp;
+import forge.model.FModel;
 import forge.player.PlayerZoneUpdate;
 import forge.trackable.TrackableCollection;
 import forge.util.FSerializableFunction;
@@ -97,6 +100,8 @@ final class WebGuiGame extends NetworkGuiGame {
         if (disposed) return;
         GameView game = getGameView();
         if (game == null) return;
+        // A remote client gets no updateTurn, only the new view.
+        syncAutoPass();
         try {
             GameSnapshot snapshot = new GameSnapshot(game, this, prompt);
             lastSnapshot = snapshot;
@@ -156,7 +161,7 @@ final class WebGuiGame extends NetworkGuiGame {
     }
     @Override public void showCombat() { markDirty(); }
     @Override public void updatePhase(boolean saveState) { markDirty(); }
-    @Override public void updateTurn(PlayerView player) { markDirty(); }
+    @Override public void updateTurn(PlayerView player) { syncAutoPass(); markDirty(); }
     @Override public void updateStack() { markDirty(); }
     @Override public void updateZones(Iterable<PlayerZoneUpdate> zonesToUpdate) { markDirty(); }
     @Override public void updateCards(Iterable<CardView> cards) { markDirty(); }
@@ -615,7 +620,25 @@ final class WebGuiGame extends NetworkGuiGame {
         for (PlayerView player : game.getPlayers()) {
             for (PhaseType phase : PhaseType.values()) pushSkipPhaseToControllers(player, phase);
         }
+        syncAutoPass();
         markDirty();
+    }
+
+    private Boolean autoPassSent;
+
+    /**
+     * Forge's "auto-pass when no actions" (any turn) switched on only while an opponent has the turn. The local
+     * controller reads Forge's preference, the host's proxy of a remote player gets it over the wire.
+     */
+    synchronized void syncAutoPass() {
+        GameView game = getGameView();
+        PlayerView turn = game == null ? null : game.getPlayerTurn();
+        if (disposed || turn == null) return;
+        boolean on = settings.autoPass() && !isLocalPlayer(turn);
+        if (autoPassSent != null && autoPassSent == on) return;
+        autoPassSent = on;
+        FModel.getPreferences().setPref(FPref.YIELD_AUTO_PASS_NO_ACTIONS, on);
+        for (IGameController c : getOriginalGameControllers()) c.setYieldPref(FPref.YIELD_AUTO_PASS_NO_ACTIONS, String.valueOf(on));
     }
 
     /** Forge still decides mandatory actions and priority with a nonempty stack. */
