@@ -3,6 +3,38 @@
 
 export type PhaseStops = { mine: string[]; opponents: string[] };
 
+export type CampaignMode = 'quest' | 'adventure';
+export type CampaignCard = CatalogCard & { key: string; owned: number; qty: number };
+export type CampaignReward = { title?: string; message?: string; cards?: CampaignCard[]; kind?: string; count?: number; name?: string; imageKey?: string };
+export type CampaignList = {
+  type: 'campaigns'; mode: CampaignMode;
+  campaigns: { id: string; name: string; difficulty: number; wins?: number; losses?: number }[];
+  starters: { id: string; name: string }[];
+  /** Adventure only: Forge's races with a portrait per sex. */
+  heroes?: { id: string; portraits: { male?: AtlasSprite; female?: AtlasSprite } }[]; assetBase?: string;
+};
+export type AdventureMapData = {
+  width: number; height: number; tile: number;
+  tilesets: { first: number; columns: number; size: number; image: string }[];
+  layers: { gids: number[]; opacity: number }[];
+};
+/** A Forge atlas region: frames are [x, y, width, height] in `image` (animation steps or variants). */
+export type AtlasSprite = { image: string; frames: [number, number, number, number][] };
+/** Overworld grid of `size`² cells of `tiles`² tiles. `cells`: '0' + biome index (0 is water). */
+export type AdventureWorldData = {
+  size: number; tiles: number; zoom: number; seed: number; cells: string;
+  biomes: { name: string; color: string; tiles: AtlasSprite | null; terrain: { tiles: AtlasSprite | null; min?: number; max?: number; resolution?: number }[];
+    decorations: { startArea: number; endArea: number; resolution: number; density: number; sprite: AtlasSprite }[] }[];
+};
+type CampaignBase = { type: 'campaign'; id: string; name: string; mode: CampaignMode; difficulty: number; assetBase: string; cards: CampaignCard[]; wins: number; losses: number; rewards: CampaignReward[] };
+export type QuestState = CampaignBase & { mode: 'quest'; credits: number; rank: number; duels: { id: string; name: string; description: string; difficulty: string }[]; shop: (CatalogCard & { key: string; price: number; available: number })[] };
+export type AdventureState = CampaignBase & { mode: 'adventure'; life: number; maxLife: number; gold: number; shards: number; region: string; map?: AdventureMapData; world?: AdventureWorldData; x?: number; y?: number;
+  objects?: { id: string; kind: string; name: string; x: number; y: number; sprite?: string }[];
+  /** Forge atlas animations by key: frames are [x, y, width, height] in `image`. */
+  player?: string; sprites?: Record<string, AtlasSprite> };
+export type CampaignState = QuestState | AdventureState;
+export type CampaignRequest = { type: 'campaign'; action: 'list' | 'create' | 'open' | 'close' | 'state' | 'duel' | 'deck' | 'buy' | 'enter' | 'leave' | 'move' | 'interact' | 'delete'; mode?: CampaignMode; id?: string; name?: string; starter?: string; difficulty?: number; hero?: string; sex?: 'male' | 'female'; target?: string; key?: string; region?: string; dx?: number; dy?: number; entries?: { key: string; qty: number }[] };
+
 export type EngineInfo = {
   type: 'engineInfo';
   version: string;
@@ -31,6 +63,8 @@ export type CardState = {
   typeEn?: string;
   colors?: string;
   set?: string;
+  /** Forge's CardRarity name, e.g. 'MythicRare'. */
+  rarity?: string;
   imageKey?: string;
   text?: string;
   power?: number;
@@ -78,7 +112,7 @@ export type GameState = {
   gameOver: boolean;
   winner: string | null;
   players: PlayerState[];
-  stack: { id: number; text: string; sourceCardId: number | null; controllerId: number | null; targetCardIds: number[]; targetPlayerIds: number[] }[];
+  stack: { id: number; text: string; isSpell?: boolean; sourceCardId: number | null; card?: CardState; controllerId: number | null; targetCardIds: number[]; targetPlayerIds: number[] }[];
   combat: { attackerId: number; defenderPlayerId?: number; defenderCardId?: number; blockerIds: number[] }[];
   log: string[];
   prompt: {
@@ -168,6 +202,7 @@ export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name:
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
 type EngineMessage =
+  | CampaignList | CampaignState | { type: 'campaignClosed' }
   | EngineInfo
   | GameState
   | Choice
@@ -185,6 +220,7 @@ type EngineMessage =
 export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave';
 
 export type ClientMessage =
+  | CampaignRequest
   | { type: 'hello' }
   | { type: 'listDecks' }
   | { type: 'setLanguage'; language: string }
@@ -222,6 +258,8 @@ export type EngineHandlers = {
   onChat: (message: ChatMessage) => void;
   onError: (message: string) => void;
   onClosed: () => void;
+  onCampaigns: (campaigns: CampaignList) => void;
+  onCampaign: (campaign: CampaignState | null) => void;
 };
 
 export function enginePort(): number | null {
@@ -252,6 +290,9 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       return;
     }
     switch (msg.type) {
+      case 'campaigns': h.onCampaigns(msg); break;
+      case 'campaign': h.onCampaign(msg); break;
+      case 'campaignClosed': h.onCampaign(null); break;
       case 'engineInfo': h.onInfo(msg); break;
       case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander }); break;
       case 'deckPreview': h.onDeckPreview(msg); break;

@@ -29,7 +29,8 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 
 | `26b8732` | Combate: cartas acionáveis, alvo do ataque, setas de ataque e bloqueio, paragem após bloqueios |
 
-Ramo `feat/packaging` (`3bca02e`, **não juntado**): instalador Windows em curso — ver passo 6.
+Instalador retomado no ramo `feat/windows-installer`, sobre a `main` atual, sem commits nem merges.
+O ramo antigo `feat/packaging` (`3bca02e`) está preservado — ver passo 6.
 
 ---
 
@@ -233,21 +234,80 @@ Lista de decks, editor (catálogo à esquerda, deck à direita, curva de mana, v
 filtros, escolha de impressão/arte. Base: `FModel.getMagicDb()` para o catálogo, `DeckFormat` para validar,
 armazenamento em `FModel.getDecks()`.
 
-## Passo 6 — Instalador Windows (ramo `feat/packaging`)
+## Passo 6 — Instalador Windows (ramo `feat/windows-installer`)
 
-Estado: `scripts/package.mjs` (UI + motor + runtime Java com `jlink` + `electron-builder` NSIS por utilizador),
-`desktop/main.cjs` com caminhos de recursos empacotados, janela de carregamento, instância única. A primeira build parou
-no `jlink` por causa de espaços no caminho; a correção (não usar shell para executáveis) está no ramo mas **não foi testada**.
+Trabalho retomado a partir da `main` com o construtor de decks, preservando o ramo antigo. Ainda sem commit.
 
-Por fazer: rebase sobre `main`; correr `npm run package`; instalar e testar (arranque, imagens, dados em `%APPDATA%\RE-Forge`);
-o recurso `forge-gui` tem de ser gravável (instalação por utilizador) porque o motor escreve lá `forge.profile.properties`;
-ícone da app; tamanho (~200 MB sem `adventure/` e `music/`).
+- `npm run package`: UI + motor + runtime Java 21 com `jlink` + instalador NSIS x64 por utilizador.
+  Executáveis chamados diretamente, incluindo o JDK num caminho com espaços; cache do runtime invalidada quando
+  muda o JDK ou a lista de módulos. A build não publica releases.
+- `scripts/mvn.mjs` fixa a raiz do reactor: evita a procura de `.mvn` até à raiz do disco que, numa shell restrita,
+  podia imprimir `Access is denied` e terminar com sucesso sem uma build válida.
+- Electron usa o Java e os recursos incluídos, mostra uma janela durante o carregamento e limita a app a uma instância.
+  Inclui ícone próprio (fonte em `scripts/icon.ps1`), licença do Forge e diagnóstico de falhas do motor.
+- Scripts de cartas e fichas empacotados no formato `cardsfolder.zip` já suportado pelo Forge, sem alterar upstream.
+  Evita copiar cerca de 35 mil ficheiros individuais na instalação. `adventure/` e `music/` continuam excluídos.
+- `npm run package:smoke` usa exclusivamente o runtime/JAR/recursos distribuídos e dados temporários: primeiro arranque,
+  catálogo, pré-construídos, importação de 100 cartas, persistência após reiniciar e início de partida local.
+  `SMOKE_PACKAGE_IMAGES=1` acrescenta uma imagem real do Scryfall e a cache após reiniciar.
+
+Validação executada:
+
+- UI e motor compilam; arranque e catálogo passam. Maven verificado também num caminho com espaços.
+- Com o runtime Java reduzido: imagens (servidor simulado), partida até ao turno 4, diálogos/combate determinísticos
+  e online entre dois motores locais passam, incluindo privacidade, paragens remotas e reutilização da porta.
+- Instalador final `dist-app/RE-Forge-Setup-0.1.0.exe`: 248 277 350 bytes (cerca de 248 MB). Recursos do Forge reduzidos
+  de 50 070 para 15 100 ficheiros com os arquivos nativos; instalação silenciosa numa pasta com espaços passou em 146 s.
+- O teste do pacote com ZIP passou também diretamente nos recursos instalados: 33 591 cartas, 180 pré-construídos,
+  importação de 100 cartas, definições/deck após reiniciar e início de partida. Uma imagem real do Scryfall foi
+  descarregada e reutilizada da cache após reiniciar, sem reescrever o ficheiro. Todos os dados de teste são temporários.
+- Desinstalador de teste terminou com sucesso, sem pedir remoção de dados da aplicação.
+
+O Electron empacotado arrancou com `JAVA_HOME` inválido, PATH sem Java e APPDATA/perfil Chromium de teste. A janela
+carregou a UI, mas um pedido de acesso do Windows Firewall bloqueou a verificação visual dos fluxos. O utilizador
+está a comunicar remotamente e não consegue responder ao aviso; nenhuma opção de segurança foi alterada.
+
+Por fechar: verificação visual completa e teste numa máquina limpa; validação LAN em duas máquinas continua no passo 3.
+O recurso `forge-gui` tem de ser gravável porque o motor escreve lá `forge.profile.properties`; a instalação é por utilizador.
 
 ## Passo 7 — Modos (fases 3–4)
 
 Draft e Sealed (`forge-gui/.../gamemodes/limited`), torneio, puzzles, Quest, Adventure. Cada modo reaproveita a mesa.
 
+Adventure e Quest têm uma primeira integração na interface RE:Forge: campanhas guardadas, coleção/deck e duelos;
+Quest usa os controladores nativos de economia/loja e Adventure permite explorar três cavernas dos recursos originais.
+O utilizador testou o ciclo básico e indicou que parece funcionar (25/10/2026). Quer aprofundar funcionalidades e melhorar
+a experiência antes de criar outro instalador; a nova distribuição fica adiada.
+
+Mundo aberto de Adventure (`AdventureWorld`): Shandalar gerado por campanha a partir de uma semente guardada, com os
+biomas, pontos de interesse e nomes de cidades originais numa grelha 175×175 (uma célula = 4×4 tiles). O jogador anda
+tile a tile; a UI desenha os autotiles originais (`BiomeTexture`), variantes de terreno e decorações por tile a partir da
+semente. Faltam as estruturas por wave-function collapse (florestas, ruínas) e as fronteiras de bioma seguem as células. As 197 cavernas/masmorras usadas abrem os mapas Tiled; cidades só restauram a vida (sem lojas);
+160 inimigos errantes dos biomas, só os que têm deck `.dck`. Herói, inimigos, edifícios e tesouros usam os sprites
+animados dos atlas libGDX originais (`AdventureSprites`); o herói é sempre o humano masculino (falta a escolha). Mapas com inimigos de deck gerado (78) dão erro ao combater.
+
+Criação com escolha de herói (raças e sexo de `heroes.json`, retrato do avatar original); campanhas de Adventure e Quest
+podem ser apagadas (a Quest apaga também o `.dat` nativo e o backup).
+
+Animações da mesa: feitiços sobem ao centro e voam para a stack (também os do adversário, com a carta do item da stack),
+permanentes entram a levantar/segurar/pousar, anel em lendárias e míticas (`rarity` no estado), marcadores e lealdade
+pulsam, equipamento voa para o portador, cartas descartadas/moídas saem da mão/biblioteca para o cemitério ou exílio e
+uma moeda mostra quem começa. Velocidade 0,5–2× e cada tipo desligável nas definições. Verificado no browser com o
+cenário `animations` do `DialogHarness` (trajetórias medidas por JavaScript; as capturas são lentas demais).
+
+Próximo bloco: missões (`quests.json`) ligadas às cidades e masmorras do mundo; depois lojas/estalagens, Quest (loja e
+gestão da coleção) ou melhorias da mesa.
+
 ## Ideias / mais tarde
 
-Android (mesma UI num WebView com o motor Java no dispositivo), animações (cartas a entrar, dano), sons, estatísticas,
+Sons implementados no trabalho atual: cliques, jogar cartas/terrenos, atacar, início de turno e passagem de fases.
+Efeitos curtos sintetizados na UI, sem downloads; volume inicial de 40%, opção para desligar e preferências locais.
+Controlos no menu principal e no menu da partida. As atualizações repetidas da mesa são silenciosas; habilidades
+na stack distinguem-se de feitiços. Não toca enquanto a janela está oculta nem acumula sons antes da primeira interação.
+`ui:smoke-sounds` valida os eventos, as cinco formas de onda, mute/volume, persistência e falhas do dispositivo de áudio.
+Validação: UI e motor compilam; cenário `SMOKE_SOUND_FIXTURE=1` joga até ao turno 4 com cartas e ataques reais e confirma
+os quatro efeitos do jogo. Controlos verificados no browser no menu principal e durante a partida, nas skins Mesa e
+Terminal, incluindo preferências após recarregar. O instalador anterior ainda não inclui este trabalho.
+
+Android (mesma UI num WebView com o motor Java no dispositivo), animações (cartas a entrar, dano), estatísticas,
 replays (o Forge já grava; desligado por agora).

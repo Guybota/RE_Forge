@@ -1,106 +1,31 @@
-import { useState } from 'react';
 import { useT } from './i18n';
+import { useState } from 'react';
+import { SettingsDialog } from './audio/SoundSettings';
 import { SKINS } from './skins';
 import type { Engine } from './useEngine';
 
-const RANDOM = '';
-const KNOWN_AI = ['Default', 'Cautious', 'Reckless', 'Hard', 'Hardest', 'Experimental'] as const;
-const AI_STORAGE = 'reforge.aiProfiles';
+export type HomeDestination = 'commander' | 'quest' | 'adventure' | 'decks' | 'online' | 'skin' | 'language';
 
-function savedAi(): string[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(AI_STORAGE) ?? '[]');
-    return Array.isArray(value) ? value.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
-type Props = {
-  engine: Engine;
-  onPick: (what: 'language' | 'skin' | 'decks' | 'online') => void;
-  /** Deck to preselect, e.g. one chosen to play from the decks screen. */
-  initialDeck?: string;
-};
-
-export function Home({ engine, onPick, initialDeck }: Props) {
-  const t = useT();
-  const [deck, setDeck] = useState(initialDeck ?? RANDOM);
-  const [opponents, setOpponents] = useState(1);
-  const [starting, setStarting] = useState(false);
-  const [ai, setAi] = useState<string[]>(savedAi);
-  const info = engine.info;
-  const languageName = info?.languages.find((l) => l.code === info.language)?.name;
-  const { mine, precons } = engine.decks;
-
-  const profiles = info?.aiProfiles ?? [];
-  // A remembered profile the engine no longer has falls back to Forge's default.
-  const aiFor = (i: number) => (ai[i] === RANDOM || profiles.includes(ai[i]) ? ai[i] : profiles.includes('Default') ? 'Default' : RANDOM);
-  const aiName = (p: string) => ((KNOWN_AI as readonly string[]).includes(p) ? t(`ai${p as (typeof KNOWN_AI)[number]}`) : p);
-  const chooseAi = (i: number, profile: string) => {
-    const next = [0, 1, 2].map((n) => (n === i ? profile : aiFor(n)));
-    setAi(next);
-    try { localStorage.setItem(AI_STORAGE, JSON.stringify(next)); } catch { /* remembered for this session only */ }
-  };
-
-  const start = () => {
-    setStarting(true);
-    engine.send({ type: 'startMatch', deck: deck || null, opponents, aiProfiles: [0, 1, 2].slice(0, opponents).map(aiFor) });
-  };
-
+export function Home({ engine, onPick }: { engine: Engine; onPick: (destination: HomeDestination) => void }) {
+  const t = useT(); const info = engine.info;
+  const [soundOpen, setSoundOpen] = useState(false);
   return (
-    <main className="home">
-      <h1 title={info ? t('cardCount', { cards: info.cards.toLocaleString(info.language), editions: info.editions }) : undefined}>RE:Forge</h1>
-      <form className="home__form" onSubmit={(e) => { e.preventDefault(); start(); }}>
-        <div className="field-label">
-          <label htmlFor="deck">{t('deck')}</label>
-          <div className="home__deck">
-            <select id="deck" className="input" value={deck} onChange={(e) => setDeck(e.target.value)}>
-              <option value={RANDOM}>{t('random')}</option>
-              {mine.length > 0 && (
-                <optgroup label={t('myDecks')}>
-                  {mine.map((d) => <option key={d} value={d}>{d}</option>)}
-                </optgroup>
-              )}
-              <optgroup label={t('precons')}>
-                {precons.map((d) => <option key={d} value={d}>{d}</option>)}
-              </optgroup>
-            </select>
-<button type="button" className="btn btn--ghost" onClick={() => onPick('decks')}>{t('decks')}</button>
-          </div>
-        </div>
-        <fieldset className="segmented">
-          <legend className="field-label">{t('opponents')}</legend>
-          {[1, 2, 3].map((n) => (
-            <label key={n} className={opponents === n ? 'is-on' : ''}>
-              <input type="radio" name="opponents" value={n} checked={opponents === n} onChange={() => setOpponents(n)} />
-              {n}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset className="home__ai">
-          <legend className="field-label">{t('ai')}</legend>
-          {[0, 1, 2].slice(0, opponents).map((i) => (
-            <select key={i} className="input" aria-label={t('aiFor', { n: i + 1 })} value={aiFor(i)} onChange={(e) => chooseAi(i, e.target.value)}>
-              {profiles.map((p) => <option key={p} value={p}>{aiName(p)}</option>)}
-              <option value={RANDOM}>{t('random')}</option>
-            </select>
-          ))}
-        </fieldset>
-        <button type="submit" className="btn btn--primary btn--big" disabled={starting && !engine.error}>
-          {starting && !engine.error ? t('shuffling') : t('play')}
-        </button>
-        <button type="button" className="btn btn--ghost" onClick={() => onPick('online')}>{t('online')}</button>
-        {engine.error && <p className="error">{engine.error}</p>}
-      </form>
-      <div className="home__corner">
-        <button type="button" onClick={() => onPick('skin')} title={t('skin')}>
-          {t(SKINS.find((s) => s.id === info?.skin)?.name ?? 'skinMesa')}
-        </button>
-        <button type="button" onClick={() => onPick('language')} title={t('language')}>
-          {languageName}
-        </button>
-      </div>
+    <main className="mode-home">
+      <header className="mode-home__brand"><h1 title={info ? t('cardCount', { cards: info.cards.toLocaleString(info.language), editions: info.editions }) : undefined}>RE:Forge</h1></header>
+      <nav className="mode-home__modes" aria-label={t('mainMenu')}>
+        <button className="mode-home__mode" type="button" title={t('adventureHint')} onClick={() => onPick('adventure')}><span>{t('adventure')}</span><svg viewBox="0 0 80 64" aria-hidden="true"><path d="M4 55 28 12l18 31 10-17 20 29Z M28 12v43 M4 55h72" /></svg></button>
+        <button className="mode-home__mode" type="button" title={t('questHint')} onClick={() => onPick('quest')}><span>{t('quest')}</span><svg viewBox="0 0 80 64" aria-hidden="true"><path d="M22 8h38v46H22Z M12 18h10 M12 30h10 M12 42h10 M32 22h18 M32 32h18 M32 42h10" /></svg></button>
+        <button className="mode-home__mode" type="button" title={t('commanderHint')} onClick={() => onPick('commander')}><span>{t('commanderMode')}</span><svg viewBox="0 0 80 64" aria-hidden="true"><path d="M20 53V13h28v40Z M27 13V7h28v40h-7 M33 34l5-11 5 11-5 10Z" /></svg></button>
+      </nav>
+      <footer className="mode-home__footer">
+        <nav aria-label={t('decks')}><button className="btn btn--ghost" type="button" onClick={() => onPick('decks')}>{t('decks')}</button><button className="btn btn--ghost" type="button" onClick={() => onPick('online')}>{t('online')}</button></nav>
+        <nav aria-label={t('menu')}>
+          <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setSoundOpen(true)}>{t('settings')}</button>
+          <button type="button" className="btn btn--ghost" onClick={() => onPick('skin')}>{t(SKINS.find(s => s.id === info?.skin)?.name ?? 'skinMesa')}</button>
+          <button type="button" className="btn btn--ghost" onClick={() => onPick('language')}>{info?.languages.find(l => l.code === info.language)?.name ?? t('language')}</button>
+        </nav>
+      </footer>
+      {soundOpen && <SettingsDialog onClose={() => setSoundOpen(false)} />}
     </main>
   );
 }

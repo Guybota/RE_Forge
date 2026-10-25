@@ -1,0 +1,13 @@
+# Known playable spells, lands and an attacker for real engine sound-event coverage.
+activeplayer=p0
+activephase=MAIN1
+turn=1
+p0life=40
+p1life=40
+p0battlefield=Forest;Forest;Forest;Grizzly Bears
+p1battlefield=
+p0hand=Forest;Llanowar Elves
+p1hand=
+p0library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest
+p1library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest
+removesummoningsickness=true

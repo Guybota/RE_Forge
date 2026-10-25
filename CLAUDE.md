@@ -13,7 +13,7 @@ forge/      Forge source, git submodule. Treat as upstream: do not edit it.
 engine/     Java bridge (package reforge.engine). Loads Forge headless, serves the UI over a local WebSocket.
 ui/         React + TypeScript + Vite. Everything the player sees.
 desktop/    Electron shell: starts the engine, opens the UI (main.cjs).
-scripts/    mvn.mjs (Maven launcher), smoke tests, package script (on feat/packaging).
+scripts/    mvn.mjs (Maven launcher), smoke tests, Windows package script.
 pom.xml     Maven reactor: builds forge-core/game/ai/gui + engine together (Forge's ${revision} needs this).
 docs/       PLAN.md (roadmap).
 ```
@@ -48,6 +48,9 @@ docs/       PLAN.md (roadmap).
   so it sits above other dialogs; also exports the shared `Preview`.
 - `Lobby.tsx` — host/join form and online lobby, up to four mixed human/AI seats, deck selection and chat.
 - `useEngine.ts` / `engine.ts` — the socket and every message type (keep in sync with the engine).
+- `audio/` — offline Web Audio effects, local volume/mute settings and consecutive-snapshot game cues.
+  `App` installs trusted click/keyboard activation once; `useEngine` compares each incoming state before React batches it.
+  First snapshots are silent, turns replace simultaneous phase cues, and stack `isSpell` excludes abilities.
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
@@ -61,6 +64,11 @@ docs/       PLAN.md (roadmap).
   has items; the panel keeps the last card looked at. Phones (≤ 760 px): the panel is a drawer, opponents are header rows
   (maximize to see a board), the bar wraps. Compact headers keep one line: hand/library move to the name's tooltip.
   Commander tax shows as a badge on the command-zone card (`commanderCasts` in the state).
+- `table/animationPlan.ts` (pure snapshot diff, like the sound cues) → `animationRunner.ts` (Web Animations on the real
+  cards plus loose "ghost" cards in `.anim-layer`), run from `Table`'s layout effect with the previous render's card
+  rects. Forge takes a spell out of the hand while costs are paid, so `rememberLocations` keeps each card's last place.
+  Preferences (on/off, speed, per kind) are local (`animationPrefs.ts`), off by default under reduced motion; the panel
+  sits in the main-menu settings and the game menu. The coin flip is cosmetic (shown when turn 1 starts).
 - Leaving a match from the menu concedes (Forge confirms) and goes home; `useEngine` ignores the old match's late
   states and questions after `leaveGame` until a new match starts.
 - `table/ZoneViewer.tsx` — a player's graveyard or exile (the counters in `PlayerArea` open it). Usable cards, e.g. flashback,
@@ -68,7 +76,9 @@ docs/       PLAN.md (roadmap).
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
 
 `engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
-fixture (`--scenario suite|combat|images|zones|table`, `table` = busy four-player board, fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
+fixture (`--scenario suite|combat|images|zones|table|sounds|animations`, `table` = busy four-player board, `sounds` = known spells and attacker,
+`animations` = legendary mythic, equipment, counters, mill and discard,
+fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 
 ## Environment (Windows dev machine)
 
@@ -83,6 +93,10 @@ fixture (`--scenario suite|combat|images|zones|table`, `table` = busy four-playe
 ```bash
 npm run engine:build          # Forge modules + bridge → engine/target/re-forge-engine.jar (1–2 min)
 npm run build                 # UI type-check + build → ui/dist
+npm run ui:smoke-sounds       # deterministic cue routing, waveform bounds, mute/volume, autoplay and audio failures
+npm run ui:smoke-animations   # deterministic animation plans: cast, enter/ring, counters, equip, discard, mill, coin
+npm run package               # Windows x64 installer with bundled Java → dist-app
+npm run package:smoke         # shipped JRE/assets, import, persistence and match startup; temporary data
 npm run dev                   # Vite + Electron; Electron starts the engine
 npm run engine:smoke          # engine loads the card DB (~15 s)
 npm run engine:smoke-match    # passive game through the socket, concedes on turn 4 (SMOKE_OPPONENTS=3 for 4 players)

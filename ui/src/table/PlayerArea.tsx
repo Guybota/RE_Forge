@@ -97,13 +97,13 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
         {active && <span className="chip chip--light">{t('turnChip')}</span>}
         {attackedBy > 0 && <span className="chip chip--danger">{t('attacked', { n: attackedBy })}</span>}
         <span className="player__stats">
-          <span className="player__minor">{t('handCount', { n: player.handSize })}</span>
-          <span className="player__minor" title={t('library')}>{t('libraryShort', { n: player.librarySize })}</span>
+          <span className="player__minor" data-zone="hand" data-zone-of={player.id}>{t('handCount', { n: player.handSize })}</span>
+          <span className="player__minor" title={t('library')} data-zone="library" data-zone-of={player.id}>{t('libraryShort', { n: player.librarySize })}</span>
           {(['graveyard', 'exile'] as const).map((zone) => {
             const n = player.zones[zone].length;
             if (zone === 'exile' && n === 0) return null;
             const playable = player.zones[zone].some((c) => c.actionable || ctx.selectableCards.has(c.id));
-            return <button type="button" key={zone} className={`player__zone ${playable ? 'is-selectable' : ''}`} title={t(zone)}
+            return <button type="button" key={zone} className={`player__zone ${playable ? 'is-selectable' : ''}`} title={t(zone)} data-zone={zone} data-zone-of={player.id}
               aria-haspopup="dialog" disabled={n === 0} onClick={() => ctx.onZone(player.id, zone)}>
               {t(zone === 'graveyard' ? 'graveyardShort' : 'exileShort', { n })}
             </button>;

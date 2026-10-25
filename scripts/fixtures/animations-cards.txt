@@ -1,0 +1,13 @@
+# Cards that trigger every table animation: legendary mythic, equipment, +1/+1 counters, mill and discard.
+activeplayer=p0
+activephase=MAIN1
+turn=1
+p0life=40
+p1life=40
+p0battlefield=Forest;Forest;Forest;Forest;Island;Island;Swamp;Swamp;Swamp;Grizzly Bears;Bonesplitter
+p1battlefield=
+p0hand=Rhonas the Indomitable;Battlegrowth;Thought Scour;Mind Rot;Llanowar Elves
+p1hand=Forest;Forest;Forest
+p0library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest
+p1library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest
+removesummoningsickness=true

@@ -803,3 +803,18 @@
 .zoom__card:not(:has(.side__image)) { padding: 20px 24px; border-radius: var(--panel-radius); background: var(--panel); }
 .zoom__card h2 { margin: 0 0 8px; font-family: var(--font-display); }
 .zoom:focus-visible { outline: none; }
+
+/* ---- Animations (table/animationRunner.ts): loose cards above the table, never catching the pointer */
+.anim-layer { position: fixed; inset: 0; pointer-events: none; z-index: 40; overflow: hidden; }
+.anim-ghost { position: absolute; left: 0; top: 0; aspect-ratio: 5 / 7; border-radius: var(--card-radius); overflow: hidden; background: var(--card-bg); box-shadow: var(--card-shadow-lifted); will-change: transform, opacity; }
+.anim-ghost img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.anim-ghost--back { background: var(--card-back); }
+.coin-flip { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; align-content: center; gap: 28px; perspective: 600px; pointer-events: none; }
+.coin-flip__coin { width: 112px; height: 112px; border-radius: 50%; background: var(--anim-ring); border: 6px solid var(--accent); box-shadow: var(--card-shadow-lifted); animation: coin-spin ease-out both; }
+.coin-flip__text { margin: 0; padding: 10px 20px; border-radius: var(--radius-control); background: var(--panel); color: var(--panel-ink); font-family: var(--font-display); font-weight: var(--display-weight); font-size: 26px; box-shadow: var(--card-shadow-lifted); animation: coin-text 300ms ease-out both; }
+@keyframes coin-spin {
+  0% { transform: translateY(0) rotateX(0); }
+  45% { transform: translateY(-120px) rotateX(1080deg); }
+  100% { transform: translateY(0) rotateX(1980deg); }
+}
+@keyframes coin-text { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

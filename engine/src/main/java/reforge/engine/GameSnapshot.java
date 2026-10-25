@@ -54,7 +54,7 @@ final class GameSnapshot {
             ps.add(player(p, game, gui));
         }
         json.add("players", ps);
-        json.add("stack", stack(game));
+        json.add("stack", stack(game, gui));
         json.add("combat", combat(game.getCombat()));
         json.add("log", log(game));
         json.add("prompt", prompt(prompt));
@@ -140,6 +140,7 @@ final class GameSnapshot {
         o.addProperty("typeEn", s.getType() == null ? "" : s.getType().toString());
         o.addProperty("colors", s.getColors() == null ? "" : s.getColors().toString());
         o.addProperty("set", s.getSetCode());
+        if (s.getRarity() != null) o.addProperty("rarity", s.getRarity().name());
         o.addProperty("imageKey", s.getImageKey());
         o.addProperty("text", text(s));
         if (s.getType() != null && s.getType().isCreature()) {
@@ -180,14 +181,17 @@ final class GameSnapshot {
         return translated == null || translated.isEmpty() ? s.getOracleText() : translated.replace("\\n", "\n");
     }
 
-    private JsonArray stack(GameView game) {
+    private JsonArray stack(GameView game, WebGuiGame gui) {
         JsonArray arr = new JsonArray();
         if (game.getStack() == null) return arr;
         for (StackItemView si : game.getStack()) {
             JsonObject o = new JsonObject();
             o.addProperty("id", si.getId());
             o.addProperty("text", si.getText());
+            o.addProperty("isSpell", !si.isAbility());
             o.addProperty("sourceCardId", si.getSourceCard() == null ? null : si.getSourceCard().getId());
+            // The spell's own card, so the UI can show it flying to the stack (card() still hides what may not be seen).
+            if (!si.isAbility() && si.getSourceCard() != null) o.add("card", card(si.getSourceCard(), gui));
             o.addProperty("controllerId", si.getActivatingPlayer() == null ? null : si.getActivatingPlayer().getId());
             JsonArray targetCards = new JsonArray(), targetPlayers = new JsonArray();
             if (si.getTargetCards() != null) si.getTargetCards().forEach(t -> targetCards.add(t.getId()));

@@ -3,65 +3,127 @@ const { app, BrowserWindow, dialog } = require('electron');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 
-const root = path.resolve(__dirname, '..');
 const isDev = !app.isPackaged && process.env.RE_FORGE_DEV === '1';
-const engineJar = path.join(root, 'engine', 'target', 're-forge-engine.jar');
-const forgeAssets = path.join(root, 'forge', 'forge-gui');
+
+// Installed: everything ships in resources/ (see "build" in package.json). From source: the repo layout.
+const paths = app.isPackaged
+  ? {
+      cwd: process.resourcesPath,
+      java: path.join(process.resourcesPath, 'runtime', 'bin', process.platform === 'win32' ? 'java.exe' : 'java'),
+      engineJar: path.join(process.resourcesPath, 'engine', 're-forge-engine.jar'),
+      forgeAssets: path.join(process.resourcesPath, 'forge-gui'),
+      ui: path.join(process.resourcesPath, 'ui', 'index.html'),
+    }
+  : {
+      cwd: path.resolve(__dirname, '..'),
+      java: process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java',
+      engineJar: path.resolve(__dirname, '..', 'engine', 'target', 're-forge-engine.jar'),
+      forgeAssets: path.resolve(__dirname, '..', 'forge', 'forge-gui'),
+      ui: path.resolve(__dirname, '..', 'ui', 'dist', 'index.html'),
+    };
+
+// Shown while the engine loads the card database; uses the default table's colours.
+const SPLASH = `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html><body style="margin:0;height:100vh;display:grid;place-items:center;background:#1f3b2d;color:#efe7d6;font:600 64px Georgia,serif">
+<div>RE:Forge</div></body></html>`)}`;
 
 let engine = null;
+let quitting = false;
 
 // Starts the Java bridge and resolves with the port it printed on its READY line.
 function startEngine() {
   return new Promise((resolve, reject) => {
-    const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
-    engine = spawn(java, ['-Xmx2g', '-jar', engineJar, '--port', '0', '--assets', forgeAssets, '--exit-with-parent'], { cwd: root });
-    engine.on('error', reject);
-    engine.on('exit', (code) => {
-      engine = null;
-      reject(new Error(`Engine exited with code ${code} before it was ready`));
-    });
-    engine.stderr.on('data', (d) => process.stderr.write(`[engine] ${d}`));
+    let ready = false;
     let buffer = '';
+    let stdout = '';
+    const timeout = setTimeout(() => {
+      reject(new Error('Engine startup timed out (120 s)'));
+    }, 120_000);
+    engine = spawn(paths.java, ['-Xmx2g', '-jar', paths.engineJar, '--port', '0', '--assets', paths.forgeAssets, '--exit-with-parent'], {
+      cwd: paths.cwd,
+      windowsHide: true,
+    });
+    engine.on('error', (err) => { clearTimeout(timeout); reject(err); });
+    engine.on('exit', (code) => {
+      clearTimeout(timeout);
+      engine = null;
+      const message = `Engine exited with code ${code}\n\n${buffer.slice(-4000)}`;
+      if (!ready) reject(new Error(message));
+      else if (!quitting) {
+        dialog.showErrorBox('RE:Forge', message);
+        app.quit();
+      }
+    });
+    engine.stderr.on('data', (d) => {
+      process.stderr.write(`[engine] ${d}`);
+      buffer = (buffer + d.toString()).slice(-16000);
+    });
     engine.stdout.on('data', (d) => {
       process.stdout.write(`[engine] ${d}`);
-      buffer += d.toString();
-      const match = buffer.match(/^READY (\d+)$/m);
-      if (match) resolve(Number(match[1]));
+      buffer = (buffer + d.toString()).slice(-16000);
+      stdout = (stdout + d.toString()).slice(-1024);
+      const match = stdout.match(/^READY (\d+)\r?\n/m);
+      if (match && !ready) {
+        ready = true;
+        clearTimeout(timeout);
+        resolve(Number(match[1]));
+      }
     });
   });
 }
 
 async function createWindow() {
-  let port;
-  try {
-    port = await startEngine();
-  } catch (err) {
-    dialog.showErrorBox('RE:Forge', `O motor não arrancou.\n\n${err.message}`);
-    app.quit();
-    return;
-  }
-
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1024,
     minHeight: 640,
-    backgroundColor: '#141414',
+    backgroundColor: '#1f3b2d',
     autoHideMenuBar: true,
+    title: 'RE:Forge',
+    icon: path.join(__dirname, 'icon.ico'),
     webPreferences: { contextIsolation: true, sandbox: true },
   });
+  win.loadURL(SPLASH);
 
-  const query = { enginePort: String(port) };
+  let port;
+  try {
+    port = await startEngine();
+  } catch (err) {
+    if (!quitting) dialog.showErrorBox('RE:Forge', `O motor não arrancou.\n\n${err.message}`);
+    app.quit();
+    return;
+  }
+
+  if (quitting) return;
   if (isDev) {
-    win.loadURL(`http://localhost:5173/?enginePort=${port}`);
+    await win.loadURL(`http://localhost:5173/?enginePort=${port}`);
   } else {
-    win.loadFile(path.join(root, 'ui', 'dist', 'index.html'), { query });
+    await win.loadFile(paths.ui, { query: { enginePort: String(port) } });
   }
 }
 
-app.whenReady().then(createWindow);
+// A second launch focuses the open window instead of starting another engine.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+  app.whenReady().then(() => {
+    app.setAppUserModelId('app.reforge.desktop');
+    return createWindow();
+  }).catch((err) => {
+    dialog.showErrorBox('RE:Forge', err.message);
+    app.quit();
+  });
+}
 
 app.on('window-all-closed', () => app.quit());
+app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => {
   if (engine) engine.kill();
 });

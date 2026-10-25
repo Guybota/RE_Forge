@@ -4,6 +4,8 @@ import { useT } from '../i18n';
 import { DEFAULT_SKIN, SKINS } from '../skins';
 import type { Engine } from '../useEngine';
 import { phaseKey } from './cards';
+import { SoundSettings } from '../audio/SoundSettings';
+import { AnimationSettings } from './AnimationPanel';
 
 export function GameMenu({ engine, onClose, onLeave }: { engine: Engine; onClose: () => void; onLeave: () => void }) {
   const t = useT();
@@ -49,6 +51,8 @@ export function GameMenu({ engine, onClose, onLeave }: { engine: Engine; onClose
             {SKINS.map((skin) => <option value={skin.id} key={skin.id}>{t(skin.name)}</option>)}
           </select>
         </label>
+        <SoundSettings />
+        <AnimationSettings />
         <h3 className="game-menu__section" title={t('phaseStopsHint')}>{t('phaseStops')}</h3>
         <table className="game-menu__phases">
           <thead><tr><th scope="col">{t('phase')}</th><th scope="col">{t('yourTurn')}</th><th scope="col">{t('opponentsTurn')}</th></tr></thead>

@@ -54,6 +54,14 @@ final class WebGuiGame extends NetworkGuiGame {
     });
     private final AtomicBoolean pushScheduled = new AtomicBoolean();
     private volatile boolean disposed;
+    private java.util.function.Consumer<GameView> finishListener;
+    private final AtomicBoolean finishReported = new AtomicBoolean();
+
+    void onFinished(java.util.function.Consumer<GameView> listener) { finishListener = listener; }
+    private void reportFinished() {
+        GameView game = getGameView();
+        if (finishListener != null && game != null && game.isGameOver() && game.isMatchOver() && finishReported.compareAndSet(false, true)) finishListener.accept(game);
+    }
 
     private volatile GameSnapshot.Prompt prompt = GameSnapshot.Prompt.NONE;
     private volatile GameSnapshot lastSnapshot;
@@ -137,8 +145,8 @@ final class WebGuiGame extends NetworkGuiGame {
     @Override public void updateLives(Iterable<PlayerView> livesUpdate) { markDirty(); }
     @Override public void updateManaPool(Iterable<PlayerView> manaPoolUpdate) { markDirty(); }
     @Override public void refreshField() { markDirty(); }
-    @Override public void finishGame() { pushStateNow(); }
-    @Override public void afterGameEnd() { super.afterGameEnd(); pushStateNow(); }
+    @Override public void finishGame() { pushStateNow(); reportFinished(); }
+    @Override public void afterGameEnd() { super.afterGameEnd(); pushStateNow(); reportFinished(); }
 
     // ---------------------------------------------------------------- prompt bar
 

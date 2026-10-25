@@ -62,6 +62,7 @@
   --danger: #b9472e;
   --danger-text: #ff8a6e;
   --select: #f3d58a;
+  --anim-ring: #e8a33d;
 
   --c-W: #d9cfae;
   --c-U: #7393b3;
@@ -118,6 +119,7 @@
   --danger: #b3361f;
   --danger-text: #b3361f;
   --select: #2f6fd0;
+  --anim-ring: #c2410c;
 
   --c-W: #e3d7a8;
   --c-U: #2f6fd0;
@@ -175,6 +177,7 @@
   --danger: #8e2f1c;
   --danger-text: #8e2f1c;
   --select: #b8954a;
+  --anim-ring: #a0522d;
 
   --c-W: #cfc4a4;
   --c-U: #3f5f82;
@@ -231,6 +234,7 @@
   --danger: #ff6b4a;
   --danger-text: #ff6b4a;
   --select: #ffb000;
+  --anim-ring: #ff5f1f;
 
   --c-W: #f2e7b6;
   --c-U: #6fa8ff;

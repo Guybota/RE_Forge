@@ -3,18 +3,26 @@
 // the state messages (attackers, the defender, blockers), then concedes.
 // Run with: npm run engine:smoke-combat   (after npm run engine:build). SMOKE_DEBUG=1 prints each state.
 import { spawn } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, symlinkSync } from 'node:fs';
 import os from 'node:os';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gameSounds } from '../ui/src/audio/gameSounds.ts';
 
-const CONCEDE_AT_TURN = Number(process.env.SMOKE_TURNS ?? 12);
+const soundFixture = process.env.SMOKE_SOUND_FIXTURE === '1';
+const CONCEDE_AT_TURN = Number(process.env.SMOKE_TURNS ?? (soundFixture ? 4 : 12));
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java';
-const engine = spawn(java, ['-jar', path.join(root, 'engine/target/re-forge-engine.jar'),
-  '--port', '0', '--assets', path.join(root, 'forge/forge-gui'),
-  '--data', mkdtempSync(path.join(os.tmpdir(), 'reforge-combat-')), '--exit-with-parent']);
+const data = mkdtempSync(path.join(os.tmpdir(), 'reforge-combat-'));
+const assets = path.join(data, 'assets');
+mkdirSync(assets);
+symlinkSync(path.join(root, 'forge/forge-gui/res'), path.join(assets, 'res'), process.platform === 'win32' ? 'junction' : 'dir');
+const launcher = soundFixture ? ['-cp', [path.join(root, 'engine/target/test-classes'), path.join(root, 'engine/target/re-forge-engine.jar')].join(path.delimiter), 'reforge.engine.DialogHarness', '--scenario', 'sounds']
+  : ['-jar', path.join(root, 'engine/target/re-forge-engine.jar')];
+const engine = spawn(java, [...launcher,
+  '--port', '0', '--assets', assets,
+  '--data', data, '--exit-with-parent']);
 engine.stderr.on('data', (d) => { if (process.env.SMOKE_DEBUG) process.stderr.write(d); });
 
 // AI turns take a while; a 12-turn game can need several minutes.
@@ -38,6 +46,9 @@ function play(port) {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   const send = (o) => ws.send(JSON.stringify(o));
   const seen = { myAttacks: 0, attackDefenderSet: 0, blocks: 0, myCreaturesMax: 0, actionableSeen: false, choices: 0 };
+  const sounds = new Set();
+  let spellSeen = false;
+  let previousSoundState = null;
   let finished = false, conceded = false, latest = null, latestSeq = 0, actedSeq = -1, actedAt = 0;
   const tried = new Set(); // card ids clicked this turn, so a card that can't be used isn't clicked forever
   let triedTurn = -1, alphaTurn = -1;
@@ -58,6 +69,10 @@ function play(port) {
       return;
     }
     if (msg.type !== 'state') return;
+    gameSounds(previousSoundState, msg).forEach(sound => sounds.add(sound));
+    if (msg.stack.some(item => item.isSpell)) spellSeen = true;
+    assert.deepEqual(gameSounds(msg, msg), [], 'the same real snapshot must not replay sound');
+    previousSoundState = msg;
     const me = msg.players.find((p) => p.isLocal);
     seen.myCreaturesMax = Math.max(seen.myCreaturesMax, me.zones.battlefield.filter((c) => c.typeEn?.includes('Creature')).length);
     if ([...me.zones.hand, ...me.zones.battlefield].some((c) => c.actionable)) seen.actionableSeen = true;
@@ -81,6 +96,9 @@ function play(port) {
       assert.ok(seen.myCreaturesMax > 0, 'cast at least one creature');
       assert.ok(seen.myAttacks > 0, 'attacked at least once');
       assert.equal(seen.attackDefenderSet, seen.myAttacks, 'every attack has a defender');
+      for (const effect of ['card', 'attack', 'turn', 'phase']) assert.ok(sounds.has(effect), `real game produced ${effect} sound cue`);
+      if (soundFixture) assert.ok(spellSeen, 'native stack marks a real cast as isSpell');
+      console.log(`sound cues: ${[...sounds].join(', ')}`);
       console.log(`OK: game over on turn ${msg.turn}, winner ${msg.winner}${seen.blocks ? '' : ' (no block happened)'}`);
       ws.close();
       engine.kill();

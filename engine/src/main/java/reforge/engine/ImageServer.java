@@ -73,9 +73,26 @@ final class ImageServer implements AutoCloseable {
         Files.createDirectories(dir.toPath());
         http = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         http.createContext("/card", this::handle);
+        http.createContext("/adventure", this::adventureAsset);
         http.setExecutor(requests);
         http.start();
         return http.getAddress().getPort();
+    }
+
+    private void adventureAsset(HttpExchange ex) throws IOException {
+        try (ex) {
+            String name = query(ex.getRequestURI()).getOrDefault("path", "");
+            if (!name.matches("(?i).+\\.(png|jpg|jpeg|webp)")) { ex.sendResponseHeaders(404, -1); return; }
+            java.nio.file.Path root = java.nio.file.Path.of(ForgeConstants.ADVENTURE_DIR).toRealPath();
+            java.nio.file.Path file;
+            try { file = root.resolve(name).normalize().toRealPath(); }
+            catch (IOException e) { ex.sendResponseHeaders(404, -1); return; }
+            if (!file.startsWith(root) || !Files.isRegularFile(file)) { ex.sendResponseHeaders(404, -1); return; }
+            ex.getResponseHeaders().set("Content-Type", name.toLowerCase(Locale.ROOT).endsWith(".png") ? "image/png" : name.toLowerCase(Locale.ROOT).endsWith(".webp") ? "image/webp" : "image/jpeg");
+            ex.getResponseHeaders().set("Cache-Control", "public, max-age=86400");
+            ex.sendResponseHeaders(200, Files.size(file));
+            try (OutputStream out = ex.getResponseBody()) { Files.copy(file, out); }
+        }
     }
 
     private void handle(HttpExchange ex) throws IOException {

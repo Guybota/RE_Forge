@@ -45,6 +45,10 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>reforge.engine.Main</mainClass>
+                                    <!-- Native Quest saves use XStream's EnumMap/reflection converters on JDK 21. -->
+                                    <manifestEntries>
+                                        <Add-Opens>java.base/java.util java.base/java.lang java.base/java.lang.reflect java.base/java.text</Add-Opens>
+                                    </manifestEntries>
                                 </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>

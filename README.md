@@ -33,6 +33,37 @@ npm run dev
 Starts Vite and Electron; Electron launches the engine and passes its port to the UI.
 For a production-style run: `npm run build` then `npm start`.
 
+## Windows installer
+
+On Windows x64, with JDK 21 (`JAVA_HOME`), Node and Maven available:
+
+```bash
+npm install
+npm run package
+```
+
+This builds the UI and engine, creates a Java runtime with `jlink`, and writes
+`dist-app/RE-Forge-Setup-0.1.0.exe`. The installer runs per user; players do not need
+Java, Node or Maven installed. `dist-app/win-unpacked/` contains the same application
+before installation. Forge's Adventure and music resources are excluded. Card and token
+scripts use Forge's native ZIP format to avoid installing thousands of individual files.
+
+The Java runtime is reused when its JDK and module list are unchanged. Use
+`npm run package -- --fresh` to recreate it explicitly. Packaging never publishes a release.
+
+```bash
+npm run package:smoke
+npm run package:smoke -- "C:/path/to/installed/RE-Forge/resources"
+```
+
+This checks the shipped Java, card database, precons, catalog, import, settings/deck
+persistence across a restart and local match startup, using temporary data. It does not
+open the desktop UI.
+The installed resource folder must be writable: Forge writes its data-directory profile
+next to `res/` at startup. The per-user installation provides that access.
+Set `SMOKE_PACKAGE_IMAGES=1` to also download a real Scryfall image and verify the cache
+after restart; this optional check needs Internet access.
+
 ## Tests
 
 ```bash
@@ -45,10 +76,12 @@ npm run engine:smoke-settings # settings survive restart; phase stops change liv
 npm run engine:smoke-dialogs  # deterministic choices, invalid answers, scry/surveil and a real double block
 npm run engine:smoke-images   # card/token image URLs, per-language cache, English fallback, retries (simulated Scryfall)
 npm run engine:smoke-builder  # deck builder catalog: names in two languages, filters, identity, pages, printings
+npm run ui:smoke-sounds       # sound cues, duplicate suppression, generated audio, volume/mute and autoplay
 ```
 
 `SMOKE_OPPONENTS=3` plays a 4-player game; `SMOKE_DEBUG=1` prints every message.
 `SMOKE_ONLINE_AI=1` adds an AI to the online smoke test. All smoke tests use temporary data folders.
+`SMOKE_SOUND_FIXTURE=1` uses a known board/deck for `engine:smoke-combat`, verifying real spell, attack, turn and phase sound cues.
 Build the engine first: the dialog smoke test also uses compiled test classes from `engine/target/test-classes`.
 Its test launcher and native Forge fixture are excluded from the production engine jar.
 
@@ -72,6 +105,11 @@ assets during startup. `engine:smoke-online` handles this automatically.
 Open **Menu** in the side panel during a match to change skin, configure phase stops, restore the
 default stops or concede (with Forge's confirmation). Escape closes the menu without answering the
 game's prompt. A new mandatory choice closes the menu so it can be answered.
+
+**Sound effects** on the main menu and match menu controls clicks, playing cards, attacks, turn starts
+and phase changes. Sound starts at 40% volume and can be muted; both settings are remembered locally
+on this device. Effects are synthesized offline, start after the first interaction and stay silent
+while the window is hidden. Game cues follow engine state, so invalid card clicks only play the UI click.
 
 Phase stops are separate for your turn and opponents' turns, saved automatically in
 `reforge.properties`, and take effect during the current game, including online games. The defaults
@@ -117,6 +155,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | engine → UI | `chatMessage`, `lobbyClosed` | Chat `source`, `text`, `kind`; lobby closure also clears the game/choice in the UI |
 
 Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
+Stack entries include `isSpell`, distinguishing casts from activated and triggered abilities for sound cues.
 Choice options may include `card` metadata for previews; hidden options have an empty label and no card details.
 An explicit reveal exposes only the listed cards. Invalid answers repeat the choice with a fresh `id` and `invalid: true`.
 

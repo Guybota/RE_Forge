@@ -7,6 +7,15 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const local = path.join(root, '.tools', 'maven', 'bin', process.platform === 'win32' ? 'mvn.cmd' : 'mvn');
 const mvn = existsSync(local) ? local : 'mvn';
+const command = process.platform === 'win32' ? `"${mvn}"` : mvn;
 
-const result = spawnSync(mvn, process.argv.slice(2), { stdio: 'inherit', shell: process.platform === 'win32' });
+// Pin the reactor root. mvn.cmd otherwise walks up to C:\ looking for .mvn;
+// restricted shells can deny that traversal and return success without building.
+const result = spawnSync(command, process.argv.slice(2), {
+  cwd: root,
+  env: { ...process.env, MAVEN_BASEDIR: root },
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+});
+if (result.error) console.error(result.error.message);
 process.exit(result.status ?? 1);

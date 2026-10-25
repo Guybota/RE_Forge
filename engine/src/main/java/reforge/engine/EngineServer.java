@@ -49,6 +49,7 @@ public final class EngineServer extends WebSocketServer {
 
     private final String imageBase;
     private final Settings settings;
+    private final Campaigns campaigns;
     @FunctionalInterface
     interface MatchFactory {
         HostedMatch start(WebGuiGame gui, String deck, int opponents, java.util.List<String> aiProfiles);
@@ -64,6 +65,7 @@ public final class EngineServer extends WebSocketServer {
         this.imageBase = imageBase;
         this.settings = settings;
         this.matches = matches;
+        this.campaigns = new Campaigns(imageBase);
         setReuseAddr(true);
         // The library drops a connection (code 1006) when a ping isn't answered in time. The UI is a
         // local process that lives and dies with us; the parent-watch already handles it going away.
@@ -91,6 +93,12 @@ public final class EngineServer extends WebSocketServer {
         Connection c = conn.getAttachment();
         if (c == null) return;
         c.session.close();
+        c.actions.execute(() -> {
+            try {
+                if (c.gui != null && c.gui.getGameView() != null && c.gui.getGameView().isMatchOver()) campaigns.finish(c.session, c.gui.getGameView());
+                campaigns.close(c.session);
+            } catch (Exception e) { e.printStackTrace(); }
+        });
         if (c.online != null) {
             c.actions.execute(() -> { c.online.close(); c.online = null; });
             c.actions.shutdown();
@@ -151,6 +159,7 @@ public final class EngineServer extends WebSocketServer {
             case "setSkin" -> setSkin(c, msg);
             case "setPhaseStops" -> c.actions.execute(() -> setPhaseStops(c, msg));
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
+            case "campaign" -> c.actions.execute(() -> campaignAction(c, msg));
             case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
             case "setSlot", "setReady", "addSlot", "removeSlot", "startOnlineMatch", "chat", "leaveLobby" ->
                     c.actions.execute(() -> onlineAction(c, msg));
@@ -158,6 +167,27 @@ public final class EngineServer extends WebSocketServer {
             case "answer" -> c.session.onAnswer(msg);
             default -> c.session.send(error("Unknown type: " + msg.get("type").getAsString()));
         }
+    }
+
+    private void campaignAction(Connection c, JsonObject msg) {
+        try {
+            if (HeadlessGui.hasOnline() || c.gui != null && !c.gui.isFinishedForLocalPlayer()) throw new IllegalArgumentException("Leave the current match or lobby first");
+            if ("duel".equals(string(msg, "action"))) {
+                if (c.gui != null) { c.gui.dispose(); c.gui = null; }
+                WebGuiGame gui = new WebGuiGame(c.session, settings);
+                gui.onFinished(view -> {
+                    try {
+                        c.actions.execute(() -> {
+                            try { campaigns.finish(c.session, view); }
+                            catch (Exception e) { e.printStackTrace(); c.session.send(error("Campaign result: " + e.getMessage())); }
+                        });
+                    } catch (java.util.concurrent.RejectedExecutionException ignored) { /* disconnect settles the pending loss */ }
+                });
+                c.gui = gui;
+                try { c.match = campaigns.start(c.session, gui, string(msg, "target")); }
+                catch (Exception e) { c.gui = null; gui.dispose(); throw e; }
+            } else campaigns.handle(c.session, msg);
+        } catch (Exception e) { e.printStackTrace(); c.session.send(error(e.getMessage())); }
     }
 
     private void setLanguage(Connection c, JsonObject msg) {

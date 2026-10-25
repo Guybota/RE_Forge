@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MessageKey } from './i18n';
-import type { LobbyState, ChatMessage } from './engine';
+import type { LobbyState, ChatMessage, CampaignList, CampaignState } from './engine';
 import { setImageBase } from './images';
+import { gameSounds } from './audio/gameSounds';
+import { playSound } from './audio/sounds';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
@@ -22,6 +24,8 @@ export type Engine = {
   error: string | null;
   lobby: LobbyState | null;
   chat: ChatMessage[];
+  campaigns: CampaignList | null;
+  campaign: CampaignState | null;
   send: (m: ClientMessage) => void;
   /** Answers the open choice and closes it locally. */
   answer: (a: Omit<Extract<ClientMessage, { type: 'answer' }>, 'type' | 'id'>) => void;
@@ -44,9 +48,12 @@ export function useEngine(): Engine {
   const [error, setError] = useState<string | null>(null);
   const [lobby, setLobby] = useState<LobbyState | null>(null);
   const [chat, setChat] = useState<ChatMessage[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignList | null>(null);
+  const [campaign, setCampaign] = useState<CampaignState | null>(null);
   const conn = useRef<EngineConnection | null>(null);
   // After leaving a match its last states and questions may still arrive; they must not reopen the table.
   const left = useRef(false);
+  const previousSoundState = useRef<GameState | null>(null);
 
   useEffect(() => {
     if (!port) return;
@@ -61,15 +68,22 @@ export function useEngine(): Engine {
       onDeckDetail: setDeckDetail,
       onCardResults: setCardResults,
       onPrintings: setPrintings,
-      onState: (g) => { if (!left.current) setGame(g); },
+      onState: (g) => {
+        if (left.current) return;
+        gameSounds(previousSoundState.current, g).forEach(playSound);
+        previousSoundState.current = g;
+        setGame(g);
+      },
       onChoice: (q) => { if (!left.current) setChoice(q); },
       onNotice: (n) => setNotice({ ...n, at: Date.now() }),
       onLobby: (l) => {
         if (l) left.current = false;
         setLobby(l);
-        if (!l) { setGame(null); setChoice(null); setChat([]); }
+        if (!l) { previousSoundState.current = null; setGame(null); setChoice(null); setChat([]); }
       },
       onChat: (m) => setChat((messages) => [...messages.slice(-199), m]),
+      onCampaigns: setCampaigns,
+      onCampaign: setCampaign,
       onError: setError,
       onClosed: () => {
         setStatus('failed');
@@ -82,7 +96,10 @@ export function useEngine(): Engine {
 
   const send = useCallback((m: ClientMessage) => {
     setError(null);
-    if (m.type === 'startMatch' || m.type === 'startOnlineMatch') left.current = false;
+    if (m.type === 'startMatch' || m.type === 'startOnlineMatch' || m.type === 'campaign' && m.action === 'duel') {
+      left.current = false;
+      previousSoundState.current = null;
+    }
     conn.current?.send(m);
   }, []);
 
@@ -96,9 +113,10 @@ export function useEngine(): Engine {
 
   const leaveGame = useCallback(() => {
     left.current = true;
+    previousSoundState.current = null;
     setGame(null);
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckPreview, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, send, answer, leaveGame };
+  return { status, failure, info, decks, deckPreview, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, campaigns, campaign, send, answer, leaveGame };
 }

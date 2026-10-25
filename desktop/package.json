@@ -1,12 +1,42 @@
 {
   "name": "desktop",
+  "productName": "RE-Forge",
+  "description": "A new interface for the Forge Magic: The Gathering rules engine",
+  "author": "RE:Forge",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "main": "main.cjs",
   "scripts": {
     "start": "electron ."
   },
   "devDependencies": {
-    "electron": "^45.0.0"
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "app.reforge.desktop",
+    "productName": "RE-Forge",
+    "electronVersion": "45.0.0",
+    "directories": { "output": "../dist-app" },
+    "files": ["main.cjs", "package.json", "icon.ico"],
+    "extraResources": [
+      { "from": "../ui/dist", "to": "ui" },
+      { "from": "../engine/target/re-forge-engine.jar", "to": "engine/re-forge-engine.jar" },
+      { "from": "../build/runtime", "to": "runtime" },
+      { "from": "../forge/forge-gui/res", "to": "forge-gui/res", "filter": ["**/*", "!adventure/**", "!music/**", "!cardsfolder/**", "!tokenscripts/**"] },
+      { "from": "../build/card-data", "to": "forge-gui/res" },
+      { "from": "../forge/forge-gui/res/adventure/common", "to": "forge-gui/res/adventure/common", "filter": ["config.json", "maps/**", "world/**", "decks/**"] },
+      { "from": "../forge/LICENSE", "to": "licenses/Forge-LICENSE.txt" }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "RE-Forge",
+      "artifactName": "RE-Forge-Setup-${version}.${ext}"
+    }
   }
 }

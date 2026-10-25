@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Home } from './Home';
+import { QuickMatch } from './QuickMatch';
+import { CampaignScreen } from './campaigns/CampaignScreen';
 import { Lobby } from './Lobby';
 import { ImportDeck } from './ImportDeck';
 import { Decks } from './Decks';
@@ -13,10 +15,12 @@ import { Table } from './table/Table';
 import { CardZoomProvider } from './table/CardZoom';
 import { useEngine } from './useEngine';
 import './App.css';
+import { installClickSounds } from './audio/sounds';
 
 export default function App() {
+  useEffect(installClickSounds, []);
   const engine = useEngine();
-  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | null>(null);
+  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
   const [building, setBuilding] = useState<DeckDetail | undefined>();
@@ -47,6 +51,10 @@ export default function App() {
     screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
   } else if (!engine.info?.skin || picking === 'skin') {
     screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} onBack={() => setPicking('language')} />;
+  } else if (picking === 'quest' || picking === 'adventure') {
+    screen = <CampaignScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
+  } else if (picking === 'commander') {
+    screen = <QuickMatch key={lastDeck} engine={engine} onPick={setPicking} initialDeck={lastDeck} onBack={() => setPicking(null)} />;
   } else if (picking === 'import' || picking === 'builder') {
     const done = (saved: string | null) => {
       if (saved) setLastDeck(saved);
@@ -61,14 +69,14 @@ export default function App() {
         engine={engine}
         initialDeck={lastDeck}
         onBack={() => setPicking(null)}
-        onPlay={(deck) => { setLastDeck(deck); setPicking(null); }}
+        onPlay={(deck) => { setLastDeck(deck); setPicking('commander'); }}
         onImport={() => setPicking('import')}
         onBuild={(deck) => { setBuilding(deck); setPicking('builder'); }}
       />
     );
   } else {
     // key: remount so the deck chosen on the decks screen becomes the selection.
-    screen = <Home key={lastDeck} engine={engine} onPick={setPicking} initialDeck={lastDeck} />;
+    screen = <Home engine={engine} onPick={setPicking} />;
   }
 
   return <I18n.Provider value={t}><CardZoomProvider>{screen}</CardZoomProvider></I18n.Provider>;

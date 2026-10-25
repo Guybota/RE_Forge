@@ -11,7 +11,25 @@ import { PHASE_TRACK, phaseKey } from './cards';
 import { Preview } from './CardZoom';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
+import { firstPlayer, planAnimations, rememberLocations, type Location } from './animationPlan';
+import { cardRects, runAnimations } from './animationRunner';
+import { animationOn, getAnimationSettings } from './animationPrefs';
 import './table.css';
+
+/** Cosmetic coin toss naming who plays first; Forge has already decided. */
+function CoinFlip({ name, onDone }: { name: string; onDone: () => void }) {
+  const t = useT();
+  const duration = 1600 / getAnimationSettings().speed;
+  // Once per toss: new snapshots re-render the table but must not restart the timer.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { const timer = window.setTimeout(onDone, duration + 900); return () => window.clearTimeout(timer); }, []);
+  return (
+    <div className="coin-flip" role="status">
+      <div className="coin-flip__coin" style={{ animationDuration: `${duration}ms` }} aria-hidden="true" />
+      <p className="coin-flip__text" style={{ animationDelay: `${duration}ms` }}>{t('coinFirst', { name })}</p>
+    </div>
+  );
+}
 
 /** With the side panel closed: the hovered card, drawn beside it (never over it) and kept inside the window. */
 function FloatPreview({ card }: { card: CardState }) {
@@ -71,6 +89,24 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   });
   const { send } = engine;
   const t = useT();
+
+  // Motion between snapshots: positions from the previous render, played before the browser paints the new one.
+  const tableRoot = useRef<HTMLDivElement>(null);
+  const animationLayer = useRef<HTMLDivElement>(null);
+  const previousGame = useRef<GameState | null>(null);
+  // Last known place and position of every card, kept after it leaves the screen (see rememberLocations).
+  const lastRects = useRef(new Map<number, DOMRect>());
+  const lastLocations = useRef(new Map<number, Location>());
+  const [coin, setCoin] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const root = tableRoot.current, layer = animationLayer.current, previous = previousGame.current;
+    if (root && layer) runAnimations(planAnimations(previous, game, lastLocations.current), lastRects.current, root, layer);
+    const first = firstPlayer(previous, game);
+    if (first !== null && animationOn('coin') && !document.hidden) setCoin(first);
+    previousGame.current = game;
+    rememberLocations(lastLocations.current, game);
+    if (root) cardRects(root).forEach((rect, id) => lastRects.current.set(id, rect));
+  }, [game]);
 
   const me = game.players.find((p) => p.isLocal) ?? game.players[0];
   const opponents = game.players.filter((p) => p !== me);
@@ -171,14 +207,16 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const stack = game.stack.length > 0 && (
     <section aria-live="polite">
       <h2>{t('stack')}</h2>
-      <ol className="side__stack">
+      <ol className="side__stack" data-zone="stack">
         {game.stack.map((s) => <li key={s.id}>{s.text}</li>)}
       </ol>
     </section>
   );
 
   return (
-    <div className={`table ${sideOpen && !narrow ? '' : 'table--wide'} ${narrow ? 'table--narrow' : ''}`}>
+    <div ref={tableRoot} className={`table ${sideOpen && !narrow ? '' : 'table--wide'} ${narrow ? 'table--narrow' : ''}`}>
+      <div ref={animationLayer} className="anim-layer" aria-hidden="true" />
+      {coin !== null && <CoinFlip name={game.players.find((p) => p.id === coin)?.name ?? ''} onDone={() => setCoin(null)} />}
       <div className={`table__main ${maximized ? 'table__main--max' : ''}`} ref={main}>
         <CombatArrows game={game} container={main} />
         {maximized ? (
@@ -228,7 +266,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
         <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} ctx={ctx} />
 
-        <div className="hand" aria-label={t('hand')}>
+        <div className="hand" aria-label={t('hand')} data-zone="hand" data-zone-of={me.id}>
           {me.zones.hand.map((c, i, all) => {
             const d = i - (all.length - 1) / 2;
             return (
