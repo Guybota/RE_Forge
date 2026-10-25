@@ -29,11 +29,30 @@ export type AdventureWorldData = {
 type CampaignBase = { type: 'campaign'; id: string; name: string; mode: CampaignMode; difficulty: number; assetBase: string; cards: CampaignCard[]; wins: number; losses: number; rewards: CampaignReward[] };
 export type QuestState = CampaignBase & { mode: 'quest'; credits: number; rank: number; duels: { id: string; name: string; description: string; difficulty: string }[]; shop: (CatalogCard & { key: string; price: number; available: number })[] };
 export type AdventureState = CampaignBase & { mode: 'adventure'; life: number; maxLife: number; gold: number; shards: number; region: string; map?: AdventureMapData; world?: AdventureWorldData; x?: number; y?: number;
-  objects?: { id: string; kind: string; name: string; x: number; y: number; sprite?: string }[];
+  objects?: AdventureObject[];
   /** Forge atlas animations by key: frames are [x, y, width, height] in `image`. */
-  player?: string; sprites?: Record<string, AtlasSprite> };
+  player?: string; sprites?: Record<string, AtlasSprite>;
+  /** Active side quests; `targets` are world tiles of the current stage (destination or quest enemies). */
+  quests?: AdventureQuest[];
+  /** A town's quest giver is offering this; answer with acceptQuest or declineQuest. */
+  offer?: { name: string; description: string; dialog: QuestDialog };
+  /** The town shop being browsed; buy with `key`. */
+  shop?: { name: string; description: string; items: (CatalogCard & { key: string; price: number; sold: boolean })[] } };
+/**
+ * Something on the map: centre (x, y). In regions, `gid` is the object's own tile (w × h) and shops carry
+ * Forge's sign sprite, offset from the object's bottom-left like libGDX does (y up).
+ */
+export type AdventureObject = {
+  id: string; kind: string; name: string; x: number; y: number; sprite?: string;
+  gid?: number; w?: number; h?: number; title?: string; sign?: string; overlay?: string; signX?: number; signY?: number;
+};
+export type QuestDialog = { text: string; options: { name: string; accept?: boolean; next?: QuestDialog }[] };
+export type AdventureQuest = {
+  id: string; name: string; description: string; source: string; targets: [number, number][];
+  stage: { objective: string; name: string; description: string; progress: number; count: number; enemy?: string };
+};
 export type CampaignState = QuestState | AdventureState;
-export type CampaignRequest = { type: 'campaign'; action: 'list' | 'create' | 'open' | 'close' | 'state' | 'duel' | 'deck' | 'buy' | 'enter' | 'leave' | 'move' | 'interact' | 'delete'; mode?: CampaignMode; id?: string; name?: string; starter?: string; difficulty?: number; hero?: string; sex?: 'male' | 'female'; target?: string; key?: string; region?: string; dx?: number; dy?: number; entries?: { key: string; qty: number }[] };
+export type CampaignRequest = { type: 'campaign'; action: 'list' | 'create' | 'open' | 'close' | 'state' | 'duel' | 'deck' | 'buy' | 'enter' | 'leave' | 'move' | 'interact' | 'delete' | 'closeShop' | 'acceptQuest' | 'declineQuest' | 'abandonQuest'; mode?: CampaignMode; id?: string; name?: string; starter?: string; difficulty?: number; hero?: string; sex?: 'male' | 'female'; target?: string; key?: string; region?: string; dx?: number; dy?: number; entries?: { key: string; qty: number }[] };
 
 export type EngineInfo = {
   type: 'engineInfo';

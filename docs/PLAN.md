@@ -295,7 +295,21 @@ pulsam, equipamento voa para o portador, cartas descartadas/moídas saem da mão
 uma moeda mostra quem começa. Velocidade 0,5–2× e cada tipo desligável nas definições. Verificado no browser com o
 cenário `animations` do `DialogHarness` (trajetórias medidas por JavaScript; as capturas são lentas demais).
 
-Próximo bloco: missões (`quests.json`) ligadas às cidades e masmorras do mundo; depois lojas/estalagens, Quest (loja e
+Cidades exploráveis: entrar numa cidade abre o seu mapa Tiled (como as masmorras); estalagem (descanso grátis — no Forge
+custa ouro), quem dá missões e lojas. Cada loja escolhe um tipo do `shops.json` como o `MapStage` (raridade da lista, sem
+repetir na cidade), com tabuleta, stock gerado por semente com os filtros do Forge (`AdventureCards`: cores, tipos,
+texto/regex, raridade, edições, uniões) e preços por raridade (`CardUtil.getCardPrice` sem lista de preços); compras
+guardadas. Os objetos dos mapas desenham o seu próprio tile. Fora: comerciante de fragmentos, spellsmith, arena, lojas
+de itens/boosters e reabastecer.
+
+Missões secundárias (`AdventureQuests`): cada cidade dá uma missão do `quests.json` adequada ao seu tipo (diálogo de
+oferta original, com escolhas), no máximo três ativas e uma por cidade. Etapas Derrotar/Caçar (inimigos da missão
+aparecem perto da cidade), Viajar (concluída ao chegar), Limpar (masmorra com todos os inimigos jogáveis) e Sair;
+recompensas e epílogo vindos dos diálogos do Forge. Alvos marcados no mapa (anel, ou seta na borda) e registo com
+progresso e abandonar. Fora: missões da história e objetivos de arena, flags, itens e reputação. Textos das missões em
+inglês (dados do Forge). `engine:smoke-quests` cobre ofertas em todas as cidades de 3 mundos até à recompensa.
+
+Próximo bloco: lojas/estalagens, Quest (loja e
 gestão da coleção) ou melhorias da mesa.
 
 ## Ideias / mais tarde

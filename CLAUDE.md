@@ -34,6 +34,8 @@ docs/       PLAN.md (roadmap).
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
 | `Settings` | `<data>/reforge.properties`: chosen `language`, `skin` and separate phase stops for own/opponents' turns. Atomic writes; missing language/skin = first run. |
 | `CardCatalog` | Deck builder catalog: `search` (Commander-legal, no Arena `A-` or Un-only cards, exact names first, 60 per page) and `printings`. `card()` fields are shared with decklist lines. |
+| `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
+| `AdventureCampaign` | Adventure character, deck and battles on `AdventureWorld` (seeded Shandalar: biomes, POIs, wandering enemies), `AdventureMap` (Forge's Tiled maps without libGDX), `AdventureSprites` (libGDX atlases as text) and `AdventureQuests` (side quests from `quests.json`: town offers, Defeat/Hunt/Travel/Clear/Leave stages, rewards from the epilogues). Towns are entered like dungeons: inn, quest giver and `AdventureShops` (shops.json, stock from `AdventureCards`, Forge's reward filters). |
 | `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`), `rename` copies then deletes. |
 
 ### UI (ui/src)
@@ -95,6 +97,7 @@ npm run engine:build          # Forge modules + bridge → engine/target/re-forg
 npm run build                 # UI type-check + build → ui/dist
 npm run ui:smoke-sounds       # deterministic cue routing, waveform bounds, mute/volume, autoplay and audio failures
 npm run ui:smoke-animations   # deterministic animation plans: cast, enter/ring, counters, equip, discard, mill, coin
+npm run engine:smoke-quests   # Adventure side quests (an offer in every town of 3 worlds, each driven to its reward), town maps and shop stock
 npm run package               # Windows x64 installer with bundled Java → dist-app
 npm run package:smoke         # shipped JRE/assets, import, persistence and match startup; temporary data
 npm run dev                   # Vite + Electron; Electron starts the engine

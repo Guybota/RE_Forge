@@ -16,7 +16,11 @@ final class AdventureMap {
     record Rect(double x, double y, double w, double h) {
         boolean touches(double px, double py) { return px + 5 > x && px - 5 < x + w && py + 5 > y && py - 5 < y + h; }
     }
-    record Item(String id, String type, double x, double y, Map<String, String> properties) { }
+    /** {@code gid}: the object's own tile in this map's tilesets (with Tiled flip bits), 0 when it has none. */
+    record Item(String id, String type, double x, double y, double w, double h, long gid, Map<String, String> properties) { }
+    /** Object types we act on; Forge's "exit" leaves like an entry and "Rotating" is a shop with a rotation list. */
+    private static final Map<String, String> TYPES = Map.of("enemy", "enemy", "reward", "reward", "entry", "entry", "exit", "entry",
+        "inn", "inn", "quest", "quest", "shop", "shop", "rotating", "shop");
     final JsonObject json = new JsonObject();
     final List<Item> items = new ArrayList<>();
     final List<Rect> walls = new ArrayList<>();
@@ -34,10 +38,12 @@ final class AdventureMap {
         if (width < 1 || height < 1 || width * height > 100_000) throw new IOException("Unsupported Adventure map size");
         json.addProperty("width", width); json.addProperty("height", height); json.addProperty("tile", tile);
         JsonArray textures = new JsonArray();
+        Map<Path, Integer> firstBySource = new HashMap<>();
         for (Element entry : children(map, "tileset")) {
             int first = integer(entry, "firstgid", 1);
             boolean embedded = !entry.hasAttribute("source");
             Path tsx = embedded ? path : path.getParent().resolve(entry.getAttribute("source")).normalize();
+            if (!embedded) firstBySource.put(safe(tsx), first);
             Element set = embedded ? entry : xml(safe(tsx)).getDocumentElement();
             int size = integer(set, "tilewidth", tile), columns = integer(set, "columns", 1);
             Element image = children(set, "image").get(0);
@@ -87,20 +93,36 @@ final class AdventureMap {
         startX = width * tile / 2.; startY = (height - 2) * tile;
         for (Element group : children(map, "objectgroup")) for (Element object : children(group, "object")) {
             Element template = null;
-            if (object.hasAttribute("template")) template = children(xml(safe(path.getParent().resolve(object.getAttribute("template")).normalize())).getDocumentElement(), "object").get(0);
+            long gid = object.hasAttribute("gid") ? Long.parseLong(object.getAttribute("gid")) : 0;
+            if (object.hasAttribute("template")) {
+                Path tx = safe(path.getParent().resolve(object.getAttribute("template")).normalize());
+                Element doc = xml(tx).getDocumentElement();
+                template = children(doc, "object").get(0);
+                // A template's gid counts in its own tileset; move it into this map's numbering of the same .tsx.
+                if (gid == 0 && template.hasAttribute("gid") && !children(doc, "tileset").isEmpty()) {
+                    Element own = children(doc, "tileset").get(0);
+                    Integer mapFirst = own.hasAttribute("source") ? firstBySource.get(safe(tx.getParent().resolve(own.getAttribute("source")).normalize())) : null;
+                    long raw = Long.parseLong(template.getAttribute("gid"));
+                    if (mapFirst != null) gid = (raw & 0xE0000000L) | ((raw & 0x1fffffff) - integer(own, "firstgid", 1) + mapFirst);
+                }
+            }
             Map<String, String> props = template == null ? new HashMap<>() : properties(template);
             props.putAll(properties(object));
+            // Tiled 1.9+ writes "class" where older maps wrote "type"; Forge's templates also carry a type property.
             String type = object.getAttribute("type");
+            if (type.isEmpty()) type = object.getAttribute("class");
             if (type.isEmpty() && template != null) type = template.getAttribute("type");
-            if (type.isEmpty()) type = props.getOrDefault("Type", "");
+            if (type.isEmpty() && template != null) type = template.getAttribute("class");
+            if (type.isEmpty()) type = props.getOrDefault("Type", props.getOrDefault("type", ""));
             double x = decimal(object, "x", 0), y = decimal(object, "y", 0);
             double w = decimal(object, "width", template == null ? 16 : decimal(template, "width", 16));
             double h = decimal(object, "height", template == null ? 16 : decimal(template, "height", 16));
             boolean bottom = object.hasAttribute("gid") || template != null && template.hasAttribute("gid");
             double cy = y + (bottom ? -h / 2 : h / 2);
             if (type.equalsIgnoreCase("collision")) walls.add(new Rect(x, y, w, h));
-            else if (Set.of("enemy", "reward", "entry").contains(type.toLowerCase(Locale.ROOT))) {
-                items.add(new Item(object.getAttribute("id"), type.toLowerCase(Locale.ROOT), x + w / 2, cy, props));
+            else if (TYPES.containsKey(type.toLowerCase(Locale.ROOT))) {
+                String kind = TYPES.get(type.toLowerCase(Locale.ROOT));
+                items.add(new Item(object.getAttribute("id"), kind, x + w / 2, cy, w, h, gid, props));
                 if (type.equals("entry")) { startX = x + w / 2; startY = Math.min(height * tile - 24, cy); }
             }
         }

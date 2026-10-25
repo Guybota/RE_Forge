@@ -9,12 +9,16 @@ final class AdventureWorld {
     // shortcut: biomes are decided per cell of 4×4 original tiles, and Forge's wave-function structures
     // (forests, ruins) are left out; generate per tile if coastlines look too square.
     static final int SIZE = 175, TILES = 4;
-    record Place(String id, String name, String type, String map, String atlas, String sprite, int x, int y) { }
+    /** {@code tags}: the POI's questTags, which quests use to pick destinations. */
+    record Place(String id, String name, String type, String map, String atlas, String sprite, Set<String> tags, int x, int y) {
+        boolean town() { return type.equals("town") || type.equals("capital"); }
+    }
     record Enemy(String id, String name, int x, int y) { }
     final byte[] cells = new byte[SIZE * SIZE];
     final List<Place> places = new ArrayList<>();
     final List<Enemy> enemies = new ArrayList<>();
     final JsonObject json = new JsonObject();
+    private final List<String> biomeNames = new ArrayList<>();
     final int startX, startY;
 
     AdventureWorld(Path root, long seed, Map<String, JsonObject> knownEnemies, AdventureSprites sprites) throws Exception {
@@ -35,6 +39,7 @@ final class AdventureWorld {
         for (int i = 0; i < biomes.size(); i++) {
             JsonObject b = biomes.get(i);
             JsonObject colour = new JsonObject(); colour.addProperty("name", CampaignStore.text(b, "name")); colour.addProperty("color", "#" + CampaignStore.text(b, "color")); palette.add(colour);
+            biomeNames.add(CampaignStore.text(b, "name"));
             String tileAtlas = "common/" + CampaignStore.text(b, "tilesetAtlas");
             colour.add("tiles", region(sprites, tileAtlas, CampaignStore.text(b, "tilesetName")));
             JsonArray variants = new JsonArray();
@@ -93,7 +98,9 @@ final class AdventureWorld {
                     // POI atlases are written relative to either the world folder or common/.
                     String atlas = CampaignStore.text(poi, "spriteAtlas");
                     atlas = atlas.startsWith("../") ? Path.of("Shandalar").resolve(atlas).normalize().toString().replace('\\', '/') : "common/" + atlas;
-                    places.add(new Place("p" + places.size(), name, type, map, atlas, CampaignStore.text(poi, "sprite"), x, y));
+                    Set<String> tags = new HashSet<>();
+                    if (poi.has("questTags")) for (JsonElement tag : poi.getAsJsonArray("questTags")) if (!tag.isJsonNull()) tags.add(tag.getAsString());
+                    places.add(new Place("p" + places.size(), name, type, map, atlas, CampaignStore.text(poi, "sprite"), tags, x, y));
                     claim(taken, x, y, 1);
                     break;
                 }
@@ -119,6 +126,8 @@ final class AdventureWorld {
         String key = sprites.key(atlas, used, name);
         return key.isEmpty() ? null : used.get(key);
     }
+    /** Forge's biome name at a cell ("white", "waste"…), for quest texts' $(biome_N). */
+    String biomeName(int x, int y) { return land(x, y) ? biomeNames.get(cells[y * SIZE + x]) : biomeNames.get(0); }
     boolean land(int x, int y) { return x >= 0 && y >= 0 && x < SIZE && y < SIZE && cells[y * SIZE + x] != 0; }
     private int[] nearestLand(int x, int y) {
         for (int r = 0; r < SIZE; r++) for (int dy = -r; dy <= r; dy++) for (int dx = -r; dx <= r; dx++)

@@ -63,7 +63,7 @@ public final class Main {
      * Forge uses. Point them at our own folder so we never touch a real Forge install's data.
      * Must run before anything loads ForgeConstants.
      */
-    private static void writeProfile(File assets, File data) throws java.io.IOException {
+    static void writeProfile(File assets, File data) throws java.io.IOException {
         java.util.Properties profile = new java.util.Properties();
         profile.setProperty("userDir", new File(data, "user").getAbsolutePath());
         profile.setProperty("cacheDir", new File(data, "cache").getAbsolutePath());

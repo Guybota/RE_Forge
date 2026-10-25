@@ -56,10 +56,14 @@ final class Campaigns {
             switch (action) {
                 case "state" -> { }
                 case "deck" -> { if (quest != null) quest.saveDeck(request.getAsJsonArray("entries")); else adventure.saveDeck(request.getAsJsonArray("entries")); }
-                case "buy" -> { if (quest == null) throw new IllegalArgumentException("Not a Quest shop"); quest.buy(CampaignStore.text(request, "key")); }
+                case "buy" -> { if (quest != null) quest.buy(CampaignStore.text(request, "key")); else requireAdventure().buy(CampaignStore.text(request, "key")); }
+                case "closeShop" -> requireAdventure().closeShop();
                 case "enter" -> requireAdventure().enter(CampaignStore.text(request, "region"));
                 case "leave" -> requireAdventure().leave();
                 case "move" -> requireAdventure().move(request.get("dx").getAsBigDecimal().intValueExact(), request.get("dy").getAsBigDecimal().intValueExact());
+                case "acceptQuest" -> requireAdventure().acceptQuest();
+                case "declineQuest" -> requireAdventure().declineQuest();
+                case "abandonQuest" -> requireAdventure().abandonQuest(CampaignStore.text(request, "id"));
                 case "interact" -> { if (requireAdventure().interact(CampaignStore.text(request, "target"))) throw new IllegalArgumentException("Use duel to engage an enemy"); }
                 default -> throw new IllegalArgumentException("Unknown campaign action");
             }

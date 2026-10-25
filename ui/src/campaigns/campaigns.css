@@ -58,3 +58,19 @@
   .campaign__stats { gap: 12px; }
   .campaign__shop, .campaign-deck__cards { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
 }
+.adventure-quests { margin-top: 24px; border-top: 1px solid var(--table-line); padding-top: 16px; display: grid; gap: 12px; }
+.adventure-quests h2 { font-size: 22px; }
+.adventure-quests__quest { display: flex; align-items: center; gap: 16px; }
+.adventure-quests__quest > div { flex: 1; min-width: 0; }
+.adventure-quests__quest h3 { margin: 0 0 4px; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 18px; }
+.adventure-quests__quest p { margin: 0; color: var(--on-table-muted); font-size: 14px; }
+.adventure-quests__progress { font-variant-numeric: tabular-nums; color: var(--on-table-muted); }
+.choice.quest-offer { width: min(560px, calc(100vw - 32px)); }
+.quest-offer[open] { display: flex; flex-direction: column; gap: 16px; }
+.quest-offer__text { margin: 0; white-space: pre-wrap; line-height: 1.5; }
+.quest-offer__options { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.quest-offer__options .btn { text-align: left; white-space: normal; height: auto; min-height: 44px; padding-block: 10px; }
+.choice.town-shop { width: min(980px, calc(100vw - 32px)); }
+.town-shop[open] { display: flex; flex-direction: column; gap: 20px; }
+.town-shop__head { display: flex; align-items: center; gap: 16px; }
+.town-shop__head h2 { flex: 1; min-width: 0; margin: 0; }

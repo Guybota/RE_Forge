@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
-import type { AdventureState, AtlasSprite, CampaignRequest } from '../engine';
+import { useContext, useEffect, useRef, useState } from 'react';
+import type { AdventureObject, AdventureState, AtlasSprite, CampaignRequest, QuestDialog } from '../engine';
 import { useT } from '../i18n';
+import { cardImage } from '../images';
+import { CardZoom } from '../table/CardZoom';
 
 const FULL = 0b111_111_111;
 // Forge's BiomeTexture autotiles: a 3×4 block of 16 px tiles. Neighbour bits run 8..0 from the top-left to the
@@ -123,6 +125,16 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
           ctx.fillStyle = style.getPropertyValue('--accent');
           ctx.beginPath(); ctx.arc(px, py, 0.45, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         }
+        // Quest targets: a pulsing ring when in view, otherwise an arrow at the edge pointing the way.
+        const pulse = 1 + Math.sin(performance.now() / 250) * 0.12, hx = bounds.width / T / 2 - 1, hy = bounds.height / T / 2 - 1;
+        ctx.strokeStyle = ctx.fillStyle = style.getPropertyValue('--select'); ctx.lineWidth = 3 / T;
+        for (const [qx, qy] of (c.quests ?? []).flatMap(q => q.targets)) {
+          const dx = qx + 0.5 - px, dy = qy + 0.5 - py;
+          if (Math.abs(dx) <= hx && Math.abs(dy) <= hy) { ctx.beginPath(); ctx.arc(qx + 0.5, qy + 0.5, 1.3 * pulse, 0, Math.PI * 2); ctx.stroke(); continue; }
+          const k = Math.min(hx / Math.abs(dx || 1e-6), hy / Math.abs(dy || 1e-6)), ax = px + dx * k, ay = py + dy * k, a = Math.atan2(dy, dx);
+          ctx.save(); ctx.translate(ax, ay); ctx.rotate(a);
+          ctx.beginPath(); ctx.moveTo(0.7, 0); ctx.lineTo(-0.5, -0.5); ctx.lineTo(-0.5, 0.5); ctx.closePath(); ctx.fill(); ctx.restore();
+        }
         return;
       }
       if (!map) return;
@@ -131,26 +143,40 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
       const cy = Math.max(bounds.height / scale / 2, Math.min(c.y ?? 0, map.height * map.tile - bounds.height / scale / 2));
       ctx.translate(bounds.width / 2, bounds.height / 2); ctx.scale(scale, scale); ctx.translate(-cx, -cy);
       const sets = [...map.tilesets].sort((a, b) => b.first - a.first);
+      // One Tiled gid (with its flip bits) into the box (x, y, w, h).
+      const drawGid = (gid: number, x: number, y: number, w: number, h: number) => {
+        const clean = gid & 0x1fffffff; if (!clean) return;
+        const set = sets.find(s => s.first <= clean); if (!set) return;
+        const tiles = image(set.image); if (!tiles) return;
+        const id = clean - set.first;
+        ctx.save(); ctx.translate(x + w / 2, y + h / 2);
+        ctx.scale(gid & 0x80000000 ? -1 : 1, gid & 0x40000000 ? -1 : 1);
+        if (gid & 0x20000000) ctx.transform(0, 1, 1, 0, 0, 0);
+        ctx.drawImage(tiles, id % set.columns * set.size, Math.floor(id / set.columns) * set.size, set.size, set.size, -w / 2, -h / 2, w, h); ctx.restore();
+      };
       for (const layer of map.layers) {
         ctx.globalAlpha = layer.opacity;
         layer.gids.forEach((gid, index) => {
-          const clean = gid & 0x1fffffff; if (!clean) return;
           const x = index % map.width * map.tile, y = Math.floor(index / map.width) * map.tile;
           if (Math.abs(x - cx) > bounds.width / scale / 2 + map.tile || Math.abs(y - cy) > bounds.height / scale / 2 + map.tile) return;
-          const set = sets.find(s => s.first <= clean); if (!set) return;
-          const tiles = image(set.image); if (!tiles) return;
-          const id = clean - set.first;
-          ctx.save(); ctx.translate(x + map.tile / 2, y + map.tile / 2);
-          ctx.scale(gid & 0x80000000 ? -1 : 1, gid & 0x40000000 ? -1 : 1);
-          if (gid & 0x20000000) ctx.transform(0, 1, 1, 0, 0, 0);
-          ctx.drawImage(tiles,id % set.columns * set.size, Math.floor(id / set.columns) * set.size, set.size, set.size, -map.tile / 2, -map.tile / 2, map.tile, map.tile); ctx.restore();
+          drawGid(gid, x, y, map.tile, map.tile);
         });
       }
       ctx.globalAlpha = 1;
       ctx.strokeStyle = style.getPropertyValue('--panel-ink'); ctx.lineWidth = 1;
+      // A sign hangs from the object's bottom-left with Forge's offsets (libGDX y points up).
+      const sign = (key: string, left: number, bottom: number) => {
+        const s = c.sprites?.[key], img = s && image(s.image), f = s?.frames[Math.floor(performance.now() / 150) % s.frames.length];
+        if (img && f) ctx.drawImage(img, f[0], f[1], f[2], f[3], left, bottom - f[3], f[2], f[3]);
+      };
       // Entries are invisible in Forge too; the exit button covers them.
       for (const object of c.objects ?? []) {
-        if (object.kind === 'entry' || sprite(object.sprite, object.x, object.y, 1)) continue;
+        if (object.kind === 'entry') continue;
+        const left = object.x - (object.w ?? 0) / 2, bottom = object.y + (object.h ?? 0) / 2;
+        const ownTile = !!object.gid && object.kind !== 'enemy' && !object.sprite;
+        if (ownTile) drawGid(object.gid!, left, bottom - object.h!, object.w!, object.h!);
+        if (object.sign) for (const key of [object.sign, object.overlay]) if (key) sign(key, left + (object.signX ?? 0), bottom - (object.signY ?? 0));
+        if (ownTile || sprite(object.sprite, object.x, object.y, 1)) continue;
         ctx.fillStyle = style.getPropertyValue(object.kind === 'enemy' ? '--danger' : '--c-M');
         ctx.beginPath(); ctx.arc(object.x, object.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
@@ -168,8 +194,12 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
   const directions: Record<string, [number, number]> = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] };
   const x = state.x ?? 0, y = state.y ?? 0;
   const nearby = (state.objects ?? []).filter(o => o.kind !== 'entry').filter(o => state.map ? Math.hypot(o.x - x, o.y - y) <= 30 : Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) <= (state.world?.tiles ?? 1));
-  const label = (o: { kind: string; name: string }) => o.kind === 'enemy' ? `${t('fight')}: ${o.name}` : o.kind === 'town' ? t('restAt', { name: o.name })
-    : o.kind === 'dungeon' ? t('enterPlace', { name: o.name }) : o.kind === 'entry' ? t('campaignExit') : t('campaignLoot');
+  const quests = state.quests ?? [];
+  // Forge's quest giver: one active quest per town, at most three at once.
+  const canAsk = quests.length < 3 && !quests.some(q => q.source === state.region);
+  const label = (o: AdventureObject) => o.kind === 'enemy' ? `${t('fight')}: ${o.name}` : o.kind === 'town' || o.kind === 'dungeon' ? t('enterPlace', { name: o.name })
+    : o.kind === 'inn' ? t('innRest') : o.kind === 'quest' ? t('askQuest') : o.kind === 'shop' ? t('shopNamed', { name: o.name })
+    : o.kind === 'entry' ? t('campaignExit') : t('campaignLoot');
   return (
     <section className="adventure-region">
       <canvas ref={canvas} className="adventure-map" tabIndex={0} role="application" aria-label={t('adventureMap')} title={t('adventureControls')} onKeyDown={e => { const d = directions[e.key]; if (d && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); direction.current = d; if (!e.repeat) move(...d); } }} onBlur={() => { direction.current = null; }} />
@@ -179,10 +209,70 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
             <button type="button" className="btn btn--ghost" key={label} aria-label={t(label)} onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); direction.current = [dir[0], dir[1]]; move(dir[0], dir[1]); }} onPointerUp={() => { direction.current = null; }} onPointerCancel={() => { direction.current = null; }} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') move(dir[0], dir[1]); }}>{symbol}</button>
           ))}
         </div>
-        <div className="adventure-region__encounters">{nearby.map(o => <button key={o.id} type="button" className="btn btn--primary" onClick={() => { direction.current = null; send({ type: 'campaign', action: o.kind === 'enemy' ? 'duel' : 'interact', target: o.id }); }}>{label(o)}</button>)}</div>
+        <div className="adventure-region__encounters">
+          {nearby.filter(o => o.kind !== 'quest' || canAsk).map(o => <button key={o.id} type="button" className="btn btn--primary" title={o.title}
+            onClick={() => { direction.current = null; send({ type: 'campaign', action: o.kind === 'enemy' ? 'duel' : 'interact', target: o.id }); }}>{label(o)}</button>)}
+        </div>
         {state.map && <button type="button" className="btn btn--ghost" onClick={() => send({ type: 'campaign', action: 'leave' })}>{t('campaignExit')}</button>}
       </div>
+      {quests.length > 0 && <section className="adventure-quests" aria-label={t('quests')}>
+        <h2>{t('quests')}</h2>
+        {quests.map(q => <article key={q.id} className="adventure-quests__quest">
+          <div><h3>{q.name}</h3><p>{q.stage.description || q.stage.name}</p></div>
+          {q.stage.count > 1 && <span className="adventure-quests__progress">{t('questProgress', { n: q.stage.progress, total: q.stage.count })}</span>}
+          <button type="button" className="btn btn--ghost" aria-label={t('abandonQuestNamed', { name: q.name })}
+            onClick={() => { if (window.confirm(t('confirmAbandon', { name: q.name }))) send({ type: 'campaign', action: 'abandonQuest', id: q.id }); }}>{t('abandonQuest')}</button>
+        </article>)}
+      </section>}
+      {state.offer && <QuestOffer key={state.offer.name} offer={state.offer} send={send} />}
+      {state.shop && <TownShop shop={state.shop} gold={state.gold} send={send} />}
     </section>
+  );
+}
+
+/** A town shop's stock from Forge's shops.json, bought with gold. */
+function TownShop({ shop, gold, send }: { shop: NonNullable<AdventureState['shop']>; gold: number; send: (request: CampaignRequest) => void }) {
+  const t = useT();
+  const zoom = useContext(CardZoom);
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
+  const close = () => send({ type: 'campaign', action: 'closeShop' });
+  return (
+    <dialog ref={ref} className="choice town-shop" aria-label={shop.name} onCancel={e => { e.preventDefault(); close(); }}>
+      <header className="town-shop__head">
+        <h2 className="choice__title" title={shop.description}>{shop.name}</h2>
+        <span>{t('campaignGold', { n: gold })}</span>
+        <button type="button" className="btn btn--ghost" onClick={close} autoFocus>{t('close')}</button>
+      </header>
+      <div className="campaign__shop">
+        {shop.items.map(card => <article className="campaign__shop-card" key={card.key} onContextMenu={e => { e.preventDefault(); zoom({ id: -1, name: card.name, imageKey: card.imageKey }); }}>
+          <img src={cardImage(card.imageKey, 'full') ?? undefined} alt={card.name} loading="lazy" />
+          <strong>{card.name}</strong>
+          <button type="button" className="btn btn--primary" disabled={card.sold || card.price > gold} aria-label={t('buyFor', { name: card.name, n: card.price })}
+            onClick={() => send({ type: 'campaign', action: 'buy', key: card.key })}>{card.sold ? t('sold') : t('campaignGold', { n: card.price })}</button>
+        </article>)}
+      </div>
+    </dialog>
+  );
+}
+
+/** A town quest giver's dialog from Forge's data: choices lead deeper; one of them accepts. */
+function QuestOffer({ offer, send }: { offer: NonNullable<AdventureState['offer']>; send: (request: CampaignRequest) => void }) {
+  const t = useT();
+  const ref = useRef<HTMLDialogElement>(null);
+  const [node, setNode] = useState<QuestDialog>(offer.dialog);
+  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
+  const decline = () => send({ type: 'campaign', action: 'declineQuest' });
+  return (
+    <dialog ref={ref} className="choice quest-offer" aria-label={offer.name} onCancel={e => { e.preventDefault(); decline(); }}>
+      <h2 className="choice__title">{offer.name}</h2>
+      <p className="quest-offer__text">{node.text || offer.description}</p>
+      <div className="quest-offer__options">
+        {node.options.map((o, i) => <button key={i} type="button" className={`btn ${o.accept ? 'btn--primary' : 'btn--ghost'}`}
+          onClick={() => o.accept ? send({ type: 'campaign', action: 'acceptQuest' }) : o.next ? setNode(o.next) : decline()}>{o.name || t('close')}</button>)}
+        {node.options.length === 0 && <button type="button" className="btn btn--ghost" onClick={decline}>{t('close')}</button>}
+      </div>
+    </dialog>
   );
 }
 

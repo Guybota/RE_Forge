@@ -24,7 +24,8 @@
     "engine:smoke-dialogs": "node scripts/smoke-dialogs.mjs",
     "engine:smoke-images": "node scripts/smoke-images.mjs",
     "engine:smoke-builder": "node scripts/smoke-builder.mjs",
-    "ui:smoke-animations": "node scripts/smoke-animations.mjs"
+    "ui:smoke-animations": "node scripts/smoke-animations.mjs",
+    "engine:smoke-quests": "node scripts/smoke-quests.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",
