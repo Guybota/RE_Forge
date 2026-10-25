@@ -39,13 +39,16 @@ docs/       PLAN.md (roadmap).
 | `CardCatalog` | Deck builder catalog: `search` (Commander-legal, no Arena `A-` or Un-only cards, exact names first, 60 per page) and `printings`. `card()` fields are shared with decklist lines. |
 | `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
 | `AdventureCampaign` | Adventure character, deck and battles on `AdventureWorld` (seeded Shandalar: biomes, POIs, wandering enemies), `AdventureMap` (Forge's Tiled maps without libGDX), `AdventureSprites` (libGDX atlases as text) and `AdventureQuests` (side quests from `quests.json`: town offers, Defeat/Hunt/Travel/Clear/Leave stages, rewards from the epilogues). Towns are entered like dungeons: inn, quest giver and `AdventureShops` (shops.json, stock from `AdventureCards`, Forge's reward filters). |
-| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`), `rename` copies then deletes. |
+| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`), `rename` copies then deletes. Without a Commander section, two sideboard partners or 1–2 commanders after the last blank line (MTGO/Moxfield text) lead; `chooseCommander` rewrites the text (a compatible partner joins, others replace). Unknown lines carry `CardCatalog.similar` suggestions (typos, partial and translated names). |
+| `DeckLinks` | Public Archidekt/Moxfield deck → decklist text through their JSON APIs; any other host is refused before a request. A printing goes along only if Forge knows that set and number (promos, Secret Lair flavour names otherwise fail). |
 
 ### UI (ui/src)
 
 - `App.tsx` — screen routing: connecting → language picker (first run) → skin picker (first run) → `Home` (→ `Decks` → `ImportDeck`) → `Table`.
 - `Decks.tsx` — the player's own decks: grouped list (`DeckCards`), rename, edit or new (opens `DeckBuilder`), import,
   export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
+- `ImportDeck.tsx` — paste, open/drop a file (`decklistFiles.ts`: MTGO `.dek` XML, Forge `.dck`, text) or fetch a link;
+  `DeckCards` there offers "Commander" on possible commanders and suggested cards on unknown lines.
 - `DeckBuilder.tsx` — catalog search (name in any language, colours, type, mana value, commanders only, commander's
   identity) and the deck as entries with exact printings; serialised to a decklist for `previewDeck`/`saveDeck`.
   Singleton enforced on add (basics excepted); searchable art/printing picker; compatible partner search through Forge;
@@ -101,6 +104,7 @@ fixtures in `scripts/fixtures`). It exercises choices and real multi-block comba
 npm run engine:build          # Forge modules + bridge → engine/target/re-forge-engine.jar (1–2 min)
 npm run build                 # UI type-check + build → ui/dist
 npm run ui:smoke-builder      # deterministic deck statistics: quantities, curve, colours, sources, draw odds, printings
+npm run ui:smoke-import       # decklist files (.dek, .dck, text) and suggestion line fixes
 npm run ui:smoke-sounds       # deterministic cue routing, waveform bounds, mute/volume, autoplay and audio failures
 npm run ui:smoke-animations   # deterministic animation plans: cast, enter/ring, counters, equip, discard, mill, coin
 npm run engine:smoke-quests   # Adventure side quests (an offer in every town of 3 worlds, each driven to its reward), town maps and shop stock
@@ -111,6 +115,7 @@ npm run engine:smoke          # engine loads the card DB (~15 s)
 npm run engine:smoke-match    # passive game through the socket, concedes on turn 4 (SMOKE_OPPONENTS=3 for 4 players)
 npm run engine:smoke-combat   # active game: lands, spells, targets, attacks, blocks (several minutes)
 npm run engine:smoke-import   # import a decklist fixture, play it, export, rename, delete it
+npm run engine:smoke-import-fixes # implied/chosen commanders, suggestions, Archidekt/Moxfield links (SMOKE_OFFLINE=1 skips links)
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 npm run relay:smoke          # actual local Cloudflare Worker: room auth, isolation, ordering, limits and cleanup
 npm run engine:smoke-relay   # netplay through local Worker (SMOKE_ONLINE_HUMANS=4 for four humans)

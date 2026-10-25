@@ -1,7 +1,10 @@
 package reforge.engine;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -9,6 +12,7 @@ import com.google.gson.JsonObject;
 import forge.deck.Deck;
 import forge.deck.DeckFormat;
 import forge.deck.DeckImportController;
+import forge.deck.DeckRecognizer;
 import forge.deck.DeckRecognizer.Token;
 import forge.deck.DeckRecognizer.TokenType;
 import forge.deck.DeckSection;
@@ -31,8 +35,11 @@ final class DeckImporter {
     record Preview(JsonObject json, Deck deck) { }
 
     static Preview preview(String text, String name) {
+        if (text == null) text = "";
         DeckImportController controller = controller();
-        List<Token> tokens = controller.parseInput(text == null ? "" : text);
+        List<Token> tokens = controller.parseInput(text);
+        List<String> found = impliedCommanders(text, tokens);
+        if (found != null) tokens = controller.parseInput(text = withCommanders(text, found));
 
         JsonArray lines = new JsonArray();
         int unknown = 0;
@@ -45,6 +52,20 @@ final class DeckImporter {
             l.addProperty("status", status);
             String message = controller.getTokenStatusMessage(t);
             if (message != null && !message.isEmpty()) l.addProperty("message", message);
+            if (t.getType() == TokenType.UNKNOWN_CARD && unknown <= MAX_SUGGESTED) {
+                // The name as typed (Forge keeps the whole line: count, set, number) and the closest real cards.
+                String requested = t.getText().trim().replaceFirst("^\\d+x?\\s+", "")
+                        .replaceFirst("\\s*[\\[(][^\\])]*[\\])](\\s+\\S+)?$", "");
+                l.addProperty("requested", requested);
+                JsonArray suggestions = new JsonArray();
+                for (PaperCard s : CardCatalog.similar(requested, 3)) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("nameEn", s.getName());
+                    o.addProperty("name", forge.util.CardTranslation.getTranslatedName(s.getName()));
+                    suggestions.add(o);
+                }
+                l.add("suggestions", suggestions);
+            }
             PaperCard card = t.getCard();
             if (card != null) {
                 // For the grouped list and the builder: the card as the catalog describes it, its count and section.
@@ -81,6 +102,113 @@ final class DeckImporter {
             if (problem != null) o.addProperty("problem", problem);
         }
         return new Preview(o, deck);
+    }
+
+    /** Unknown lines that get suggestions; each one scans the whole catalog. */
+    private static final int MAX_SUGGESTED = 10;
+
+    /**
+     * Commanders a list implies without a Commander section, which Forge doesn't settle: two partners in the
+     * sideboard, or (MTGO and Moxfield text exports) one or two commanders alone after the last blank line.
+     * These beat Forge's own guess of the only legend in the deck. Null when the list names its commanders or
+     * nothing fits.
+     */
+    private static List<String> impliedCommanders(String text, List<Token> tokens) {
+        // The same markers Forge's DeckImportController looks for.
+        for (String line : text.split("\\R")) {
+            String t = line.trim();
+            if (t.startsWith("CM:") || t.replaceAll("^[/#*]+\\s*", "").replaceAll("[:\\s]+$", "").equalsIgnoreCase("commander")) return null;
+        }
+        List<PaperCard> sideboard = new ArrayList<>();
+        for (Token t : tokens) {
+            if (t.isCardToken() && t.getCard() != null && t.getTokenSection() == DeckSection.Sideboard
+                    && t.getCard().getRules().canBeCommander()) sideboard.add(t.getCard());
+        }
+        if (sideboard.size() == 2) return leaders(sideboard);
+        List<String> lines = new ArrayList<>(List.of(text.split("\\R")));
+        while (!lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) lines.remove(lines.size() - 1);
+        int blank = lines.size() - 1;
+        while (blank >= 0 && !lines.get(blank).isBlank()) blank--;
+        if (blank <= 0 || lines.size() - blank - 1 > 2) return null;
+        DeckRecognizer recognizer = new DeckRecognizer();
+        recognizer.setAllowedDeckSections(new ArrayList<>(SECTIONS));
+        List<PaperCard> last = new ArrayList<>();
+        for (String line : lines.subList(blank + 1, lines.size())) {
+            Token t = recognizer.recognizeLine(line, null);
+            if (t == null || !t.isCardToken() || t.getCard() == null || t.getQuantity() != 1) return null;
+            last.add(t.getCard());
+        }
+        return leaders(last);
+    }
+
+    /** The cards' names when they can lead a deck together (one commander or a valid pair); otherwise null. */
+    private static List<String> leaders(List<PaperCard> cards) {
+        if (cards.isEmpty() || cards.size() > 2 || !cards.stream().allMatch(c -> c.getRules().canBeCommander())) return null;
+        if (cards.size() == 2 && !cards.get(0).getRules().canBePartnerCommanders(cards.get(1).getRules())) return null;
+        return cards.stream().map(PaperCard::getName).toList();
+    }
+
+    /**
+     * The decklist with {@code name} as its commander: a partner joins a single compatible commander, anything
+     * else replaces the current ones, which go back to the deck.
+     */
+    static String chooseCommander(String text, String name) {
+        Deck deck = preview(text, "").deck();
+        List<String> next = new ArrayList<>();
+        if (deck != null && deck.has(DeckSection.Commander)) {
+            List<PaperCard> current = deck.get(DeckSection.Commander).toFlatList();
+            PaperCard card = FModel.getMagicDb().getCommonCards().getCard(name);
+            if (current.size() == 1 && card != null && current.get(0).getRules().canBePartnerCommanders(card.getRules())) {
+                next.add(current.get(0).getName());
+            }
+        }
+        next.add(name);
+        return withCommanders(text == null ? "" : text, next);
+    }
+
+    /**
+     * Rewrites a decklist so exactly the named cards (English names) form a Commander section at the top. Cards
+     * that were commanders go to the deck; every other line keeps its place and wording.
+     */
+    static String withCommanders(String text, Collection<String> names) {
+        DeckRecognizer recognizer = new DeckRecognizer();
+        recognizer.setAllowedDeckSections(new ArrayList<>(SECTIONS));
+        List<String> commanders = new ArrayList<>(), demoted = new ArrayList<>(), rest = new ArrayList<>();
+        Set<String> placed = new HashSet<>();
+        DeckSection section = null;
+        String mainHeader = null; // the list's own "Deck"/"Main" header when the rest starts with it
+        for (String line : text.split("\\R", -1)) {
+            Token t = recognizer.recognizeLine(line, section);
+            if (t != null && t.isDeckSection()) {
+                section = DeckSection.valueOf(t.getText());
+                if (section == DeckSection.Main && rest.stream().allMatch(String::isBlank)) { rest.clear(); mainHeader = line; }
+                else if (section != DeckSection.Commander) rest.add(line);
+                continue;
+            }
+            PaperCard card = t == null || !t.isCardToken() ? null : t.getCard();
+            // Only an explicit Commander section or "CM:" line; Forge's guess for unsectioned legends doesn't count.
+            boolean wasCommander = card != null && (section == DeckSection.Commander || line.trim().regionMatches(true, 0, "CM:", 0, 3));
+            if (card != null && names.contains(card.getName())) {
+                if (placed.add(card.getName())) commanders.add(line(1, card, t));
+                if (t.getQuantity() > 1) demoted.add(line(t.getQuantity() - 1, card, t));
+            } else if (wasCommander) {
+                demoted.add(line(t.getQuantity(), card, t));
+            } else {
+                rest.add(line);
+            }
+        }
+        while (!rest.isEmpty() && rest.get(0).isBlank()) rest.remove(0);
+        StringBuilder out = new StringBuilder();
+        if (!commanders.isEmpty()) out.append("Commander\n").append(String.join("\n", commanders)).append("\n\n");
+        out.append(mainHeader == null ? "Deck" : mainHeader).append('\n');
+        for (String l : demoted) out.append(l).append('\n');
+        return out.append(String.join("\n", rest)).toString();
+    }
+
+    /** A moved card's line; the printing only when the original line asked for one. */
+    private static String line(int qty, PaperCard card, Token from) {
+        String l = qty + " " + card.getName();
+        return from.cardRequestHasNoCode() ? l : l + " (" + card.getEdition() + ") " + card.getCollectorNumber();
     }
 
     /** Saves under the given name (replacing a deck of the same name). Returns an error message or null. */
@@ -168,11 +296,13 @@ final class DeckImporter {
         };
     }
 
+    private static final List<DeckSection> SECTIONS = List.of(DeckSection.Main, DeckSection.Commander, DeckSection.Sideboard);
+
     private static DeckImportController controller() {
         // The controller was written for the desktop editor; its date filter widgets stay unused here.
         DeckImportController c = new DeckImportController(new Unchecked(), new NoCombo<>(), new NoCombo<>(), false);
         c.setGameFormat(GameType.Commander);
-        c.setAllowedSections(new ArrayList<>(List.of(DeckSection.Main, DeckSection.Commander, DeckSection.Sideboard)));
+        c.setAllowedSections(new ArrayList<>(SECTIONS));
         return c;
     }
 

@@ -12,20 +12,35 @@ export const GROUPS: { id: string; label: MessageKey }[] = [
   { id: 'other', label: 'groupOther' },
 ];
 
-/** A checked decklist: summary, then cards grouped by type. Hover shows the card, right click zooms it. */
-export function DeckCards({ preview }: { preview: Omit<DeckPreview, 'type'> }) {
+/**
+ * A checked decklist: summary, then cards grouped by type. Hover shows the card, right click zooms it. On the import
+ * screen, possible commanders can be chosen and unknown lines replaced by a suggested card.
+ */
+export function DeckCards({ preview, onCommander, onReplace }: {
+  preview: Omit<DeckPreview, 'type'>;
+  onCommander?: (nameEn: string) => void;
+  onReplace?: (requested: string, nameEn: string) => void;
+}) {
   const t = useT();
   const zoom = useContext(CardZoom);
   const [hovered, setHovered] = useState<Line | null>(null);
   const loose = preview.lines.filter((l) => !l.group);
   const picture = hovered?.imageKey ? cardImage(hovered.imageKey, 'full') : null;
-  const line = (l: Line, i: number) => (
-    <li key={i} className={`import__line import__line--${l.status}`} title={l.message ?? l.text}
-      onMouseEnter={() => setHovered(l)} onMouseLeave={() => setHovered(null)}
-      onContextMenu={l.imageKey ? (e) => { e.preventDefault(); zoom({ id: -1, name: l.name, imageKey: l.imageKey }); } : undefined}>
-      {l.group ? <><span className="import__qty">{l.qty}</span> {l.name}</> : l.text}
-    </li>
-  );
+  const line = (l: Line, i: number) => {
+    const lead = onCommander && l.canCommand && l.group !== 'commander' && l.nameEn;
+    const fixes = onReplace && l.requested && l.suggestions?.length ? l.suggestions : null;
+    return (
+      <li key={i} className={`import__line import__line--${l.status}${lead || fixes ? ' import__line--actions' : ''}`} title={l.message ?? l.text}
+        onMouseEnter={() => setHovered(l)} onMouseLeave={() => setHovered(null)}
+        onContextMenu={l.imageKey ? (e) => { e.preventDefault(); zoom({ id: -1, name: l.name, imageKey: l.imageKey }); } : undefined}>
+        <span className="import__text">{l.group ? <><span className="import__qty">{l.qty}</span> {l.name}</> : l.text}</span>
+        {lead && <button type="button" className="import__fix" title={t('makeCommanderHint')} aria-label={t('setCommander', { name: l.name ?? lead })}
+          onClick={() => onCommander(lead)}>{t('commander')}</button>}
+        {fixes?.map((s) => <button key={s.nameEn} type="button" className="import__fix" title={t('replaceWith', { name: s.nameEn })}
+          aria-label={t('replaceWith', { name: s.name })} onClick={() => onReplace!(l.requested!, s.nameEn)}>{s.name}</button>)}
+      </li>
+    );
+  };
 
   return (
     <section className="import__preview" aria-live="polite">

@@ -86,8 +86,11 @@ deteta o comandante; `setGameFormat(GameType.Commander)`).
    "Os meus" e "Pré-construídos". Strings em `i18n.ts`.
 3. **Teste**: script `scripts/smoke-import.mjs` que importa uma lista conhecida (incluir no repo em `scripts/fixtures/`), confirma
    0 desconhecidas, guarda, começa uma partida com esse deck e concede.
-4. **Depois (opcional)**: importar por link do Moxfield (API não oficial `api2.moxfield.com/v3/decks/all/<id>`; pode mudar
-   sem aviso — tratar falhas com elegância e sugerir colar o texto).
+4. **Feito (`feat/deck-import-plus`)**: links públicos do Archidekt e do Moxfield (API não oficial
+   `api2.moxfield.com/v3/decks/all/<id>`, pode mudar sem aviso: erro traduzido e colar o texto continua a funcionar),
+   ficheiros MTGO `.dek`/Forge `.dck`/texto (botão ou largar sobre a lista), comandante implícito (parceiros no
+   sideboard, 1–2 comandantes depois da última linha em branco) ou escolhido na lista, e sugestões para cartas
+   desconhecidas (erros de escrita, nomes parciais ou em português).
 
 Critério de feito: colar uma exportação do Moxfield de 100 cartas, guardar e jogar com ela.
 

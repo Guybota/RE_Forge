@@ -49,10 +49,7 @@ final class CardCatalog {
         PaperCard partner = partnerName.isEmpty() ? null : FModel.getMagicDb().getCommonCards().getCard(partnerName);
         int offset = Math.max(0, integer(q, "offset", 0));
 
-        List<PaperCard> matches = FModel.getMagicDb().getCommonCards().streamUniqueCards()
-                // Arena-only rebalanced versions ("A-Name") have no paper printing or picture.
-                .filter(pc -> !pc.getRules().isCustom() && !pc.isRebalanced() && !pc.getName().startsWith("A-")
-                        && DeckFormat.Commander.isLegalCard(pc) && !UN_ONLY.get().contains(pc.getName()))
+        List<PaperCard> matches = playable()
                 .filter(pc -> {
                     CardRules r = pc.getRules();
                     if (commanders && !r.canBeCommander()) return false;
@@ -153,6 +150,58 @@ final class CardCatalog {
         o.addProperty("manaProduction", production);
         o.addProperty("commanderMana", commanderMana);
         return o;
+    }
+
+    /** Commander-legal paper cards, one per name. */
+    private static java.util.stream.Stream<PaperCard> playable() {
+        return FModel.getMagicDb().getCommonCards().streamUniqueCards()
+                // Arena-only rebalanced versions ("A-Name") have no paper printing or picture.
+                .filter(pc -> !pc.getRules().isCustom() && !pc.isRebalanced() && !pc.getName().startsWith("A-")
+                        && DeckFormat.Commander.isLegalCard(pc) && !UN_ONLY.get().contains(pc.getName()));
+    }
+
+    /**
+     * Up to {@code max} cards whose English or translated name is closest to a misspelt or partial one: a few
+     * edits away (about one per four letters), or starting with at least four typed letters. Closest first.
+     */
+    static List<PaperCard> similar(String name, int max) {
+        String target = normalize(name);
+        if (target.length() < 3) return List.of();
+        int limit = Math.max(1, target.length() / 4);
+        record Hit(PaperCard card, int distance) { }
+        return playable()
+                .map(pc -> {
+                    String en = normalize(pc.getName()), local = normalize(CardTranslation.getTranslatedName(pc.getName()));
+                    int d = Math.min(distance(target, en, limit), distance(target, local, limit));
+                    if (d <= limit) return new Hit(pc, d);
+                    // A typed prefix ("atraxa") ranks just after the real typos.
+                    boolean prefix = target.length() >= 4 && (en.startsWith(target) || local.startsWith(target));
+                    return new Hit(pc, prefix ? limit + 1 : Integer.MAX_VALUE);
+                })
+                .filter(h -> h.distance() != Integer.MAX_VALUE)
+                .sorted(Comparator.comparingInt(Hit::distance).thenComparing(h -> h.card().getName()))
+                .limit(max)
+                .map(Hit::card)
+                .toList();
+    }
+
+    /** Levenshtein distance, or {@code limit + 1} as soon as it must exceed {@code limit}. */
+    static int distance(String a, String b, int limit) {
+        if (Math.abs(a.length() - b.length()) > limit) return limit + 1;
+        int[] prev = new int[b.length() + 1], cur = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) prev[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            cur[0] = i;
+            int best = cur[0];
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(Math.min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+                best = Math.min(best, cur[j]);
+            }
+            if (best > limit) return limit + 1;
+            int[] swap = prev; prev = cur; cur = swap;
+        }
+        return Math.min(prev[b.length()], limit + 1);
     }
 
     private static int rank(PaperCard pc, String text) {

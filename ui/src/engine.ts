@@ -188,7 +188,9 @@ export type ChatMessage = { type: 'chatMessage'; source?: string; text: string; 
 export type DeckPreview = {
   type: 'deckPreview';
   /** Card lines also carry the card as the catalog describes it, its quantity and ("commander" group) its section. */
-  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string } & Partial<CatalogCard>)[];
+  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string;
+    /** Unknown lines: the name as typed and the closest real cards. */
+    requested?: string; suggestions?: { nameEn: string; name: string }[] } & Partial<CatalogCard>)[];
   /** The commanders' combined colour identity (bits W 1, U 2, B 4, R 8, G 16). */
   identity?: number;
   unknown: number;
@@ -226,6 +228,9 @@ export type CardResults = { type: 'cardResults'; requestId: number; total: numbe
 export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string; artIndex: number }[] };
 
 /** One of the player's decks: its decklist (with printings) and the grouped preview. */
+/** A decklist to show in the import screen: a fetched link or the list with a newly chosen commander. */
+export type DeckText = { type: 'deckText'; text: string; name?: string };
+
 export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string };
 
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
@@ -241,6 +246,7 @@ type EngineMessage =
   | { type: 'lobbyClosed' }
   | { type: 'decks'; mine: string[]; commander: string[] }
   | DeckPreview
+  | DeckText
   | DeckDetail
   | CardResults
   | Printings
@@ -257,6 +263,8 @@ export type ClientMessage =
   | { type: 'setPhaseStops'; stops: PhaseStops | null }
   | { type: 'previewDeck'; text: string; name?: string }
   | { type: 'saveDeck'; text: string; name: string }
+  | { type: 'chooseCommander'; text: string; name: string }
+  | { type: 'fetchDeck'; url: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
@@ -279,6 +287,7 @@ export type EngineHandlers = {
   onInfo: (info: EngineInfo) => void;
   onDecks: (decks: DeckLists) => void;
   onDeckPreview: (preview: DeckPreview) => void;
+  onDeckText: (text: DeckText) => void;
   onDeckDetail: (detail: DeckDetail) => void;
   onCardResults: (results: CardResults) => void;
   onPrintings: (printings: Printings) => void;
@@ -327,6 +336,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'engineInfo': h.onInfo(msg); break;
       case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander }); break;
       case 'deckPreview': h.onDeckPreview(msg); break;
+      case 'deckText': h.onDeckText(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;
       case 'cardResults': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;

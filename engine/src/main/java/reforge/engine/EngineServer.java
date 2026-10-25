@@ -141,6 +141,18 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
+            case "chooseCommander" -> c.actions.execute(() -> c.session.send(
+                    deckText(DeckImporter.chooseCommander(string(msg, "text"), string(msg, "name")), null)));
+            case "fetchDeck" -> c.actions.execute(() -> {
+                try {
+                    DeckLinks.Deck deck = DeckLinks.fetch(string(msg, "url"));
+                    c.session.send(deckText(deck.text(), deck.name()));
+                } catch (DeckLinks.Problem e) {
+                    JsonObject failure = error(e.getMessage());
+                    failure.addProperty("code", e.code);
+                    c.session.send(failure);
+                }
+            });
             case "searchCards" -> c.actions.execute(() -> c.session.send(CardCatalog.search(msg)));
             case "getPrintings" -> c.actions.execute(() -> c.session.send(CardCatalog.printings(string(msg, "name"))));
             case "getDeck" -> c.actions.execute(() -> {
@@ -377,6 +389,15 @@ public final class EngineServer extends WebSocketServer {
 
     private static String string(JsonObject msg, String key) {
         return msg.has(key) && !msg.get(key).isJsonNull() ? msg.get(key).getAsString() : null;
+    }
+
+    /** A decklist for the import screen to show and check: a fetched link or a list with a new commander. */
+    private static JsonObject deckText(String text, String name) {
+        JsonObject o = new JsonObject();
+        o.addProperty("type", "deckText");
+        o.addProperty("text", text);
+        if (name != null && !name.isBlank()) o.addProperty("name", name);
+        return o;
     }
 
     private static JsonObject error(String message) {

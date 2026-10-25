@@ -4,7 +4,7 @@ import type { LobbyState, ChatMessage, CampaignList, CampaignState } from './eng
 import { setImageBase } from './images';
 import { gameSounds } from './audio/gameSounds';
 import { playSound } from './audio/sounds';
-import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
+import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type DeckText, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
   status: 'connecting' | 'ready' | 'failed';
@@ -13,6 +13,8 @@ export type Engine = {
   decks: DeckLists;
   /** The latest reply to previewDeck. */
   deckPreview: DeckPreview | null;
+  /** The latest fetched link or rewritten list (chooseCommander); a new object each time. */
+  deckText: DeckText | null;
   /** The latest reply to getDeck. */
   deckDetail: DeckDetail | null;
   /** The latest replies to searchCards and getPrintings (deck builder). */
@@ -39,6 +41,7 @@ export function useEngine(): Engine {
   const [info, setInfo] = useState<EngineInfo | null>(null);
   const [decks, setDecks] = useState<DeckLists>({ mine: [], precons: [] });
   const [deckPreview, setDeckPreview] = useState<DeckPreview | null>(null);
+  const [deckText, setDeckText] = useState<DeckText | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
   const [cardResults, setCardResults] = useState<CardResults | null>(null);
   const [printings, setPrintings] = useState<Printings | null>(null);
@@ -65,6 +68,7 @@ export function useEngine(): Engine {
       },
       onDecks: setDecks,
       onDeckPreview: setDeckPreview,
+      onDeckText: setDeckText,
       onDeckDetail: setDeckDetail,
       onCardResults: setCardResults,
       onPrintings: setPrintings,
@@ -118,5 +122,5 @@ export function useEngine(): Engine {
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckPreview, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, campaigns, campaign, send, answer, leaveGame };
+  return { status, failure, info, decks, deckPreview, deckText, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, campaigns, campaign, send, answer, leaveGame };
 }
