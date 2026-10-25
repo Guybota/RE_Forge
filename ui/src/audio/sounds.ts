@@ -53,10 +53,14 @@ export function unlockSounds() {
   } catch { /* Audio is optional, including on devices without an output. */ }
 }
 
+/** A soft sine note starting at `start` seconds, with a quick attack and exponential decay. */
+const note = (t: number, start: number, hz: number, gain: number, decay: number) =>
+  t < start ? 0 : Math.sin(2 * Math.PI * hz * (t - start)) * gain * Math.min(1, (t - start) / 0.006) * Math.exp(-decay * (t - start));
+
 // Original, short synthesized effects: paper, soft impact and restrained musical cues.
 // A fixed noise seed keeps each effect consistent without shipping media or making network requests.
 function makeBuffer(kind: SoundEffect, ctx: AudioContext): AudioBuffer {
-  const length = { click: 0.035, card: 0.17, attack: 0.24, turn: 0.42, phase: 0.09 }[kind];
+  const length = { click: 0.035, card: 0.17, attack: 0.24, turn: 0.42, phase: 0.09, priority: 0.3, resolve: 0.2, damage: 0.22, victory: 0.48, defeat: 0.48 }[kind];
   const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * length), ctx.sampleRate);
   const samples = buffer.getChannelData(0);
   let seed = 2471, filtered = 0;
@@ -75,6 +79,14 @@ function makeBuffer(kind: SoundEffect, ctx: AudioContext): AudioBuffer {
       if (t >= 0.11) value += Math.sin(2 * Math.PI * 660 * (t - 0.11)) * 0.13 * Math.min(1, (t - 0.11) / 0.008) * Math.exp(-10 * (t - 0.11));
     }
     if (kind === 'phase') value = Math.sin(2 * Math.PI * 540 * t) * 0.09 * Math.exp(-40 * t);
+    // Two soft rising bells: your answer is awaited.
+    if (kind === 'priority') value = note(t, 0, 784, 0.1, 14) + note(t, 0.09, 1046, 0.09, 12);
+    // Settling: a short falling tone over a breath of paper.
+    if (kind === 'resolve') value = Math.sin(2 * Math.PI * (520 * t - 500 * t * t)) * 0.1 * Math.exp(-14 * t) + filtered * 0.25 * Math.exp(-25 * t);
+    // Low thud with a little grit.
+    if (kind === 'damage') value = Math.sin(2 * Math.PI * (95 * t - 60 * t * t)) * 0.4 * Math.exp(-14 * t) + filtered * 0.35 * Math.exp(-30 * t);
+    if (kind === 'victory') value = note(t, 0, 523, 0.12, 6) + note(t, 0.1, 659, 0.12, 6) + note(t, 0.2, 784, 0.14, 5);
+    if (kind === 'defeat') value = note(t, 0, 392, 0.12, 6) + note(t, 0.12, 311, 0.12, 6) + note(t, 0.24, 262, 0.13, 5);
     samples[i] = value * fade;
   }
   return buffer;

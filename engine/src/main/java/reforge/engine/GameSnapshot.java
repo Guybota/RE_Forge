@@ -25,6 +25,7 @@ import forge.game.zone.ZoneType;
 import forge.gamemodes.match.Selection;
 import forge.trackable.TrackableObject;
 import forge.util.CardTranslation;
+import forge.util.Localizer;
 
 /**
  * Turns Forge's GameView into the JSON "state" message, and remembers which id is which view so
@@ -50,6 +51,8 @@ final class GameSnapshot {
         json.addProperty("turn", game.getTurn());
         json.addProperty("phase", game.getPhase() == null ? null : game.getPhase().name());
         json.addProperty("activePlayerId", game.getPlayerTurn() == null ? null : game.getPlayerTurn().getId());
+        json.addProperty("priorityPlayerId", game.getPlayers().stream().filter(PlayerView::getHasPriority)
+                .map(PlayerView::getId).findFirst().orElse(null));
         json.addProperty("gameOver", game.isGameOver());
         json.addProperty("winner", game.isGameOver() ? game.getWinningPlayerName() : null);
 
@@ -267,12 +270,24 @@ final class GameSnapshot {
         o.addProperty("message", p.message());
         o.add("ok", button(p.ok(), p.okEnabled()));
         o.add("cancel", button(p.cancel(), p.cancelEnabled()));
+        o.addProperty("priority", isPassPriority(p));
         // Card, player and stack ids are separate number spaces in Forge, so keep them in separate lists.
         JsonObject selectable = ids(p.selection().targets());
         p.selection().cards().forEach(c -> selectable.getAsJsonArray("cards").add(c.getId()));
         o.add("selectable", selectable);
         o.add("chosen", ids(p.selection().chosen()));
         return o;
+    }
+
+    /**
+     * Forge's InputPassPriority is the only input with OK beside "Undo (n)" or "End Turn"; the UI names the
+     * button after what passing does. shortcut: compares Forge's own labels, so a remote guest whose host uses
+     * another language just keeps Forge's "OK"; a real flag would need Forge to say which input is showing.
+     */
+    private static boolean isPassPriority(Prompt p) {
+        Localizer l = Localizer.getInstance();
+        return p.okEnabled() && p.ok().equals(l.getMessage("lblOK"))
+                && (p.cancel().equals(l.getMessage("lblEndTurn")) || p.cancel().startsWith(l.getMessage("lblUndo")));
     }
 
     private static JsonObject ids(List<TrackableObject> objects) {

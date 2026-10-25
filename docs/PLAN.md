@@ -235,6 +235,13 @@ traduzidas; as outras com o texto de lembrete do Forge, só em inglês). Testes:
 `attachments` do `DialogHarness`. Limite conhecido: num convidado remoto a troca de turno chega com atraso de rede, por isso
 a primeira prioridade do próprio turno pode ainda ser passada se não houver nada para jogar.
 
+Feedback da mesa ao estilo Arena (`feat/table-feedback`, levantamento em [TABLE_FEEDBACK.md](TABLE_FEEDBACK.md)): quem tem
+a prioridade ("Decides tu" / "A pensar"), "À espera de {nome}" com segundos, botão Resolver/Passar que pulsa quando
+podes responder, item da stack que resolve a seguir, setas da stack para os alvos (cartas e jogadores), aviso do teu
+turno, vida a subir/descer, permanentes a sair do campo e sons de prioridade, resolução, dano, vitória e derrota.
+A ponte envia `priorityPlayerId` e `prompt.priority`. Propostas por aprovar: vida baixa, dano da fonte ao alvo, relógio
+online, seta ao escolher alvos, emotes.
+
 Passo 4 concluído.
 
 Passo 5 (`feat/deck-builder`): construtor com catálogo e filtros, comandante e identidade de cor, curva de mana,

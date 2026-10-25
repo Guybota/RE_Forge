@@ -1,6 +1,6 @@
 // Local, per-device animation preferences (like the sound settings). Off by default for reduced motion.
 
-export const ANIMATION_KINDS = ['cast', 'enter', 'ring', 'counters', 'equip', 'zones', 'coin'] as const;
+export const ANIMATION_KINDS = ['cast', 'enter', 'ring', 'counters', 'equip', 'zones', 'dies', 'life', 'turn', 'coin'] as const;
 export type AnimationKind = typeof ANIMATION_KINDS[number];
 /** `speed` multiplies playback rate: 0.5 is twice as slow, 2 twice as fast. */
 export type AnimationSettings = { enabled: boolean; speed: number; kinds: Record<AnimationKind, boolean> };

@@ -4,7 +4,7 @@ import { gameSounds } from '../ui/src/audio/gameSounds.ts';
 
 const card = (id, typeEn = 'Creature') => ({ id, typeEn });
 const player = (id, isLocal) => ({ id, isLocal, zones: { hand: [], battlefield: [], graveyard: [], exile: [], command: [] } });
-const state = () => ({ turn: 1, phase: 'MAIN1', activePlayerId: 1, gameOver: false, players: [player(1, true), player(2, false)], stack: [], combat: [] });
+const state = () => ({ turn: 1, phase: 'MAIN1', activePlayerId: 1, gameOver: false, players: [player(1, true), player(2, false)], stack: [], combat: [], priorityPlayerId: null, prompt: { priority: false } });
 const before = state();
 assert.deepEqual(gameSounds(null, before), [], 'opening/reconnecting must not replay the current board');
 assert.deepEqual(gameSounds(before, structuredClone(before)), [], 'identical snapshots are silent');
@@ -35,8 +35,36 @@ assert.deepEqual(gameSounds(before, after), ['attack']);
 const attacking = structuredClone(after);
 after.combat[0].blockerIds.push(21);
 assert.deepEqual(gameSounds(attacking, after), [], 'block/target changes do not repeat the attack');
-after.gameOver = true;
-assert.deepEqual(gameSounds(before, after), [], 'game-over cleanup is silent');
+
+// Stack, priority and life.
+const opened = structuredClone(before);
+opened.stack = [{ id: 30, sourceCardId: 92, isSpell: true, controllerId: 2 }];
+opened.priorityPlayerId = 2; opened.prompt = { priority: false };
+const respond = structuredClone(opened);
+respond.priorityPlayerId = 1; respond.prompt = { priority: true };
+assert.deepEqual(gameSounds(opened, respond), ['priority'], 'a chance to respond to an opponent is announced');
+assert.deepEqual(gameSounds(respond, structuredClone(respond)), [], 'the same object on top does not chime again');
+const own = structuredClone(respond);
+own.stack = [{ id: 31, sourceCardId: 93, isSpell: false, controllerId: 1 }, ...own.stack];
+assert.deepEqual(gameSounds(respond, own), [], 'priority back after your own spell or ability is silent');
+const resolved = structuredClone(respond);
+resolved.stack = [];
+resolved.players[1].life = 37;
+before.players.forEach(p => { p.life = 40; }); respond.players.forEach(p => { p.life = 40; });
+assert.deepEqual(gameSounds(respond, resolved), ['resolve', 'damage'], 'resolving and losing life are both audible');
+const healed = structuredClone(resolved);
+healed.players[1].life = 40;
+assert.deepEqual(gameSounds(resolved, healed), [], 'gaining life is silent');
+const won = structuredClone(healed);
+won.gameOver = true; won.winner = undefined;
+won.players[0].name = 'Me'; won.winner = 'Me';
+assert.deepEqual(gameSounds(healed, won), ['victory']);
+won.winner = 'AI';
+assert.deepEqual(gameSounds(healed, won), ['defeat']);
+assert.deepEqual(gameSounds(won, structuredClone(won)), [], 'after the end nothing repeats');
+const out = structuredClone(healed);
+out.players[0].hasLost = true;
+assert.deepEqual(gameSounds(healed, out), ['defeat'], 'eliminated while others play on');
 
 const storage = new Map();
 storage.set('reforge.sound', '{malformed');
@@ -69,7 +97,7 @@ audio.playSound('click');
 assert.equal(instance, undefined, 'incoming game events cannot unlock autoplay');
 audio.unlockSounds();
 const cleanup = audio.installClickSounds();
-for (const effect of ['click', 'card', 'attack', 'turn', 'phase']) {
+for (const effect of ['click', 'card', 'attack', 'turn', 'phase', 'priority', 'resolve', 'damage', 'victory', 'defeat']) {
   instance.currentTime++;
   const count = instance.sources.length;
   audio.playSound(effect);
@@ -114,4 +142,4 @@ assert.equal(handlers.size, 0, 'StrictMode/remounts leave only one set of listen
 instance.state = 'closed';
 globalThis.AudioContext = class { constructor() { throw new Error('No audio device'); } };
 assert.doesNotThrow(() => { audio.unlockSounds(); audio.playSound('card'); });
-console.log('OK: sound routing, duplicate suppression, five unclipped waveforms, mute/volume, persistence, autoplay, visibility and missing audio device');
+console.log('OK: sound routing, duplicate suppression, stack/priority/life/end cues, ten unclipped waveforms, mute/volume, persistence, autoplay, visibility and missing audio device');

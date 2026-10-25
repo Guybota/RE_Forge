@@ -1,6 +1,6 @@
 // Deterministic animation routing from consecutive snapshots (the DOM runner is checked in the browser).
 import assert from 'node:assert/strict';
-import { firstPlayer, planAnimations, rememberLocations } from '../ui/src/table/animationPlan.ts';
+import { firstPlayer, planAnimations, rememberLocations, yourTurn } from '../ui/src/table/animationPlan.ts';
 
 const card = (id, extra = {}) => ({ id, typeEn: 'Creature', ...extra });
 const player = (id, isLocal) => ({ id, isLocal, librarySize: 50, zones: { hand: [], battlefield: [], graveyard: [], exile: [], command: [] } });
@@ -61,7 +61,25 @@ b = structuredClone(before); b.players[1].librarySize = 48; b.players[1].zones.g
 assert.deepEqual(planAnimations(a, b).map(p => [p.kind, p.from, p.playerId]), [['zones', 'library', 2], ['zones', 'library', 2]], 'milled cards leave the library');
 a = structuredClone(before); a.players[0].zones.battlefield = [card(40)];
 b = structuredClone(before); b.players[0].zones.graveyard = [card(40)];
-assert.deepEqual(kinds(a, b), [], 'dying is not a discard or mill');
+assert.deepEqual(planAnimations(a, b).map(p => [p.kind, p.card.id, p.to]), [['dies', 40, 'graveyard']], 'dying leaves the battlefield, not the hand or library');
+b = structuredClone(before); b.players[1].zones.exile = [card(40)];
+assert.deepEqual(planAnimations(a, b).map(p => [p.kind, p.playerId, p.to]), [['dies', 2, 'exile']], "exiled to its owner's exile");
+b = structuredClone(before);
+assert.deepEqual(kinds(a, b), [], 'a token simply vanishes');
+
+a = structuredClone(before); a.players.forEach(p => { p.life = 40; });
+b = structuredClone(a); b.players[0].life = 37; b.players[1].life = 42;
+assert.deepEqual(planAnimations(a, b).map(p => [p.kind, p.playerId, p.delta]), [['life', 1, -3], ['life', 2, 2]], 'life lost and gained');
+
+a = structuredClone(before); a.activePlayerId = 2;
+b = structuredClone(before); b.turn = 4;
+assert.equal(yourTurn(a, b), true, 'your turn begins');
+assert.equal(yourTurn(b, structuredClone(b)), false, 'only once');
+assert.equal(yourTurn(null, b), false, 'not on reconnecting');
+const theirs = structuredClone(b); theirs.activePlayerId = 2;
+assert.equal(yourTurn(b, theirs), false, "not on an opponent's turn");
+const first = structuredClone(a); first.turn = 1; first.activePlayerId = 1;
+assert.equal(yourTurn(a, first), false, 'turn 1 has the coin flip');
 
 const opening = state(); opening.turn = 0; opening.activePlayerId = 1;
 assert.equal(firstPlayer(null, opening), null, 'turn 0 is still the play-or-draw question');
@@ -70,4 +88,4 @@ assert.equal(firstPlayer(null, started), 2, 'the coin names the first active pla
 assert.equal(firstPlayer(opening, started), 2);
 assert.equal(firstPlayer(started, structuredClone(started)), null, 'only once');
 assert.equal(firstPlayer(null, before), null, 'reconnecting mid-game shows no coin');
-console.log('OK: animation plans (cast, enter, ring, counters, equip, discard, mill, coin)');
+console.log('OK: animation plans (cast, enter, ring, counters, equip, discard, mill, dies, life, your turn, coin)');

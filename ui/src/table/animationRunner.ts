@@ -102,6 +102,35 @@ export function runAnimations(plans: AnimationPlan[], before: Map<number, DOMRec
         { transform: at(new DOMRect((from.left + to.left) / 2, (from.top + to.top) / 2 + arc, from.width, from.height), w, h, 0.9), opacity: 1, offset: 0.45 },
         { transform: at(to, w, h, 0.25), opacity: 0 },
       ], { duration: time(800), delay: time(150 * moved++), easing: 'ease-in-out', fill: 'both' }).finished.finally(() => el.remove());
+    } else if (plan.kind === 'dies' && animationOn('dies')) {
+      // Fades and sinks from its last place on the battlefield into its owner's graveyard or exile.
+      const from = before.get(plan.card.id), to = zoneRect(root, plan.playerId, plan.to);
+      if (!visible(from) || !visible(to)) continue;
+      const w = Math.min(from.width, from.height), h = w * 7 / 5, el = ghost(layer, plan.card, w);
+      const grey = 'grayscale(1) brightness(0.6)';
+      el.animate([
+        { transform: at(from, w, h), opacity: 1, filter: 'none' },
+        { transform: `${at(from, w, h, 1.05)} rotate(-4deg)`, opacity: 1, filter: grey, offset: 0.35 },
+        { transform: `${at(to, w, h, 0.3)} rotate(-10deg)`, opacity: 0, filter: grey },
+      ], { duration: time(900), delay: time(150 * moved++), easing: 'ease-in', fill: 'both' }).finished.finally(() => el.remove());
+    } else if (plan.kind === 'life' && animationOn('life')) {
+      const life = root.querySelector<HTMLElement>(`[data-player-id="${plan.playerId}"]`), r = life?.getBoundingClientRect();
+      if (!life || !visible(r)) continue;
+      const el = document.createElement('div');
+      el.className = `life-float ${plan.delta < 0 ? 'life-float--loss' : 'life-float--gain'}`;
+      el.textContent = plan.delta < 0 ? `−${-plan.delta}` : `+${plan.delta}`;
+      el.style.left = `${r.left + r.width / 2}px`;
+      el.style.top = `${r.top}px`;
+      layer.append(el);
+      el.animate([
+        { transform: 'translate(-50%, 0)', opacity: 0 },
+        { transform: 'translate(-50%, -26px)', opacity: 1, offset: 0.2 },
+        { transform: 'translate(-50%, -52px)', opacity: 0 },
+      ], { duration: time(1300), easing: 'ease-out', fill: 'both' }).finished.finally(() => el.remove());
+      if (plan.delta < 0) {
+        life.animate([{ transform: 'none' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(-2px)' }, { transform: 'none' }],
+          { duration: time(350), composite: 'add' });
+      }
     }
   }
 }

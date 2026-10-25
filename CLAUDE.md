@@ -31,7 +31,7 @@ docs/       PLAN.md (roadmap).
 | `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses, kick and cleanup. One online session per process; `close()` always releases it, step by step. A guest whose host vanishes outside a running game closes at once (`WebGuiGame.onReconnectStateChanged`) instead of waiting for Forge's 2-minute reconnect. Kick = a private system notice, then the host closes that guest's channel (Forge has no kick; the channel is read by reflection). |
 | `RelayTunnel` | Native Forge TCP streams over a multiplexed WebSocket; outbound-only rooms configured by `RE_FORGE_RELAY_URL`. Separate bounded queues per guest; local UI stays in loopback. |
 | `OnlineController` | Adapts the remote wire controller to release its pending input after an individual concession; delegates rules and all other input to Forge's real human controller. |
-| `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`; `keywords` (Forge's enum name, title, detail and English reminder text). |
+| `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. `priorityPlayerId` (Forge's `PlayerView.getHasPriority`, stale during non-priority decisions) and `prompt.priority` (the input is passing priority, from Forge's button labels). Translated names/types/text plus `typeEn`; `keywords` (Forge's enum name, title, detail and English reminder text). |
 | `AmountAssignment` | Forge's damage/amount constraints: exact total, per-target bounds, lethal damage, ordering and trample. Shared validation and prompt metadata. |
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons, each with its chosen Forge AI profile (`res/ai`); sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
@@ -84,6 +84,13 @@ docs/       PLAN.md (roadmap).
   sits in the main-menu settings and the game menu. The coin flip is cosmetic (shown when turn 1 starts).
 - Leaving a match from the menu concedes (Forge confirms) and goes home; `useEngine` ignores the old match's late
   states and questions after `leaveGame` until a new match starts.
+- Whose move it is (`Table`): your input = a choice, an enabled button or selectable cards/players; otherwise the
+  player with priority is "thinking" and the bar says who we wait for, with seconds after 5 s. With `prompt.priority`
+  the OK button reads Resolve (stack) or Pass and pulses when someone else's object waits on your answer. The stack
+  marks the item that resolves next, names controllers in multiplayer, previews on hover; `CombatArrows` also draws
+  arrows from the top item (or its ability's permanent) to its targets, in a window-fixed SVG. Sounds add priority,
+  resolve, damage, victory and defeat; animations add life deltas, permanents leaving the battlefield and "your turn".
+  Survey and proposals: `docs/TABLE_FEEDBACK.md`.
 - `table/ZoneViewer.tsx` — a player's graveyard or exile (the counters in `PlayerArea` open it). Usable cards, e.g. flashback,
   are cast from here; face-down cards stay hidden.
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.

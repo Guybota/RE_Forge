@@ -7,7 +7,9 @@ export type AnimationPlan =
   | { kind: 'enter'; cardId: number; ring: boolean }
   | { kind: 'counters'; cardId: number }
   | { kind: 'equip'; card: CardState; hostId: number }
-  | { kind: 'zones'; card: CardState; playerId: number; from: 'hand' | 'library'; to: 'graveyard' | 'exile' };
+  | { kind: 'zones'; card: CardState; playerId: number; from: 'hand' | 'library'; to: 'graveyard' | 'exile' }
+  | { kind: 'dies'; card: CardState; playerId: number; to: 'graveyard' | 'exile' }
+  | { kind: 'life'; playerId: number; delta: number };
 
 const ZONES = ['hand', 'graveyard', 'exile', 'command', 'battlefield'] as const;
 const special = (c: CardState) => /\bLegendary\b/.test(c.typeEn ?? '') || c.rarity === 'MythicRare';
@@ -54,9 +56,19 @@ export function planAnimations(previous: GameState | null, next: GameState, memo
       if (was?.zone === 'hand' && was.playerId === p.id) plans.push({ kind: 'zones', card: c, playerId: p.id, from: 'hand', to });
       // Not seen before and the library shrank: milled or exiled from the top.
       else if (!was && old && p.librarySize < old.librarySize) plans.push({ kind: 'zones', card: c, playerId: p.id, from: 'library', to });
+      // Died, was sacrificed or exiled: from its last place on the battlefield (the runner has its position).
+      else if (was?.zone === 'battlefield') plans.push({ kind: 'dies', card: c, playerId: p.id, to });
     }
+    if (old && old.life !== p.life) plans.push({ kind: 'life', playerId: p.id, delta: p.life - old.life });
   }
   return plans;
+}
+
+/** Your turn begins (not turn 1, which the coin flip already announces). */
+export function yourTurn(previous: GameState | null, next: GameState): boolean {
+  const me = next.players.find(p => p.isLocal);
+  return !!previous && !next.gameOver && next.turn > 1 && !!me && !me.hasLost &&
+    next.activePlayerId === me.id && (previous.activePlayerId !== me.id || previous.turn !== next.turn);
 }
 
 /** Who plays first, once per match: when turn 1 starts (turn 0 is still the play-or-draw question). */

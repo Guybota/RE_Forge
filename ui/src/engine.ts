@@ -131,6 +131,8 @@ export type GameState = {
   turn: number;
   phase: string | null;
   activePlayerId: number | null;
+  /** Who holds priority in Forge right now; may be stale while a non-priority decision (blocks, a choice) is pending. */
+  priorityPlayerId: number | null;
   gameOver: boolean;
   winner: string | null;
   players: PlayerState[];
@@ -141,6 +143,8 @@ export type GameState = {
     message: string;
     ok: { label: string; enabled: boolean };
     cancel: { label: string; enabled: boolean };
+    /** The open input is passing priority (OK beside Undo / End turn). */
+    priority: boolean;
     selectable: Ids;
     chosen: Ids;
   };

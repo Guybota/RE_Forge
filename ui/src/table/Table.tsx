@@ -11,7 +11,7 @@ import { PHASE_TRACK, attachmentsByHost, phaseKey } from './cards';
 import { Preview } from './CardZoom';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
-import { firstPlayer, planAnimations, rememberLocations, type Location } from './animationPlan';
+import { firstPlayer, planAnimations, rememberLocations, yourTurn, type Location } from './animationPlan';
 import { cardRects, runAnimations } from './animationRunner';
 import { animationOn, getAnimationSettings } from './animationPrefs';
 import './table.css';
@@ -29,6 +29,28 @@ function CoinFlip({ name, onDone }: { name: string; onDone: () => void }) {
       <p className="coin-flip__text" style={{ animationDelay: `${duration}ms` }}>{t('coinFirst', { name })}</p>
     </div>
   );
+}
+
+/** Brief "your turn" notice when your turn begins. */
+function TurnBanner({ onDone }: { onDone: () => void }) {
+  const t = useT();
+  const duration = 1300 / getAnimationSettings().speed;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { const timer = window.setTimeout(onDone, duration); return () => window.clearTimeout(timer); }, []);
+  return <p className="turn-banner" role="status" style={{ animationDuration: `${duration}ms` }}>{t('yourTurn')}</p>;
+}
+
+/** Whole seconds since `key` last changed; ticks while `key` is set. */
+function useElapsed(key: number | undefined) {
+  const [since, setSince] = useState({ key, at: Date.now() });
+  const [, tick] = useState(0);
+  if (since.key !== key) setSince({ key, at: Date.now() });
+  useEffect(() => {
+    if (key === undefined) return;
+    const timer = window.setInterval(() => tick((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [key]);
+  return since.key === key ? Math.floor((Date.now() - since.at) / 1000) : 0;
 }
 
 /** With the side panel closed: the hovered card, drawn beside it (never over it) and kept inside the window. */
@@ -98,11 +120,13 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const lastRects = useRef(new Map<number, DOMRect>());
   const lastLocations = useRef(new Map<number, Location>());
   const [coin, setCoin] = useState<number | null>(null);
+  const [turnBanner, setTurnBanner] = useState(0);
   useLayoutEffect(() => {
     const root = tableRoot.current, layer = animationLayer.current, previous = previousGame.current;
     if (root && layer) runAnimations(planAnimations(previous, game, lastLocations.current), lastRects.current, root, layer);
     const first = firstPlayer(previous, game);
     if (first !== null && animationOn('coin') && !document.hidden) setCoin(first);
+    if (yourTurn(previous, game) && animationOn('turn') && !document.hidden) setTurnBanner((n) => n + 1);
     previousGame.current = game;
     rememberLocations(lastLocations.current, game);
     if (root) cardRects(root).forEach((rect, id) => lastRects.current.set(id, rect));
@@ -126,6 +150,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       selectablePlayers: new Set(prompt.selectable.players),
       chosenPlayers: new Set(prompt.chosen.players),
       targetCards: new Set(top?.targetCardIds ?? []),
+      targetPlayers: new Set(top?.targetPlayerIds ?? []),
       combatCards: new Set([...game.combat.flatMap((a) => [a.attackerId, ...a.blockerIds, ...(a.defenderCardId ? [a.defenderCardId] : [])]),
         ...game.stack.flatMap((s) => s.targetCardIds ?? [])]),
       // On whichever board the host is, also when the attachment's controller is someone else.
@@ -146,6 +171,21 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // Phones show opponents as headers only (life, counts); a tap on the maximize icon opens a board.
   const headersOnly = narrow && opponents.length > 1;
   const attackedBy = (playerId: number) => game.combat.filter((a) => a.defenderPlayerId === playerId).length;
+
+  // Whose move it is: yours while Forge waits on your input, else whoever holds priority (an AI or a remote player).
+  // Picking cards (e.g. discarding to hand size) can leave both buttons disabled until enough are chosen.
+  const myInput = !!engine.choice || prompt.ok.enabled || prompt.cancel.enabled
+    || prompt.selectable.cards.length > 0 || prompt.selectable.players.length > 0;
+  const waitingFor = myInput || game.gameOver || me.hasLost ? undefined
+    : game.players.find((p) => p.id === game.priorityPlayerId && !p.isLocal);
+  const waited = useElapsed(waitingFor?.id);
+  const priorityOf = (p: { id: number }) => (p.id === me.id ? myInput && !game.gameOver : p.id === waitingFor?.id);
+  const top = game.stack[0];
+  // Passing priority does something different with and without a stack, so the button says which.
+  const okLabel = prompt.priority ? t(top ? 'resolve' : 'pass') : prompt.ok.label;
+  const okHint = prompt.priority ? (top ? t('resolveHint', { name: top.card?.name ?? top.text }) : t('passHint')) : 'Space';
+  // Someone else's spell or ability is waiting on your answer.
+  const respond = prompt.priority && !!top && top.controllerId !== me.id;
 
   useEffect(() => {
     if (engine.notice?.kind !== 'incorrectAction') return;
@@ -176,7 +216,9 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   }, [menuOpen, zone, maximized, engine.choice, prompt, send]);
 
   // The engine already dropped the status lines the table shows itself.
-  const promptText = prompt.message.split('\n').join(' ');
+  const promptText = waitingFor
+    ? t('waitingFor', { name: waitingFor.name }) + (waited >= 5 ? ` · ${t('waitingSeconds', { n: waited })}` : '')
+    : prompt.message.split('\n').join(' ');
   const activeTrack = PHASE_TRACK.findIndex((step) => game.phase && step.phases.includes(game.phase));
   const currentStep = phaseKey(game.phase);
   const myTurn = game.activePlayerId === me.id;
@@ -205,12 +247,24 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     return () => clearTimeout(timer);
   }, [leaving, engine.choice, me.hasLost, game.gameOver]);
 
-  // Only while something is waiting to resolve.
+  // Only while something is waiting to resolve. The top item resolves next; its source shows on hover.
+  const allCards = game.players.flatMap((p) => Object.values(p.zones).flat());
   const stack = game.stack.length > 0 && (
     <section aria-live="polite">
       <h2>{t('stack')}</h2>
       <ol className="side__stack" data-zone="stack">
-        {game.stack.map((s) => <li key={s.id}>{s.text}</li>)}
+        {game.stack.map((s, i) => {
+          const card = s.card ?? allCards.find((c) => c.id === s.sourceCardId);
+          const owner = s.controllerId !== null ? ctx.playerNames.get(s.controllerId) : undefined;
+          return (
+            <li key={s.id} data-stack-id={s.id} className={i === 0 ? 'is-next' : undefined} aria-current={i === 0 || undefined}
+              title={i === 0 ? t('resolvesNext') : undefined}
+              onMouseEnter={card ? () => setHovered(card) : undefined} onMouseLeave={card ? () => setHovered(null) : undefined}>
+              {owner && game.players.length > 2 && <span className="side__stack-owner">{owner}</span>}
+              {s.text}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -218,20 +272,21 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   return (
     <div ref={tableRoot} className={`table ${sideOpen && !narrow ? '' : 'table--wide'} ${narrow ? 'table--narrow' : ''}`}>
       <div ref={animationLayer} className="anim-layer" aria-hidden="true" />
+      {turnBanner > 0 && <TurnBanner key={turnBanner} onDone={() => setTurnBanner(0)} />}
       {coin !== null && <CoinFlip name={game.players.find((p) => p.id === coin)?.name ?? ''} onDone={() => setCoin(null)} />}
       <div className={`table__main ${maximized ? 'table__main--max' : ''}`} ref={main}>
-        <CombatArrows game={game} container={main} />
+        <CombatArrows game={game} container={tableRoot} />
         {maximized ? (
           <div className="opponents opponents--1">
             <PlayerArea player={maximized} active={game.activePlayerId === maximized.id} maximized compact={false}
-              attackedBy={attackedBy(maximized.id)} ctx={ctx} />
+              attackedBy={attackedBy(maximized.id)} priority={priorityOf(maximized)} ctx={ctx} />
           </div>
         ) : <div className={`opponents opponents--${opponents.length}`} style={focused !== null
           ? { gridTemplateColumns: opponents.map((p) => (p.id === focused ? 'minmax(0, 1fr)' : 'auto')).join(' ') } : undefined}>
           {opponents.map((p) => (
             <PlayerArea key={p.id} player={p} active={game.activePlayerId === p.id} focused={p.id === focused}
               collapsed={headersOnly || (focused !== null && p.id !== focused)} compact={opponents.length > 1 && focused === null}
-              attackedBy={attackedBy(p.id)} ctx={ctx} />
+              attackedBy={attackedBy(p.id)} priority={priorityOf(p)} ctx={ctx} />
           ))}
         </div>}
 
@@ -242,7 +297,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
               <li key={step.label} className={i === activeTrack ? 'is-current' : ''}>{t(step.label)}</li>
             ))}
           </ol>
-          <span className="bar__prompt" title={prompt.message}>{promptText}</span>
+          <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
           <span className="bar__buttons">
             {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
             {prompt.cancel.label && (
@@ -251,8 +306,9 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
               </button>
             )}
             {prompt.ok.label && (
-              <button type="button" className="btn btn--primary" disabled={!prompt.ok.enabled} onClick={() => send({ type: 'action', action: 'ok' })} title="Space">
-                {prompt.ok.label}
+              <button type="button" className={`btn btn--primary ${respond ? 'is-attention' : ''}`} disabled={!prompt.ok.enabled}
+                onClick={() => send({ type: 'action', action: 'ok' })} title={okHint}>
+                {okLabel}
               </button>
             )}
             {!sideOpen && !game.gameOver && !me.hasLost && (
@@ -266,7 +322,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           </span>
         </div>
 
-        <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} ctx={ctx} />
+        <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} priority={priorityOf(me)} ctx={ctx} />
 
         <div className="hand" aria-label={t('hand')} data-zone="hand" data-zone-of={me.id}>
           {me.zones.hand.map((c, i, all) => {

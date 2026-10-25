@@ -14,6 +14,8 @@ export type TableContext = {
   /** E.g. the player your attackers are aimed at while declaring attacks. */
   chosenPlayers: Set<number>;
   targetCards: Set<number>;
+  /** Players the object on top of the stack targets. */
+  targetPlayers: Set<number>;
   /** Equipment, auras and fortifications by the id of the battlefield card they are attached to. */
   attachments: Map<number, CardState[]>;
   playerNames: Map<number, string>;
@@ -37,10 +39,12 @@ type Props = {
   /** Shown alone over the whole table, with large cards. */
   maximized?: boolean;
   attackedBy: number;
+  /** The game is waiting on this player (priority or another decision). */
+  priority?: boolean;
   ctx: TableContext;
 };
 
-export function PlayerArea({ player, active, compact, focused, collapsed, maximized, attackedBy, ctx }: Props) {
+export function PlayerArea({ player, active, compact, focused, collapsed, maximized, attackedBy, priority, ctx }: Props) {
   // Attachments are drawn behind their host (possibly on another board), never as loose cards.
   const hosted = new Set([...ctx.attachments.values()].flat().map((c) => c.id));
   const field = player.zones.battlefield.filter((c) => !hosted.has(c.id));
@@ -90,11 +94,11 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
   );
 
   return (
-    <section className={`player ${compact ? 'player--compact' : ''} ${collapsed ? 'player--collapsed' : ''} ${maximized ? 'player--max' : ''} ${maximized && others.length + lands.length <= 5 ? 'player--max-big' : ''} ${attackedBy ? 'is-attacked' : ''}`} aria-label={player.name}>
+    <section className={`player ${compact ? 'player--compact' : ''} ${collapsed ? 'player--collapsed' : ''} ${maximized ? 'player--max' : ''} ${maximized && others.length + lands.length <= 5 ? 'player--max-big' : ''} ${attackedBy ? 'is-attacked' : ''} ${priority ? 'has-priority' : ''}`} aria-label={player.name}>
       <header className="player__head">
         <button
           type="button"
-          className={`life ${selectable ? 'is-selectable' : ''} ${chosen ? 'is-chosen' : ''}`}
+          className={`life ${selectable ? 'is-selectable' : ''} ${chosen ? 'is-chosen' : ''} ${ctx.targetPlayers.has(player.id) ? 'is-target' : ''}`}
           data-player-id={player.id}
           aria-pressed={chosen}
           onClick={() => ctx.onPlayer(player.id)}
@@ -113,6 +117,9 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
               title={`${t(focused ? 'showAllBoards' : 'enlargeBoard')} · ${counts}`} onClick={() => ctx.onFocus?.(player.id)}>{player.name}</button>
           : <span className="player__name" title={compact ? counts : undefined}>{player.name}</span>}
         {active && <span className="chip chip--light">{t('turnChip')}</span>}
+        {priority && (player.isLocal
+          ? <span className="chip chip--priority" title={t('priorityHint')}>{t('yourCall')}</span>
+          : <span className="chip chip--priority chip--thinking" title={t('priorityHint')}>{t('thinking')}<span className="thinking-dots" aria-hidden="true" /></span>)}
         {attackedBy > 0 && <span className="chip chip--danger">{t('attacked', { n: attackedBy })}</span>}
         <span className="player__stats">
           <span className="player__minor" data-zone="hand" data-zone-of={player.id}>{t('handCount', { n: player.handSize })}</span>

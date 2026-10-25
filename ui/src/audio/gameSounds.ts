@@ -1,10 +1,14 @@
 import type { GameState } from '../engine';
 
-export type SoundEffect = 'click' | 'card' | 'attack' | 'turn' | 'phase';
+export type SoundEffect = 'click' | 'card' | 'attack' | 'turn' | 'phase' | 'priority' | 'resolve' | 'damage' | 'victory' | 'defeat';
 
 /** Compare consecutive engine snapshots, never clicks or translated log text. */
 export function gameSounds(previous: GameState | null, next: GameState): SoundEffect[] {
-  if (!previous || previous.gameOver || next.gameOver) return [];
+  if (!previous || previous.gameOver) return [];
+  const me = next.players.find(p => p.isLocal);
+  const wasOut = previous.players.find(p => p.isLocal)?.hasLost;
+  if (next.gameOver) return [me && next.winner === me.name ? 'victory' : 'defeat'];
+  if (me?.hasLost && !wasOut) return ['defeat'];
   const effects: SoundEffect[] = [];
   const turnChanged = next.turn > 0 && next.activePlayerId !== null &&
     (next.turn !== previous.turn || next.activePlayerId !== previous.activePlayerId);
@@ -23,5 +27,14 @@ export function gameSounds(previous: GameState | null, next: GameState): SoundEf
 
   const oldAttackers = new Set(previous.combat.map(a => a.attackerId));
   if (next.combat.some(a => !oldAttackers.has(a.attackerId))) effects.push('attack');
+
+  // Something left the stack (resolved or countered) without a new turn wiping it.
+  const nextStack = new Set(next.stack.map(item => item.id));
+  if (!turnChanged && previous.stack.some(item => !nextStack.has(item.id))) effects.push('resolve');
+  if (next.players.some(p => p.life < (previous.players.find(q => q.id === p.id)?.life ?? p.life))) effects.push('damage');
+  // You can respond to someone else's spell or ability: once per object on top of the stack.
+  const respond = (s: GameState) => s.prompt.priority && s.priorityPlayerId === me?.id && s.stack[0]?.controllerId !== me?.id ? s.stack[0]?.id : undefined;
+  const top = respond(next);
+  if (top !== undefined && top !== respond(previous)) effects.push('priority');
   return effects;
 }
