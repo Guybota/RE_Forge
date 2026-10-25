@@ -66,15 +66,62 @@ async function run(port) {
   const second = await search({ offset: 60 });
   assert.notEqual(second.cards[0].nameEn, all.cards[0].nameEn, 'second page');
 
+  // All partnership families come from Forge's rules, never hard-coded UI combinations.
+  for (const [commander, expected, basic] of [
+    ['Tymna the Weaver', 'Thrasios, Triton Hero', 'Forest'],
+    ['Regna, the Redeemer', 'Krav, the Unredeemed', 'Plains'],
+    ['Eleven, the Mage', 'Mike, the Dungeon Master', 'Forest'],
+    ['Wilson, Refined Grizzly', 'Raised by Giants', 'Forest'],
+    ['The Tenth Doctor', 'Rose Tyler', 'Island'],
+  ]) {
+    const partners = await search({ commanders: true, partnerOf: commander, query: expected });
+    assert.ok(names(partners).includes(expected), `${commander} can pair with ${expected}`);
+    assert.ok(partners.cards.every(c => c.canPartner && c.nameEn !== commander), 'compatible commanders only');
+    const paired = await ask({ type: 'previewDeck', text: `Commander\n1 ${commander}\n1 ${expected}\n\nDeck\n98 ${basic}\n` }, 'deckPreview');
+    assert.equal(paired.cards, 100);
+    assert.equal(paired.commanders.length, 2);
+    assert.equal(paired.problem, undefined, `${commander} pairing is legal: ${paired.problem}`);
+  }
+  const pairedText = 'Commander\n1 Tymna the Weaver\n1 Thrasios, Triton Hero\n\nDeck\n98 Forest\n';
+  await ask({ type: 'saveDeck', name: 'Partner roundtrip', text: pairedText }, 'decks');
+  const pairedSaved = await ask({ type: 'getDeck', name: 'Partner roundtrip' }, 'deckDetail');
+  assert.equal(pairedSaved.commanders.length, 2, 'both commanders survive save/reload');
+  assert.equal(pairedSaved.identity, 23, 'combined WUBG identity survives persistence');
+  await ask({ type: 'deleteDeck', name: 'Partner roundtrip' }, 'decks');
+  const invalidPair = await ask({ type: 'previewDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n1 Tymna the Weaver\n\nDeck\n98 Forest\n" }, 'deckPreview');
+  assert.ok(invalidPair.problem, 'incompatible commanders remain illegal');
+  assert.equal((await search({ partnerOf: 'Atraxa, Praetors\' Voice' })).total, 0, 'ordinary commanders have no partner');
+  assert.equal((await search({ partnerOf: 'Unknown commander' })).total, 0, 'unknown partner must not broaden the catalog');
+  const correlated = await search({ query: 'Sol Ring', requestId: 42 });
+  assert.equal(correlated.requestId, 42, 'stale catalog responses can be ignored');
+
   // Printings, and the builder fields on decklist lines (identity of the commander).
   const ring = await ask({ type: 'getPrintings', name: 'Sol Ring' }, 'printings');
   assert.ok(ring.printings.length > 5 && ring.printings.every((p) => p.set && p.imageKey), 'Sol Ring printings');
+  for (const [name, production, commanderMana] of [['Plains', 1, false], ['Breeding Pool', 18, false], ['Wastes', 32, false], ['Command Tower', 0, true], ['Sol Ring', 32, false], ['Flooded Strand', 0, false]]) {
+    const c = (await search({ query: name })).cards.find(c => c.nameEn === name);
+    assert.equal(c.manaProduction, production, `${name} mana production`);
+    assert.equal(c.commanderMana, commanderMana, `${name} commander production`);
+  }
+  assert.equal(bolt.colors, 8);
+  assert.deepEqual(bolt.manaSymbols, [0, 0, 0, 1, 0, 0]);
+  assert.equal(bolt.typeEn, 'Instant');
+  assert.ok(ring.printings.every(p => p.artIndex > 0 && p.number), 'printing identities');
+  // Selecting an alternate art must survive save, reload and the exported decklist.
+  const p = ring.printings.find(p => p.set === 'C13') ?? ring.printings.at(-1);
+  const deckText = `Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring (${p.set}) ${p.number}\n`;
+  await ask({ type: 'saveDeck', name: 'Art roundtrip', text: deckText }, 'decks');
+  const saved = await ask({ type: 'getDeck', name: 'Art roundtrip' }, 'deckDetail');
+  const savedRing = saved.lines.find(l => l.nameEn === 'Sol Ring');
+  assert.equal(savedRing.imageKey, p.imageKey, 'selected art survives persistence');
+  assert.ok(saved.text.includes(`(${p.set}) ${p.number}`), 'export keeps the selected printing');
+  await ask({ type: 'deleteDeck', name: 'Art roundtrip' }, 'decks');
   const preview = await ask({ type: 'previewDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring\n" }, 'deckPreview');
   assert.equal(preview.identity, 1 | 2 | 4 | 16, 'Atraxa is WUBG');
   assert.ok(preview.lines.every((l) => l.nameEn && l.cmc !== undefined && l.set), 'lines carry builder fields');
 
   clearTimeout(timeout);
-  console.log(`OK: catalog of ${all.total} cards, names in two languages, filters, identity, pages, printings`);
+  console.log(`OK: catalog of ${all.total} cards, names in two languages, filters, identity, pages, mana sources, printings persistence and all five partnership families`);
   ws.close();
   engine.kill();
 }

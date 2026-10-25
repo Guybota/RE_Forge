@@ -418,3 +418,78 @@
   .builder__body { grid-template-columns: 1fr; }
   .builder__results { max-height: 60vh; }
 }
+
+/* The statistics keep the deck list beside the charts, so a chart can select real cards. */
+.builder__views { display: flex; gap: 8px; }
+.builder__views [aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); }
+.builder__color { width: 44px; height: 44px; }
+.builder__step { min-width: 44px; min-height: 44px; }
+.builder__edition { font-size: 10px; }
+.builder__line .builder__step:last-child { gap: 4px; padding: 0 6px; }
+.builder__filter-status { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.builder__art-dialog { width: min(1000px, calc(100vw - 32px)); max-width: none; }
+.builder__printing-tools { padding: 12px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.builder__printing-tools input { flex: 1; min-width: 180px; }
+.builder__printings { padding: 12px 20px 20px; max-height: 65vh; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
+.builder__printings .builder__result span { white-space: normal; }
+.builder__current-printing { font-weight: 700; color: var(--panel-ink); }
+.builder__printing-message { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; }
+.deck-stats { min-height: 0; overflow-y: auto; padding-right: 12px; }
+.deck-stats h2 { margin: 0; font-size: 20px; font-family: var(--font-display); font-weight: var(--display-weight); }
+.deck-stats__head { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.deck-stats__head label { min-height: 44px; }
+.deck-stats__curve { overflow-x: auto; display: flex; gap: 8px; height: 230px; padding-top: 30px; }
+.deck-stats__column { flex: 1; min-width: 44px; min-height: 44px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; border: 0; padding: 0 4px; background: none; color: var(--on-table); cursor: pointer; }
+.deck-stats__plot { flex: 1; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--table-line); }
+.deck-stats__stack { position: relative; width: 80%; display: flex; flex-direction: column; }
+.deck-stats__stack strong { position: absolute; bottom: calc(100% + 4px); left: 0; right: 0; font-size: 12px; }
+.deck-stats__permanents { background: var(--accent); }
+.deck-stats__spells { background: var(--on-table-muted); }
+.deck-stats__column[aria-pressed='true'] .deck-stats__stack { outline: 3px solid var(--select); outline-offset: 3px; }
+.deck-stats__column:hover .deck-stats__plot { background: color-mix(in srgb, var(--on-table) 8%, transparent); }
+.deck-stats__legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; margin: 16px 0 24px; font-size: 12px; }
+.deck-stats__legend span { display: flex; align-items: center; gap: 6px; }
+.deck-stats__legend i { width: 10px; height: 10px; display: inline-block; }
+.deck-stats__metrics { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0; gap: 16px; padding: 20px 0; border-top: 1px solid var(--table-line); }
+.deck-stats__metrics dt { font-size: 12px; color: var(--on-table-muted); }
+.deck-stats__metrics dd { margin: 6px 0 0; font-size: 26px; font-family: var(--font-display); font-weight: var(--display-weight); }
+.deck-stats__mana { border-top: 1px solid var(--table-line); padding: 24px 0 12px; }
+.deck-stats__colors { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.deck-stats__color { display: flex; flex-direction: column; gap: 10px; text-align: center; font-size: 11px; }
+.deck-stats__color-pick { display: flex; flex-direction: column; align-items: center; gap: 8px; border: 1px solid transparent; padding: 8px 0; background: none; color: inherit; border-radius: var(--radius-control); cursor: pointer; }
+.deck-stats__color-pick .pip { width: 30px; height: 30px; }
+.deck-stats__color-pick strong { font-size: 24px; font-family: var(--font-display); font-weight: var(--display-weight); }
+.deck-stats__color-pick[aria-pressed='true'], .deck-stats__color-pick:hover { border-color: var(--select); }
+.deck-stats__track { height: 10px; border: 1px solid var(--table-line); background: color-mix(in srgb, var(--on-table) 6%, transparent); }
+.deck-stats__track > span { display: block; height: 100%; background: var(--mana-color); }
+.deck-stats__note { margin: 20px 0 0; font-size: 12px; }
+.deck-stats__probability { border-top: 1px solid var(--table-line); padding: 12px 0; }
+.deck-stats__probability summary { min-height: 44px; align-content: center; cursor: pointer; }
+.deck-stats__draws { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 8px 0 20px; }
+.deck-stats__draws > span { width: 100%; }
+.deck-stats__draws label { display: grid; gap: 6px; font-size: 12px; }
+.deck-stats__draws input { width: 100px; }
+.deck-stats__draws output { font-size: 28px; font-family: var(--font-display); }
+.builder button:focus-visible, .builder input:focus-visible, .deck-stats summary:focus-visible { outline: 2px solid var(--select); outline-offset: 3px; }
+@media (max-width: 1100px) {
+  .deck-stats__colors { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 22px; }
+  .deck-stats__metrics { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .deck-stats { overflow: visible; padding-right: 0; }
+  .builder__art-dialog { max-height: calc(100dvh - 24px); }
+}
+@media (max-width: 480px) {
+  .builder { padding: 12px; }
+  .builder .import__head { flex-wrap: wrap; }
+  .builder .import__head .decks__name { flex-basis: 55%; }
+  .builder__body { gap: 16px; }
+  .builder__printings { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; gap: 12px; }
+  .builder__cost { display: none; }
+  .deck-stats__curve { height: 190px; gap: 0; margin-inline: -4px; }
+}
+
+.builder__group-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.builder__group-head h2 { margin: 0; }
+.builder__group-head .btn { font-size: 12px; }
+.builder__partner-search { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }

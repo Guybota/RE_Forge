@@ -45,6 +45,8 @@ final class CardCatalog {
         int cmc = integer(q, "cmc", -1);
         String type = string(q, "cardType"); // "type" is the message's own field
         boolean commanders = q.has("commanders") && q.get("commanders").getAsBoolean();
+        String partnerName = string(q, "partnerOf");
+        PaperCard partner = partnerName.isEmpty() ? null : FModel.getMagicDb().getCommonCards().getCard(partnerName);
         int offset = Math.max(0, integer(q, "offset", 0));
 
         List<PaperCard> matches = FModel.getMagicDb().getCommonCards().streamUniqueCards()
@@ -54,6 +56,8 @@ final class CardCatalog {
                 .filter(pc -> {
                     CardRules r = pc.getRules();
                     if (commanders && !r.canBeCommander()) return false;
+                    if (!partnerName.isEmpty() && (partner == null || pc.getName().equals(partnerName)
+                            || !r.canBeCommander() || !partner.getRules().canBePartnerCommanders(r))) return false;
                     if (!type.isEmpty() && !type.equals(DeckImporter.group(pc))) return false;
                     int mv = r.getManaCost() == null ? 0 : r.getManaCost().getCMC();
                     if (cmc >= 0 && (cmc >= 7 ? mv < 7 : mv != cmc)) return false;
@@ -74,6 +78,7 @@ final class CardCatalog {
         o.addProperty("type", "cardResults");
         o.addProperty("total", matches.size());
         o.addProperty("offset", offset);
+        o.addProperty("requestId", integer(q, "requestId", 0));
         o.add("cards", cards);
         return o;
     }
@@ -93,6 +98,7 @@ final class CardCatalog {
                     p.addProperty("setName", e == null ? pc.getEdition() : e.getName());
                     p.addProperty("number", pc.getCollectorNumber());
                     p.addProperty("imageKey", pc.getImageKey(false));
+                    p.addProperty("artIndex", pc.getArtIndex());
                     list.add(p);
                 });
         JsonObject o = new JsonObject();
@@ -116,7 +122,36 @@ final class CardCatalog {
         o.addProperty("type", CardTranslation.getTranslatedType(pc.getName(), r.getType().toString()));
         o.addProperty("group", DeckImporter.group(pc));
         o.addProperty("canCommand", r.canBeCommander());
+        o.addProperty("canPartner", r.canBePartnerCommander());
         o.addProperty("identity", r.getColorIdentity().getColor());
+        o.addProperty("colors", r.getColor().getColor());
+        o.addProperty("typeEn", r.getType().toString());
+        JsonArray symbols = new JsonArray();
+        for (int n : r.getManaCost().getColorShardCounts()) symbols.add(n);
+        o.add("manaSymbols", symbols);
+        // Potential sources from the front face's native mana abilities, never colour identity.
+        int production = 0;
+        String[] basics = {"Plains", "Island", "Swamp", "Mountain", "Forest"};
+        if (r.getMainPart().getType().isLand()) {
+            for (int i = 0; i < basics.length; i++) {
+                if (r.getMainPart().getType().hasSubtype(basics[i])) production |= 1 << i;
+            }
+        }
+        boolean commanderMana = false;
+        for (String ability : r.getMainPart().getAbilities()) {
+            if (!ability.matches(".*(?:AB|DB)\\$ Mana(?: |\\||$).*")) continue;
+            var match = java.util.regex.Pattern.compile("(?:^|\\|)\\s*Produced\\$ ([^|]+)").matcher(ability);
+            if (!match.find()) continue;
+            String produced = match.group(1).trim();
+            if (produced.contains("ColorIdentity")) commanderMana = true;
+            else if (produced.contains("Any")) production |= 31;
+            else for (String symbol : produced.replace("Combo", "").trim().split("\\s+")) {
+                int index = "WUBRGC".indexOf(symbol);
+                if (symbol.length() == 1 && index >= 0) production |= 1 << index;
+            }
+        }
+        o.addProperty("manaProduction", production);
+        o.addProperty("commanderMana", commanderMana);
         return o;
     }
 

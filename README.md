@@ -144,7 +144,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | Direction | `type` | What |
 |---|---|---|
 | UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); `decks` with `mine` (imported) and `commander` (precons) |
-| UI → engine | `searchCards` / `getPrintings` | `query`, `colors` (mask W1 U2 B4 R8 G16, 32 colourless), `identity`, `cardType`, `cmc` (7 = 7+), `commanders`, `offset` → `cardResults` (`total`, 60 `cards`); `name` → `printings` |
+| UI → engine | `searchCards` / `getPrintings` | `query`, `colors` (mask W1 U2 B4 R8 G16, 32 colourless), `identity`, `cardType`, `cmc` (7 = 7+), `commanders`, `partnerOf` (English commander name, native Forge compatibility), `requestId`, `offset` → `cardResults` (echoes `requestId`) (`total`, 60 `cards`); `name` → `printings` (set, collector number, art index and image key) |
 | UI → engine | `getDeck` / `renameDeck` | `name` → `deckDetail` (same fields as `deckPreview` plus `name` and the exported `text`); `name`, `to` → `decks` |
 | UI → engine | `previewDeck` / `saveDeck` / `deleteDeck` | Decklist `text` (+ `name`) → `deckPreview` (lines with status — card lines also `name`, `qty`, type `group`, `imageKey` — cards, commanders, legality `problem`); save/delete answer `decks` |
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
@@ -185,3 +185,18 @@ Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other langu
 ## Design rule
 
 No subtitles or descriptions that repeat what is visible. Explanations go in a tooltip (hover on desktop, long-press on mobile).
+
+### Deck builder statistics and partners
+
+The builder has Cards and Statistics views. Statistics include a stacked nonland mana curve, averages, median,
+color distribution, mana symbols, potential front-face land sources and a hypergeometric draw calculator. Click a
+mana-value bucket or color to filter the deck list. Commanders are excluded by default and can be included explicitly;
+the draw calculator always uses the library. Potential sources include activation costs/conditions but exclude
+fetchlands, reflected sources and variable production.
+
+Use **Add partner** beside an eligible commander to search only compatible candidates. Forge checks Partner,
+Partner with, Friends forever, Backgrounds and Doctor's companion, with the combined color identity. The art picker
+shows each version's set, collector number and art index; saved and exported lists retain the chosen printing.
+Catalog/deck cards also carry `typeEn`, `colors`, `manaSymbols` (WUBRGC counts), `manaProduction` (WUBRGC bits),
+`commanderMana` and `canPartner` for these features. Run `npm run ui:smoke-builder` for calculation and printing
+checks and `npm run engine:smoke-builder` for catalog, partnership and persistence checks.

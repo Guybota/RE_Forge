@@ -1,6 +1,8 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GROUPS } from './DeckCards';
-import type { CatalogCard, DeckDetail } from './engine';
+import { DeckStatistics } from './DeckStatistics';
+import { decklist, replacePrinting, matchesDeckFilter, type DeckFilter } from './deckAnalysis';
+import type { CatalogCard, DeckDetail, Printings } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
 import { CardZoom } from './table/CardZoom';
@@ -16,14 +18,7 @@ const COLORS: { bit: number; key: string; label: MessageKey }[] = [
 ];
 const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 const CURVE = [0, 1, 2, 3, 4, 5, 6, 7];
-
-/** The decklist the engine reads back: commanders, then the deck, each with its exact printing. */
-function decklist(entries: Entry[]) {
-  const line = (e: Entry) => `${e.qty} ${e.nameEn} (${e.set}) ${e.number}`;
-  const commanders = entries.filter((e) => e.commander).map(line);
-  const deck = entries.filter((e) => !e.commander).map(line);
-  return [commanders.length ? `Commander\n${commanders.join('\n')}` : '', deck.length ? `Deck\n${deck.join('\n')}` : ''].filter(Boolean).join('\n\n');
-}
+let nextCatalogRequest = 0;
 
 /** Build or change a Commander deck: catalog on the left, the deck on the right. */
 export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initial?: DeckDetail; onDone: (saved: string | null) => void }) {
@@ -34,6 +29,9 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
   const [entries, setEntries] = useState<Entry[]>(() => (initial?.lines ?? [])
     .filter((l) => l.nameEn && l.qty)
     .map((l) => ({ ...(l as CatalogCard), group: l.typeGroup ?? l.group ?? 'other', qty: l.qty ?? 1, commander: l.group === 'commander' })));
+  const [view, setView] = useState<'cards' | 'stats'>('cards');
+  const [includeCommanders, setIncludeCommanders] = useState(false);
+  const [statsFilter, setStatsFilter] = useState<DeckFilter>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hovered, setHovered] = useState<Entry | CatalogCard | null>(null);
@@ -49,22 +47,32 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
   const [cardType, setCardType] = useState('');
   const [cmc, setCmc] = useState(-1);
   const [pickCommander, setPickCommander] = useState(commanders.length === 0);
+  const [partnerOf, setPartnerOf] = useState<string | null>(null);
+  const partnerName = partnerOf && commanders.length === 1 && commanders[0].nameEn === partnerOf ? partnerOf : undefined;
   const [results, setResults] = useState<CatalogCard[]>([]);
+  const [resultScope, setResultScope] = useState('');
+  const searchScope = JSON.stringify([query, colors, cardType, cmc, pickCommander, identity, partnerName]);
+  const shownResults = resultScope === searchScope ? results : [];
   const offset = useRef(0);
-  const search = (from: number) => {
+  const requestId = useRef(0);
+  const search = useCallback((from: number, id = ++nextCatalogRequest) => {
     offset.current = from;
-    send({ type: 'searchCards', query, colors, cardType, cmc, offset: from, commanders: pickCommander,
+    requestId.current = id;
+    send({ type: 'searchCards', requestId: id, query, colors, cardType, cmc, offset: from, commanders: pickCommander, partnerOf: partnerName,
       identity: commanders.length && !pickCommander ? identity : undefined });
-  };
+  }, [send, query, colors, cardType, cmc, pickCommander, identity, partnerName, commanders.length]);
   useEffect(() => {
-    const timer = setTimeout(() => search(0), 250);
+    const id = ++nextCatalogRequest;
+    requestId.current = id;
+    const timer = setTimeout(() => search(0, id), 250);
     return () => clearTimeout(timer);
-  }, [query, colors, cardType, cmc, pickCommander, identity]);
+  }, [search]);
   useEffect(() => {
     const r = engine.cardResults;
-    if (!r || r.offset !== offset.current) return;
+    if (!r || r.offset !== offset.current || r.requestId !== requestId.current) return;
+    setResultScope(searchScope);
     setResults((old) => (r.offset === 0 ? r.cards : [...old, ...r.cards]));
-  }, [engine.cardResults]);
+  }, [engine.cardResults, searchScope]);
 
   // The engine checks the list (count, singleton, identity, banned cards) after each change.
   const text = useMemo(() => decklist(entries), [entries]);
@@ -79,7 +87,11 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
   const change = (update: (old: Entry[]) => Entry[]) => { setEntries(update); setDirty(true); };
   const add = (card: CatalogCard) => {
     if (pickCommander) {
-      change((old) => [...old.filter((e) => e.nameEn !== card.nameEn), { ...card, qty: 1, commander: true }]);
+      change((old) => {
+        if (partnerName && (old.filter(e => e.commander).length !== 1 || !old.some(e => e.commander && e.nameEn === partnerName))) return old;
+        return [...old.filter(e => e.nameEn !== card.nameEn).map(e => !partnerName && e.commander ? { ...e, commander: false } : e), { ...card, qty: 1, commander: true }];
+      });
+      setPartnerOf(null);
       setPickCommander(false);
       return;
     }
@@ -90,12 +102,16 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
       return existing ? old.map((e) => (e === existing ? { ...e, qty: e.qty + 1 } : e)) : [...old, { ...card, qty: 1, commander: false }];
     });
   };
-  const same = (a: Entry, b: Entry) => a.nameEn === b.nameEn && a.commander === b.commander;
+  const same = (a: Entry, b: Entry) => a.imageKey === b.imageKey && a.commander === b.commander;
   const setQty = (entry: Entry, delta: number) => change((old) => old.flatMap((e) => {
     if (!same(e, entry)) return [e];
     return e.qty + delta <= 0 ? [] : [{ ...e, qty: e.qty + delta }];
   }));
-  const toggleCommander = (entry: Entry) => change((old) => old.map((e) => (same(e, entry) ? { ...e, commander: !e.commander, qty: 1 } : e)));
+  const toggleCommander = (entry: Entry) => change((old) => old.map((e) => (same(e, entry) ? { ...e, commander: !e.commander, qty: 1 } : !entry.commander && e.commander ? { ...e, commander: false } : e)));
+  const choosePartner = () => {
+    setView('cards'); setStatsFilter(null); setQuery(''); setColors(0); setCardType(''); setCmc(-1);
+    setPartnerOf(commanders[0].nameEn); setPickCommander(true);
+  };
 
   // Printings: asked when the dialog opens; picking one swaps set, number and picture.
   useEffect(() => { if (printingsOf) send({ type: 'getPrintings', name: printingsOf.nameEn }); }, [printingsOf, send]);
@@ -110,6 +126,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
   }, [saving, engine.decks, name, onDone, initial, send]);
   useEffect(() => { if (engine.error) setSaving(false); }, [engine.error]);
 
+  const filteredEntries = entries.filter(e => !statsFilter || ((includeCommanders || !e.commander) && matchesDeckFilter(e, statsFilter)));
   const curve = CURVE.map((v) => entries.filter((e) => e.group !== 'land' && !e.commander && (v === 7 ? e.cmc >= 7 : e.cmc === v))
     .reduce((n, e) => n + e.qty, 0));
   const tallest = Math.max(1, ...curve);
@@ -130,7 +147,12 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
       </header>
       {engine.error && <p className="error" role="alert">{engine.error}</p>}
 
+      <nav className="builder__views" aria-label={t('deck')}>
+        <button type="button" className="btn btn--ghost" aria-pressed={view === 'cards'} onClick={() => { setView('cards'); setStatsFilter(null); }}>{t('catalogTab')}</button>
+        <button type="button" className="btn btn--ghost" aria-pressed={view === 'stats'} onClick={() => setView('stats')}>{t('deckStatistics')}</button>
+      </nav>
       <div className="builder__body">
+        {view === 'stats' ? <DeckStatistics entries={entries} filter={statsFilter} onFilter={setStatsFilter} includeCommanders={includeCommanders} onIncludeCommanders={setIncludeCommanders} /> :
         <section className="builder__catalog" aria-label={t('searchCards')}>
           <div className="builder__filters">
             <input className="input builder__query" type="search" aria-label={t('searchCards')} placeholder={t('searchCards')} value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -149,13 +171,17 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
               {CURVE.map((v) => <option key={v} value={v}>{v === 7 ? '7+' : v}</option>)}
             </select>
             <label className="online__check builder__toggle" title={t('commandersOnlyHint')}>
-              <input type="checkbox" checked={pickCommander} onChange={(e) => setPickCommander(e.target.checked)} />{t('commandersOnly')}
+              <input type="checkbox" checked={pickCommander} onChange={(e) => { setPickCommander(e.target.checked); setPartnerOf(null); }} />{t('commandersOnly')}
             </label>
           </div>
+          {partnerName && <div className="builder__partner-search" role="status">
+            <span>{t('partnerFor', { name: commanders[0].name })}</span>
+            <button type="button" className="btn btn--ghost" onClick={() => { setPartnerOf(null); setPickCommander(false); }}>{t('cancel')}</button>
+          </div>}
           <ul className="builder__results">
-            {results.map((c) => (
+            {shownResults.map((c) => (
               <li key={c.nameEn}>
-                <button type="button" className="builder__result" aria-label={t(pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
+                <button type="button" className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
                   onClick={() => add(c)} onContextMenu={zoomOn(c)} onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)}>
                   <img src={cardImage(c.imageKey, 'full') ?? undefined} alt="" loading="lazy" decoding="async" />
                   <span>{c.name}</span>
@@ -163,34 +189,41 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
               </li>
             ))}
           </ul>
-          {engine.cardResults && results.length < engine.cardResults.total && (
+          {engine.cardResults && resultScope === searchScope && results.length < engine.cardResults.total && (
             <button type="button" className="btn btn--ghost builder__more" onClick={() => search(results.length)}>
               {t('moreResults', { n: engine.cardResults.total - results.length })}
             </button>
           )}
-        </section>
+        </section>}
 
         <section className="builder__deck" aria-label={name || t('newDeck')}>
-          <div className="builder__curve" title={t('manaCurve')} aria-label={t('manaCurve')}>
+          {view === 'cards' && <div className="builder__curve" title={t('manaCurve')} aria-label={t('manaCurve')}>
             {curve.map((n, v) => (
               <span key={v} className="builder__bar">
                 <span style={{ height: `${(n / tallest) * 100}%` }} title={`${v === 7 ? '7+' : v}: ${n}`} />
                 <small>{v === 7 ? '7+' : v}</small>
               </span>
             ))}
-          </div>
+          </div>}
+          {statsFilter && <div className="builder__filter-status" role="status">
+            <span>{t('filteredCards', { n: filteredEntries.reduce((n, e) => n + e.qty, 0) })}</span>
+            <button type="button" className="btn btn--ghost" onClick={() => setStatsFilter(null)}>{t('clearStatsFilter')}</button>
+          </div>}
+          {statsFilter && !filteredEntries.length && <p className="muted">{t('noMatchingCards')}</p>}
           {GROUPS.map((g) => {
-            const lines = entries.filter((e) => (g.id === 'commander' ? e.commander : !e.commander && e.group === g.id));
+            const lines = filteredEntries.filter((e) => (g.id === 'commander' ? e.commander : !e.commander && e.group === g.id));
             if (!lines.length) return null;
             return (
               <section key={g.id} className="import__group">
-                <h2>{t(g.label)} <span className="muted">{lines.reduce((n, e) => n + e.qty, 0)}</span></h2>
+                <div className="builder__group-head"><h2>{t(g.label)} <span className="muted">{lines.reduce((n, e) => n + e.qty, 0)}</span></h2>
+                  {g.id === 'commander' && commanders.length === 1 && commanders[0].canPartner && <button type="button" className="btn btn--ghost" title={t('partnerHint')} onClick={choosePartner}>{t('addPartner')}</button>}
+                </div>
                 <ul className="import__lines builder__lines">
                   {lines.map((e) => (
-                    <li key={`${e.nameEn}${e.commander}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onContextMenu={zoomOn(e)}>
-                      {!e.commander && <button type="button" className="builder__step" aria-label={t('removeCard', { name: e.name })} onClick={() => setQty(e, -1)}>−</button>}
+                    <li key={`${e.imageKey}:${e.commander}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onContextMenu={zoomOn(e)}>
+                      <button type="button" className="builder__step" aria-label={t('removeCard', { name: e.name })} onClick={() => setQty(e, -1)}>−</button>
                       <span className="import__qty">{e.qty}</span>
-                      <span className="builder__name">{e.name}</span>
+                      <span className="builder__name" title={`${e.name} · ${e.set} #${e.number}`}>{e.name}</span>
                       <span className="builder__cost" aria-hidden="true">
                         {manaSymbols(e.cost).map((s, i) => <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>)}
                       </span>
@@ -202,7 +235,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
                           aria-label={t(e.commander ? 'unsetCommander' : 'setCommander', { name: e.name })} onClick={() => toggleCommander(e)}><CrownIcon /></button>
                       )}
                       <button type="button" className="builder__step" title={t('changePrinting')} aria-label={t('changePrinting')} onClick={() => setPrintingsOf(e)}>
-                        <ArtIcon />
+                        <ArtIcon /><span className="builder__edition">{e.set}</span>
                       </button>
                     </li>
                   ))}
@@ -214,40 +247,62 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
       </div>
 
       {picture && <img className="import__picture" src={picture} alt="" aria-hidden="true" />}
-      {printingsOf && <PrintingsDialog title={printingsOf.name} printings={printings} current={printingsOf.set + printingsOf.number}
+      {printingsOf && <PrintingsDialog title={printingsOf.name} printings={printings} current={printingsOf.imageKey} onRetry={() => send({ type: 'getPrintings', name: printingsOf.nameEn })}
         onClose={() => setPrintingsOf(null)}
-        onPick={(p) => { change((old) => old.map((e) => (same(e, printingsOf) ? { ...e, set: p.set, number: p.number, imageKey: p.imageKey } : e))); setPrintingsOf(null); }} />}
+        onPick={(p) => { change((old) => replacePrinting(old, printingsOf, p)); setPrintingsOf(null); }} />}
     </main>
   );
 }
 
-function PrintingsDialog({ title, printings, current, onClose, onPick }: {
+function PrintingsDialog({ title, printings, current, onClose, onPick, onRetry }: {
   title: string;
-  printings: { set: string; setName: string; number: string; imageKey: string }[] | null;
+  printings: Printings['printings'] | null;
   current: string;
   onClose: () => void;
-  onPick: (p: { set: string; number: string; imageKey: string }) => void;
+  onPick: (p: Printings['printings'][number]) => void;
+  onRetry: () => void;
 }) {
   const t = useT();
+  const zoom = useContext(CardZoom);
   const ref = useRef<HTMLDialogElement>(null);
+  const [query, setQuery] = useState('');
+  const [timedOut, setTimedOut] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
     return () => dialog?.close();
   }, []);
+  useEffect(() => {
+    if (printings !== null) return;
+    const timer = setTimeout(() => setTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [printings, attempt]);
+  const needle = query.trim().toLocaleLowerCase();
+  const visible = printings?.filter(p => `${p.set} ${p.setName} ${p.number}`.toLocaleLowerCase().includes(needle));
   return (
-    <dialog ref={ref} className="choice game-menu zone" aria-labelledby="printings-title" onCancel={(e) => { e.preventDefault(); onClose(); }}>
+    <dialog ref={ref} className="choice game-menu zone builder__art-dialog" aria-labelledby="printings-title" onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <header className="game-menu__head">
         <h2 id="printings-title" className="choice__title">{title}</h2>
-        <button type="button" className="btn btn--ghost" onClick={onClose} autoFocus>{t('close')}</button>
+        <button type="button" className="btn btn--ghost" onClick={onClose}>{t('close')}</button>
       </header>
+      <div className="builder__printing-tools">
+        <input autoFocus type="search" className="input" aria-label={t('printingSearch')} placeholder={t('printingSearch')} value={query} onChange={e => setQuery(e.target.value)} />
+        {visible && <span className="muted" role="status">{t('printingCount', { n: visible.length })}</span>}
+      </div>
       <ul className="game-menu__body builder__printings">
-        {printings === null ? <li className="muted">{t('connecting')}</li> : printings.map((p) => (
-          <li key={p.set + p.number}>
-            <button type="button" className={`builder__result ${p.set + p.number === current ? 'is-on' : ''}`} aria-pressed={p.set + p.number === current}
-              title={`${p.setName} #${p.number}`} onClick={() => onPick(p)}>
-              <img src={cardImage(p.imageKey, 'full') ?? undefined} alt="" loading="lazy" decoding="async" />
+        {printings === null ? <li className="builder__printing-message" role="status">{t(timedOut ? 'printingLoadError' : 'connecting')}
+          {timedOut && <button type="button" className="btn btn--ghost" onClick={() => { setTimedOut(false); setAttempt(n => n + 1); onRetry(); }}>{t('retryPrintings')}</button>}
+        </li> : !visible?.length ? <li className="builder__printing-message" role="status">{t('noPrintings')}</li> : visible.map((p) => (
+          <li key={p.imageKey}>
+            <button type="button" className={`builder__result ${p.imageKey === current ? 'is-on' : ''}`} aria-pressed={p.imageKey === current}
+              aria-label={`${p.setName} (${p.set}) #${p.number} · ${t('printingArt', { n: p.artIndex })}`}
+              title={`${p.setName} (${p.set}) #${p.number}`} onClick={() => onPick(p)}
+              onContextMenu={e => { e.preventDefault(); zoom({ id: -1, name: title, imageKey: p.imageKey }); }}>
+              <img src={cardImage(p.imageKey, 'full') ?? undefined} alt={`${title} · ${p.set} #${p.number}`} loading="lazy" decoding="async" />
               <span>{p.setName}</span>
+              <span className="muted">{p.set} #{p.number} · {t('printingArt', { n: p.artIndex })}</span>
+              {p.imageKey === current && <span className="builder__current-printing">{t('currentPrinting')}</span>}
             </button>
           </li>
         ))}

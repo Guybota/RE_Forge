@@ -12,6 +12,7 @@
     "engine:smoke": "node scripts/smoke-engine.mjs",
     "dev": "concurrently -k -n ui,app \"npm run dev -w ui\" \"wait-on http://localhost:5173 && cross-env RE_FORGE_DEV=1 npm start -w desktop\"",
     "build": "npm run build -w ui",
+    "ui:smoke-builder": "node scripts/smoke-builder-stats.mjs",
     "ui:smoke-sounds": "node scripts/smoke-sounds.mjs",
     "start": "npm start -w desktop",
     "package": "node scripts/package.mjs",

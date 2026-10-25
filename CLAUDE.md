@@ -48,7 +48,9 @@ docs/       PLAN.md (roadmap).
   export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
 - `DeckBuilder.tsx` — catalog search (name in any language, colours, type, mana value, commanders only, commander's
   identity) and the deck as entries with exact printings; serialised to a decklist for `previewDeck`/`saveDeck`.
-  Singleton enforced on add (basics excepted); mana curve; printing picker; a new name replaces the opened deck.
+  Singleton enforced on add (basics excepted); searchable art/printing picker; compatible partner search through Forge;
+  `DeckStatistics.tsx` + `deckAnalysis.ts` show interactive mana/color/source statistics and draw probabilities.
+  A new name replaces the opened deck.
 - `table/CardZoom.tsx` — right click (long press on touch) on any card or deck line shows it big, in a modal `<dialog>`
   so it sits above other dialogs; also exports the shared `Preview`.
 - `Lobby.tsx` — host/join form and online lobby, up to four mixed human/AI seats, deck selection and chat.
@@ -98,6 +100,7 @@ fixtures in `scripts/fixtures`). It exercises choices and real multi-block comba
 ```bash
 npm run engine:build          # Forge modules + bridge → engine/target/re-forge-engine.jar (1–2 min)
 npm run build                 # UI type-check + build → ui/dist
+npm run ui:smoke-builder      # deterministic deck statistics: quantities, curve, colours, sources, draw odds, printings
 npm run ui:smoke-sounds       # deterministic cue routing, waveform bounds, mute/volume, autoplay and audio failures
 npm run ui:smoke-animations   # deterministic animation plans: cast, enter/ring, counters, equip, discard, mill, coin
 npm run engine:smoke-quests   # Adventure side quests (an offer in every town of 3 worlds, each driven to its reward), town maps and shop stock

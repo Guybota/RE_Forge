@@ -225,7 +225,7 @@ carta com clique direito ou toque prolongado.
 Passo 4 concluído.
 
 Passo 5 (`feat/deck-builder`): construtor com catálogo e filtros, comandante e identidade de cor, curva de mana,
-validação do Forge, impressões e novo deck. Falta: coleção, filtros avançados (texto, raridade, edição), estatísticas. Sideboard entre jogos e escolhas de modos futuros
+validação do Forge, impressões e novo deck. Estatísticas, artes e parceiros (`feat/deck-builder-stats`). Falta: coleção e filtros avançados (texto, raridade, edição). Sideboard entre jogos e escolhas de modos futuros
 ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 
 - **Menu durante a partida**: mudar skin, idioma (só fora de partida), conceder, opções. A skin pode mudar a meio (`setSkin`).
@@ -243,6 +243,28 @@ ficam para os respetivos modos; o Commander atual tem uma partida de um jogo.
 Lista de decks, editor (catálogo à esquerda, deck à direita, curva de mana, validação de formato), catálogo de cartas com
 filtros, escolha de impressão/arte. Base: `FModel.getMagicDb()` para o catálogo, `DeckFormat` para validar,
 armazenamento em `FModel.getDecks()`.
+
+### Melhorias do builder (`feat/deck-builder-stats`)
+
+- Seletor visual de artes/edições com pesquisa por edição ou número, identificação da versão atual e metadados
+  de cada arte. A impressão mantém-se ao guardar, reabrir e exportar; terrenos básicos com artes diferentes
+  continuam independentes, e escolher a mesma impressão agrega as quantidades.
+- Separador Estatísticas: curva empilhada (permanentes / instantâneas e feitiços), média com e sem terrenos,
+  mediana, mana total, percentagens das cores das cartas sem terrenos, símbolos nos custos e fontes potenciais
+  dos terrenos. Clicar num custo ou cor filtra a lista; comandantes são opcionais nas estatísticas.
+- Calculador hipergeométrico de compras: terrenos por omissão, ou as cartas selecionadas no gráfico; usa só o
+  grimório, sem comandantes. A produção de mana usa subtipos básicos e habilidades nativas da face principal,
+  incluindo Torre de Comando pela identidade conjunta. Não estima fetchlands, fontes refletidas ou produção
+  variável; custos/condições não são simulados. Estes limites estão nos tooltips.
+- Adicionar parceiro abre só candidatos compatíveis segundo `CardRules.canBePartnerCommanders`: Partner,
+  Partner with, Friends forever, Choose a Background e Doctor’s companion. Até dois comandantes; mudar o
+  comandante principal devolve os anteriores ao deck. A identidade de cor combina os dois. Pedidos do catálogo
+  têm identificação para ignorar respostas antigas quando mudam os filtros ou o comandante.
+- Verificação: UI e motor compilam; `ui:smoke-builder` cobre quantidades, curva, híbridos, fontes, médias,
+  probabilidades e preservação de artes. `engine:smoke-builder` cobre as cinco famílias de parceiros,
+  combinações inválidas, identidade conjunta, save/reload dos parceiros e da impressão e exportação.
+  Fluxos reais verificados no browser com dados temporários: Tymna + Thrasios, Ulamog CMM #670, filtros de
+  custo e seletor de artes, incluindo a 390 px. O Forge upstream não foi alterado.
 
 ## Passo 6 — Instalador Windows (ramo `feat/windows-installer`)
 

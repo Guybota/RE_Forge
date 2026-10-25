@@ -212,10 +212,18 @@ export type CatalogCard = {
   /** creature, planeswalker, instant, sorcery, artifact, enchantment, battle, land, other; "commander" on deck lines. */
   group: string;
   canCommand: boolean;
+  canPartner: boolean;
   identity: number;
+  colors: number;
+  typeEn: string;
+  /** W U B R G C counts from Forge; hybrid symbols contribute to both colours. */
+  manaSymbols: number[];
+  /** Potential front-face mana production, W1 U2 B4 R8 G16 C32. */
+  manaProduction: number;
+  commanderMana: boolean;
 };
-export type CardResults = { type: 'cardResults'; total: number; offset: number; cards: CatalogCard[] };
-export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string }[] };
+export type CardResults = { type: 'cardResults'; requestId: number; total: number; offset: number; cards: CatalogCard[] };
+export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string; artIndex: number }[] };
 
 /** One of the player's decks: its decklist (with printings) and the grouped preview. */
 export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string };
@@ -251,7 +259,7 @@ export type ClientMessage =
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
-  | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; offset?: number }
+  | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; opponents: number; aiProfiles: string[] }
