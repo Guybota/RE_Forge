@@ -147,10 +147,11 @@ async function concede(peer) {
 }
 
 try {
-  if (relayed) {
+  // RE_FORGE_RELAY_URL tests a published relay instead of the local runtime.
+  if (relayed && !process.env.RE_FORGE_RELAY_URL) {
     relayServer = await startRelay();
     console.log(`relay: local Cloudflare runtime ${relayServer.url}`);
-  }
+  } else if (relayed) console.log(`relay: ${process.env.RE_FORGE_RELAY_URL}`);
   // Main writes a profile beside the shared assets. Wait for READY before starting the second JVM.
   const host = await startEngine('host');
   const guest = await startEngine('guest');

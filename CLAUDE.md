@@ -28,7 +28,7 @@ docs/       PLAN.md (roadmap).
 | `EngineServer` | WebSocket server. Routes `hello`, `listDecks`, `setLanguage`, `setSkin`, `startMatch`, `action`, `answer`. UI actions run on a per-connection `ui-actions` executor. |
 | `Session` | One UI connection: `send()` and blocking `ask()` (question → answer by id). |
 | `WebGuiGame` | Forge's `IGuiGame` for the local human (extends `NetworkGuiGame`, including remote delta sync). Pushes `state` snapshots (debounced 40 ms) and turns every Forge question into a `choice`. Phase stops live in `isUiSetToSkipPhase`. |
-| `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses and cleanup. One online session per process. |
+| `OnlineLobby` | Forge netplay adapter: host/join, seats, ready, decks, chat, addresses, kick and cleanup. One online session per process; `close()` always releases it, step by step. A guest whose host vanishes outside a running game closes at once (`WebGuiGame.onReconnectStateChanged`) instead of waiting for Forge's 2-minute reconnect. Kick = a private system notice, then the host closes that guest's channel (Forge has no kick; the channel is read by reflection). |
 | `RelayTunnel` | Native Forge TCP streams over a multiplexed WebSocket; outbound-only rooms configured by `RE_FORGE_RELAY_URL`. Separate bounded queues per guest; local UI stays in loopback. |
 | `OnlineController` | Adapts the remote wire controller to release its pending input after an individual concession; delegates rules and all other input to Forge's real human controller. |
 | `GameSnapshot` | `GameView` → JSON `state`. Hides cards the player may not see. Translated names/types/text plus `typeEn`. |
@@ -119,6 +119,7 @@ npm run engine:smoke-import-fixes # implied/chosen commanders, suggestions, Arch
 npm run engine:smoke-online   # two separate engines, lobby/chat, private hands and remote game (SMOKE_ONLINE_AI=1 adds AI)
 npm run relay:smoke          # actual local Cloudflare Worker: room auth, isolation, ordering, limits and cleanup
 npm run engine:smoke-relay   # netplay through local Worker (SMOKE_ONLINE_HUMANS=4 for four humans)
+npm run engine:smoke-online-lobby # leave/rejoin, closed window, host closes room, kick (--relay; RE_FORGE_RELAY_URL tests the published relay)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
 npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
@@ -174,7 +175,8 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 - Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).
 - Choice bots should start `amounts` from `initialAmounts`, honor the prompt's constraints, and return a full permutation
   for `arrange`. Hidden choice cards have no label/details; explicit reveals authorize only the listed cards.
-- Relay setup and deployment: `docs/ONLINE_RELAY.md`. No public endpoint is configured by default. Never publish the UI
+- Relay setup and deployment: `docs/ONLINE_RELAY.md`. Published on the owner's Cloudflare account (Free plan) at
+  `https://reforge-relay.tempo-portugal.workers.dev`; deploy only with the owner's approval. Never publish the UI
   WebSocket through the relay; only the Forge netplay byte streams. `desktop/package.json` → `config.relayUrl` supplies a
   packaged default, overridden by `RE_FORGE_RELAY_URL`. Keep Cloudflare on its Free plan unless the owner requests otherwise.
 - In netplay, an individual concession must release that player's pending input even when the whole game has not ended.

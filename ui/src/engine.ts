@@ -181,7 +181,9 @@ export type LobbyState = {
   type: 'lobby'; host: boolean; localSlot: number; port: number; addresses: string[];
   transport: 'direct' | 'relay'; roomCode?: string;
   slots: { index: number; kind: 'human' | 'ai' | 'open'; name?: string; deck?: string;
-    ready: boolean; editable: boolean; controllable: boolean }[];
+    ready: boolean; editable: boolean; controllable: boolean;
+    /** Host only: a remote player the host may remove from the room. */
+    kickable: boolean }[];
 };
 export type ChatMessage = { type: 'chatMessage'; source?: string; text: string; kind: 'player' | 'system' | 'warning' };
 
@@ -278,7 +280,7 @@ export type ClientMessage =
   | { type: 'setSlot'; index: number; slotType?: 'ai' | 'open'; deck?: string }
   | { type: 'setReady'; ready: boolean }
   | { type: 'addSlot' | 'startOnlineMatch' | 'leaveLobby' }
-  | { type: 'removeSlot'; index: number }
+  | { type: 'removeSlot' | 'kickPlayer'; index: number }
   | { type: 'chat'; text: string }
   | { type: 'action'; action: Action; id?: number }
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null; skip?: boolean };

@@ -4,9 +4,9 @@
   "description": "A new interface for the Forge Magic: The Gathering rules engine",
   "author": "RE:Forge",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "main.cjs",
-  "config": { "relayUrl": "" },
+  "config": { "relayUrl": "https://reforge-relay.tempo-portugal.workers.dev" },
   "scripts": {
     "start": "electron ."
   },

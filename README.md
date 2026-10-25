@@ -154,7 +154,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3, `aiProfiles` (one Forge AI profile per opponent; `""` = random, missing = `Default`) |
 | UI → engine | `hostGame` / `joinGame` | Player `name`; direct host: `port` (1024–65535), optional `upnp`; direct join: `address` (`host:port`). Room host: `transport: "relay"`; room join: `transport: "relay"`, `code` (8 characters). Relay origin is engine configuration, never a UI-supplied URL |
 | UI → engine | `setSlot` | `index`, optional `slotType` (`ai` or `open`, host only), optional `deck` (own/AI slot only) |
-| UI → engine | `setReady`, `addSlot`, `removeSlot`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove: `index`. Host controls seats/start; one online session per engine |
+| UI → engine | `setReady`, `addSlot`, `removeSlot`, `kickPlayer`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove/kick: `index` (kick: host only, slots with `kickable`). Host controls seats/start; one online session per engine. A closed lobby sends `lobbyClosed`, with an `error` `code` `kicked`, `hostDisconnected` or `relayDisconnected` when it wasn't the player's choice |
 | UI → engine | `chat` | `text` (up to 2000 characters) |
 | UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave` |
 | UI → engine | `answer` | Reply to a `choice` by `id`: `picked` indices, `amounts`, `value`, or `skip: true` when allowed |

@@ -29,7 +29,8 @@ public final class HeadlessGui implements IGuiBase {
     private static OnlineLobby online;
 
     static synchronized void claimOnline(OnlineLobby lobby) {
-        if (online != null) throw new IllegalStateException("An online session is already open");
+        // A closed lobby never holds the slot, even if its cleanup failed halfway.
+        if (online != null && !online.isClosed()) throw new IllegalStateException("An online session is already open");
         online = lobby;
     }
 
@@ -37,7 +38,7 @@ public final class HeadlessGui implements IGuiBase {
         if (online == lobby) online = null;
     }
 
-    static synchronized boolean hasOnline() { return online != null; }
+    static synchronized boolean hasOnline() { return online != null && !online.isClosed(); }
 
     public HeadlessGui(String assetsDir) {
         this.assetsDir = assetsDir.endsWith(File.separator) ? assetsDir : assetsDir + File.separator;

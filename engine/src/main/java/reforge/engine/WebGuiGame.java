@@ -27,6 +27,7 @@ import forge.game.player.IHasIcon;
 import forge.game.player.PlayerView;
 import forge.game.spellability.SpellAbilityView;
 import forge.gamemodes.net.NetworkGuiGame;
+import forge.gamemodes.net.client.FGameClient;
 import forge.gamemodes.match.Selection;
 import forge.gui.interfaces.IGuiGame;
 import forge.item.PaperCard;
@@ -119,6 +120,23 @@ final class WebGuiGame extends NetworkGuiGame {
     boolean isFinishedForLocalPlayer() {
         GameView game = getGameView();
         return game == null || game.isGameOver() || getLocalPlayers().stream().allMatch(PlayerView::getHasLost);
+    }
+
+    private volatile Runnable connectionLost;
+
+    /** What to do when the connection to the host is gone for good, or drops while none of our games is running. */
+    void onConnectionLost(Runnable action) { connectionLost = action; }
+
+    @Override
+    public void onReconnectStateChanged(FGameClient.ReconnectState state, int attemptIndex, int nextDelaySeconds) {
+        // Forge keeps retrying for about two minutes; only a running game is worth waiting for.
+        boolean lost = switch (state) {
+            case FAILED, SEAT_LOST -> true;
+            case RECONNECTING -> isFinishedForLocalPlayer();
+            case CONNECTED -> false;
+        };
+        Runnable action = connectionLost;
+        if (lost && action != null) action.run();
     }
 
     void dispose() {

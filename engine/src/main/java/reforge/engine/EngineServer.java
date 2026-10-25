@@ -173,7 +173,7 @@ public final class EngineServer extends WebSocketServer {
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "campaign" -> c.actions.execute(() -> campaignAction(c, msg));
             case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
-            case "setSlot", "setReady", "addSlot", "removeSlot", "startOnlineMatch", "chat", "leaveLobby" ->
+            case "setSlot", "setReady", "addSlot", "removeSlot", "kickPlayer", "startOnlineMatch", "chat", "leaveLobby" ->
                     c.actions.execute(() -> onlineAction(c, msg));
             case "action" -> c.actions.execute(() -> action(c, msg));
             case "answer" -> c.session.onAnswer(msg);
@@ -257,7 +257,8 @@ public final class EngineServer extends WebSocketServer {
     }
 
     private void openOnline(Connection c, JsonObject msg) {
-        if (c.online != null && c.online.isClosed()) c.online = null;
+        // A lobby that closed itself (host gone, kicked) leaves its game window behind; neither blocks a new room.
+        if (c.online != null && c.online.isClosed()) { c.online = null; c.gui = null; }
         if (c.online != null || c.gui != null && !c.gui.isFinishedForLocalPlayer()) {
             c.session.send(error("A game or lobby is already open"));
             return;

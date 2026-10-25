@@ -98,7 +98,9 @@ Critério de feito: colar uma exportação do Moxfield de 100 cartas, guardar e 
 
 Salas por código implementadas localmente no ramo `feat/online-relay`: Worker Cloudflare com Durable Objects SQLite,
 ponte Java TCP/WebSocket sobre o protocolo Forge, códigos de oito caracteres e escolha entre código e ligação direta.
-Configuração e limites em [ONLINE_RELAY.md](ONLINE_RELAY.md). Não existe serviço público publicado/configurado por omissão.
+Configuração e limites em [ONLINE_RELAY.md](ONLINE_RELAY.md). Publicado em `reforge-relay.tempo-portugal.workers.dev` (0.1.1).
+Lobby (`feat/online-kick`): o anfitrião expulsa jogadores; sair, fechar a janela ou o anfitrião fechar a sala nunca
+deixam a sessão presa (antes, em ligação direta, o convidado ficava 2 min à espera da reconexão do Forge).
 Validação: UI e motor compilam; testes do Worker, partida com quatro humanos e partida com dois humanos + IA pelo
 relay local passam. Cobrem privacidade, paragens remotas, cancelar/conceder e criar outra sala. `OnlineController`
 liberta o input do humano remoto depois de uma concessão individual, sem alterar o Forge nem enviar outro RPC.

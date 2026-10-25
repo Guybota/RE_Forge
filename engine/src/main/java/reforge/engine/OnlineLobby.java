@@ -3,10 +3,13 @@ package reforge.engine;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+
+import io.netty.channel.Channel;
 
 import forge.deck.Deck;
 import forge.game.GameType;
@@ -22,6 +25,7 @@ import forge.gamemodes.net.client.FGameClient;
 import forge.gamemodes.net.event.MessageEvent;
 import forge.gamemodes.net.event.UpdateLobbyPlayerEvent;
 import forge.gamemodes.net.server.FServerManager;
+import forge.gamemodes.net.server.RemoteClient;
 import forge.gui.interfaces.ILobbyView;
 import forge.interfaces.IPlayerChangeListener;
 import forge.localinstance.properties.ForgeConstants;
@@ -123,6 +127,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
         if (closed) throw new IllegalStateException("Lobby is closed");
         if (gui != null) gui.dispose();
         gui = new WebGuiGame(session, settings);
+        gui.onConnectionLost(() -> closeConn("The connection to the host was lost"));
         attachGui.accept(gui);
         return gui;
     }
@@ -141,10 +146,39 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             close();
             JsonObject error = new JsonObject();
             error.addProperty("type", "error");
-            error.addProperty("message", message);
-            if (relayed) error.addProperty("code", "relayDisconnected");
+            error.addProperty("message", kicked ? "The host removed you from the room" : message);
+            String code = kicked ? "kicked" : relayed ? "relayDisconnected" : host ? null : "hostDisconnected";
+            if (code != null) error.addProperty("code", code);
             session.send(error);
         });
+    }
+
+    /**
+     * A private notice from an RE:Forge host, just before it closes a kicked guest's connection. Forge has no kick
+     * event; this chat text never reaches the guest's chat and only names the reason the lobby closed.
+     */
+    private static final String KICK_NOTICE = "[RE:Forge] kicked";
+    private volatile boolean kicked;
+
+    /** Host only: removes a remote player from the lobby by closing their connection (Forge then frees the seat). */
+    private void kick(int index) {
+        if (!host || index <= 0 || lobby.getSlot(index) == null || lobby.getSlot(index).getType() != LobbySlotType.REMOTE) {
+            throw new IllegalArgumentException("Only the host can remove another player");
+        }
+        RemoteClient client = FServerManager.getInstance().getClientBySlotIndex(index);
+        if (client == null) throw new IllegalArgumentException("That player is no longer connected");
+        client.send(new MessageEvent(KICK_NOTICE));
+        Channel channel;
+        try {
+            // shortcut: Forge keeps the connection private and offers no kick; read it until upstream has one.
+            var field = RemoteClient.class.getDeclaredField("channel");
+            field.setAccessible(true);
+            channel = (Channel) field.get(client);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Could not remove the player", e);
+        }
+        // Let the notice leave first; the guest reads it before it sees the connection close.
+        if (channel != null) channel.eventLoop().schedule(() -> { channel.close(); }, 200, TimeUnit.MILLISECONDS);
     }
 
     private int localSlot() {
@@ -204,6 +238,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
                 if (!host || lobby.getNumberOfSlots() >= 4) throw new IllegalArgumentException("Maximum four players");
                 lobby.addSlot();
             }
+            case "kickPlayer" -> kick(msg.get("index").getAsInt());
             case "removeSlot" -> {
                 int index = msg.get("index").getAsInt();
                 if (!host || !lobby.mayRemove(index) || !lobby.mayControl(index)) throw new IllegalArgumentException("Cannot remove this slot");
@@ -266,6 +301,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             s.addProperty("ready", slot.isReady());
             s.addProperty("editable", current.mayEdit(i));
             s.addProperty("controllable", host && i != 0 && current.mayControl(i));
+            s.addProperty("kickable", host && i != 0 && slot.getType() == LobbySlotType.REMOTE);
             slots.add(s);
         }
         out.add("slots", slots);
@@ -274,6 +310,7 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
 
     @Override public void addMessage(ChatMessage message) {
         if (closed) return;
+        if (!host && message.getSource() == null && KICK_NOTICE.equals(message.getMessage())) { kicked = true; return; }
         JsonObject out = new JsonObject();
         out.addProperty("type", "chatMessage");
         out.addProperty("source", message.getSource());
@@ -285,8 +322,22 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
     void close() {
         if (closed) return;
         closed = true;
-        if (tunnel != null) tunnel.close();
-        if (gui != null && gui.getGameView() != null && !gui.getGameView().isGameOver()) {
+        try {
+            shutDown();
+        } finally {
+            // Whatever failed above, this engine must be able to open or join another room.
+            HeadlessGui.releaseOnline(this);
+            JsonObject out = new JsonObject();
+            out.addProperty("type", "lobbyClosed");
+            session.send(out);
+        }
+    }
+
+    /** Each step runs even if an earlier one fails, so the game port and the relay are always let go. */
+    private void shutDown() {
+        quietly("relay", () -> { if (tunnel != null) tunnel.close(); });
+        quietly("game", () -> {
+            if (gui == null || gui.getGameView() == null || gui.getGameView().isGameOver()) return;
             if (host && lobby != null && lobby.getHostedMatch() != null) {
                 var match = lobby.getHostedMatch();
                 var game = match.getGame();
@@ -298,14 +349,18 @@ final class OnlineLobby implements IOnlineLobby, IOnlineChatInterface, ILobbyVie
             } else {
                 gui.getOriginalGameControllers().forEach(c -> c.concede());
             }
+        });
+        quietly("client", () -> { if (client != null) client.close(); });
+        quietly("server", () -> { if (host && lobby != null) FServerManager.getInstance().stopServer(); });
+        quietly("gui", () -> { if (gui != null) gui.dispose(); });
+    }
+
+    private static void quietly(String step, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException e) {
+            System.err.println("Closing the online " + step + " failed: " + e);
         }
-        if (client != null) client.close();
-        if (host && lobby != null) FServerManager.getInstance().stopServer();
-        if (gui != null) gui.dispose();
-        HeadlessGui.releaseOnline(this);
-        JsonObject out = new JsonObject();
-        out.addProperty("type", "lobbyClosed");
-        session.send(out);
     }
 
     boolean isClosed() { return closed; }

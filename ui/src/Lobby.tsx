@@ -3,12 +3,13 @@ import { useT } from './i18n';
 import type { Engine } from './useEngine';
 
 const NAME_STORAGE = 'reforge.playerName';
-const RELAY_ERRORS = ['relayUnavailable', 'relayInvalidCode', 'relayRoomMissing', 'relayRoomFull', 'relayRateLimited', 'relayDisconnected'] as const;
+const ERROR_CODES = ['relayUnavailable', 'relayInvalidCode', 'relayRoomMissing', 'relayRoomFull', 'relayRateLimited', 'relayDisconnected',
+  'hostDisconnected', 'kicked'] as const;
 
 export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }) {
   const t = useT();
   const { lobby, send } = engine;
-  const errorKey = RELAY_ERRORS.find(key => key === engine.error);
+  const errorKey = ERROR_CODES.find(key => key === engine.error);
   const errorText = errorKey ? t(errorKey) : engine.error;
   const [mode, setMode] = useState<'host' | 'join'>('host');
   const [transport, setTransport] = useState<'relay' | 'direct'>(() => engine.info?.relayAvailable ? 'relay' : 'direct');
@@ -97,6 +98,7 @@ export function Lobby({ engine, onBack }: { engine: Engine; onBack: () => void }
               {slot.controllable && <select className="input" aria-label={t('seatType', { n: slot.index + 1 })} value={slot.kind} onChange={(e) => send({ type: 'setSlot', index: slot.index, slotType: e.target.value as 'ai' | 'open' })}>
                 <option value="open">{t('openSeat')}</option><option value="ai">{t('aiSeat')}</option>
               </select>}
+              {slot.kickable && <button type="button" className="btn btn--ghost" aria-label={t('kickPlayer', { name: slot.name || t('humanSeat') })} onClick={() => send({ type: 'kickPlayer', index: slot.index })}>{t('kick')}</button>}
               {slot.controllable && slot.index >= 2 && <button type="button" className="btn btn--ghost" aria-label={t('removeSeat', { n: slot.index + 1 })} onClick={() => send({ type: 'removeSlot', index: slot.index })}>×</button>}
             </div>
             {slot.kind !== 'open' && (slot.editable ? <select className="input" aria-label={t('seatDeck', { name: slot.name || t('humanSeat') })} value={slot.deck ?? ''} onChange={(e) => send({ type: 'setSlot', index: slot.index, deck: e.target.value })}>

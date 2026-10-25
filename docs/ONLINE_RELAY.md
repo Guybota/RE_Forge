@@ -54,7 +54,12 @@ Continua a delegar as regras e os restantes comandos no controlador do Forge. Es
 chamada: enviar um segundo RPC de confirmação criaria uma corrida, porque o Forge executa esses RPCs em threads distintas.
 As variantes com quatro humanos e com humanos/IA cobrem este caso.
 
-## Publicar depois da revisão
+## Publicação
+
+Publicado em 2026-10-25 na conta Cloudflare do proprietário (plano gratuito):
+`https://reforge-relay.tempo-portugal.workers.dev`, configurado em `desktop/package.json` → `config.relayUrl`.
+Testado contra o serviço publicado com `RE_FORGE_RELAY_URL=<origem> npm run engine:smoke-online-lobby -- --relay`
+e `node scripts/smoke-online.mjs --relay`. Para atualizar o serviço, repetir os passos abaixo.
 
 O código está em `relay/src/worker.js`; a configuração está em `relay/wrangler.jsonc`.
 
