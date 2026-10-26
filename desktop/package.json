@@ -4,7 +4,7 @@
   "description": "A new interface for the Forge Magic: The Gathering rules engine",
   "author": "RE:Forge",
   "private": true,
-  "version": "0.1.3",
+  "version": "0.1.4",
   "main": "main.cjs",
   "config": { "relayUrl": "https://reforge-relay.tempo-portugal.workers.dev" },
   "scripts": {
@@ -26,7 +26,8 @@
       { "from": "../build/runtime", "to": "runtime" },
       { "from": "../forge/forge-gui/res", "to": "forge-gui/res", "filter": ["**/*", "!adventure/**", "!music/**", "!cardsfolder/**", "!tokenscripts/**"] },
       { "from": "../build/card-data", "to": "forge-gui/res" },
-      { "from": "../forge/forge-gui/res/adventure/common", "to": "forge-gui/res/adventure/common", "filter": ["config.json", "maps/**", "world/**", "decks/**"] },
+      { "from": "../forge/forge-gui/res/adventure/common", "to": "forge-gui/res/adventure/common", "filter": ["config.json", "maps/**", "world/**", "decks/**", "sprites/**"] },
+      { "from": "../forge/forge-gui/res/adventure/Shandalar/world", "to": "forge-gui/res/adventure/Shandalar/world" },
       { "from": "../forge/LICENSE", "to": "licenses/Forge-LICENSE.txt" }
     ],
     "win": {

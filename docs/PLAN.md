@@ -307,9 +307,12 @@ Trabalho retomado a partir da `main` com o construtor de decks, preservando o ra
 - Electron usa o Java e os recursos incluídos, mostra uma janela durante o carregamento e limita a app a uma instância.
   Inclui ícone próprio (fonte em `scripts/icon.ps1`), licença do Forge e diagnóstico de falhas do motor.
 - Scripts de cartas e fichas empacotados no formato `cardsfolder.zip` já suportado pelo Forge, sem alterar upstream.
-  Evita copiar cerca de 35 mil ficheiros individuais na instalação. `adventure/` e `music/` continuam excluídos.
+  Evita copiar cerca de 35 mil ficheiros individuais na instalação. Adventure inclui os recursos comuns usados pela
+  ponte (configuração, mapas, mundo, decks e sprites) e `Shandalar/world`; outros mundos e música ficam excluídos.
 - `npm run package:smoke` usa exclusivamente o runtime/JAR/recursos distribuídos e dados temporários: primeiro arranque,
   catálogo, pré-construídos, importação de 100 cartas, persistência após reiniciar e início de partida local.
+  Cobre também os starters de Quest e a criação de Adventure, retratos, sprites, terrenos, mapa de caverna e
+  persistência da campanha. O perfil do Forge é isolado numa pasta temporária, mesmo ao testar a instalação.
   `SMOKE_PACKAGE_IMAGES=1` acrescenta uma imagem real do Scryfall e a cache após reiniciar.
 
 Validação executada:
@@ -331,6 +334,15 @@ está a comunicar remotamente e não consegue responder ao aviso; nenhuma opçã
 Por fechar: verificação visual completa e teste numa máquina limpa; validação LAN em duas máquinas continua no passo 3.
 O recurso `forge-gui` tem de ser gravável porque o motor escreve lá `forge.profile.properties`; a instalação é por utilizador.
 
+Correção de recursos de Adventure (`feat/campaign-package-assets`, 26/10/2026): o pacote anterior só incluía parte de
+`common`, sem `Shandalar/world` nem `common/sprites`; abrir campanhas falhava com o caminho de `shops.json`.
+O teste do pacote reproduziu o erro antes da correção e passou após gerar a pasta da aplicação corrigida, incluindo
+campanhas e imagens. As duas pastas em falta foram acrescentadas à instalação local e verificadas por hash;
+o mesmo teste passou nessa instalação, com dados temporários.
+Verificação no browser com o JAR, Java e recursos instalados: menu sem erro, criação e mapa de Shandalar com herói visível.
+Distribuição retomada a pedido do utilizador: instalador `dist-app/RE-Forge-Setup-0.1.4.exe`, com a versão do motor,
+Electron e lockfile alinhadas. UI e motor compilam; `package:smoke` passou nos recursos finais da versão 0.1.4.
+
 ## Passo 7 — Modos (fases 3–4)
 
 Draft e Sealed (`forge-gui/.../gamemodes/limited`), torneio, puzzles, Quest, Adventure. Cada modo reaproveita a mesa.
@@ -349,8 +361,8 @@ meio (fecha com a ligação), cubos/edições personalizadas e descrições dos 
 
 Adventure e Quest têm uma primeira integração na interface RE:Forge: campanhas guardadas, coleção/deck e duelos;
 Quest usa os controladores nativos de economia/loja e Adventure permite explorar três cavernas dos recursos originais.
-O utilizador testou o ciclo básico e indicou que parece funcionar (25/10/2026). Quer aprofundar funcionalidades e melhorar
-a experiência antes de criar outro instalador; a nova distribuição fica adiada.
+O utilizador testou o ciclo básico e indicou que parece funcionar (25/10/2026). A distribuição foi retomada a seu pedido
+na versão 0.1.4 (26/10/2026) para incluir todos os recursos necessários às campanhas de Adventure.
 
 Mundo aberto de Adventure (`AdventureWorld`): Shandalar gerado por campanha a partir de uma semente guardada, com os
 biomas, pontos de interesse e nomes de cidades originais numa grelha 175×175 (uma célula = 4×4 tiles). O jogador anda

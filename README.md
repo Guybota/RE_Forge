@@ -43,9 +43,10 @@ npm run package
 ```
 
 This builds the UI and engine, creates a Java runtime with `jlink`, and writes
-`dist-app/RE-Forge-Setup-0.1.0.exe`. The installer runs per user; players do not need
+`dist-app/RE-Forge-Setup-0.1.4.exe`. The installer runs per user; players do not need
 Java, Node or Maven installed. `dist-app/win-unpacked/` contains the same application
-before installation. Forge's Adventure and music resources are excluded. Card and token
+before installation. Includes Adventure's shared maps, decks, world data and sprites plus
+Shandalar's world data. Other Adventure worlds and music are excluded. Card and token
 scripts use Forge's native ZIP format to avoid installing thousands of individual files.
 
 The Java runtime is reused when its JDK and module list are unchanged. Use
@@ -57,7 +58,8 @@ npm run package:smoke -- "C:/path/to/installed/RE-Forge/resources"
 ```
 
 This checks the shipped Java, card database, precons, catalog, import, settings/deck
-persistence across a restart and local match startup, using temporary data. It does not
+persistence across a restart, Quest starters, Adventure creation/maps/images and campaign
+persistence, and local match startup, using temporary data and an isolated Forge profile. It does not
 open the desktop UI.
 The installed resource folder must be writable: Forge writes its data-directory profile
 next to `res/` at startup. The per-user installation provides that access.

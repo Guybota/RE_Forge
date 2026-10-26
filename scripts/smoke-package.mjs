@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,8 +12,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const resources = path.resolve(process.argv[2] ?? path.join(root, 'dist-app/win-unpacked/resources'));
 const java = path.join(resources, 'runtime/bin/java.exe');
 const jar = path.join(resources, 'engine/re-forge-engine.jar');
-const assets = path.join(resources, 'forge-gui');
+const shippedAssets = path.join(resources, 'forge-gui');
 const data = mkdtempSync(path.join(os.tmpdir(), 'reforge-package-'));
+// Keep Forge's writable profile out of the package/installation, including when the app is running.
+const assets = path.join(data, 'assets');
+mkdirSync(assets);
+symlinkSync(path.join(shippedAssets, 'res'), path.join(assets, 'res'), process.platform === 'win32' ? 'junction' : 'dir');
 const verifyImages = process.env.SMOKE_PACKAGE_IMAGES === '1';
 for (const file of [java, jar, path.join(assets, 'res/editions'), path.join(resources, 'ui/index.html')]) {
   assert.ok(existsSync(file), `Missing packaged resource: ${file}`);
@@ -85,6 +89,15 @@ async function picture(base, key) {
   return bytes;
 }
 
+async function adventureImages(base, images) {
+  for (const image of new Set(images)) {
+    const response = await fetch(base + encodeURIComponent(image), { signal: AbortSignal.timeout(10_000) });
+    assert.equal(response.status, 200, `packaged Adventure image: ${image}`);
+    assert.match(response.headers.get('content-type') ?? '', /image\//);
+    await response.arrayBuffer();
+  }
+}
+
 try {
   let peer = await boot();
   let info = await peer.request({ type: 'hello' }, 'engineInfo');
@@ -108,6 +121,37 @@ try {
   assert.ok(saved.mine.includes(name), 'save deck using shipped resources');
   const detail = await peer.request({ type: 'getDeck', name }, 'deckDetail');
   assert.equal(detail.cards, 100);
+  const campaign = (action, fields = {}) => ({ type: 'campaign', action, ...fields });
+  const quests = await peer.request(campaign('list', { mode: 'quest' }), 'campaigns');
+  assert.ok(quests.starters.length > 0, 'packaged Quest starters');
+  const adventures = await peer.request(campaign('list', { mode: 'adventure' }), 'campaigns');
+  assert.ok(adventures.heroes.length >= 10, 'packaged Adventure heroes');
+  const portraits = adventures.heroes.flatMap(hero => ['male', 'female'].map(sex => {
+    assert.ok(hero.portraits[sex]?.frames.length, `packaged portrait: ${hero.id}/${sex}`);
+    return hero.portraits[sex].image;
+  }));
+  await adventureImages(adventures.assetBase, portraits);
+  let adventure = await peer.request(campaign('create', {
+    mode: 'adventure', name: 'Packaged Adventure smoke', difficulty: 0, starter: 'G', hero: 'Elf', sex: 'female',
+  }), 'campaign');
+  const adventureId = adventure.id;
+  const world = adventure.world;
+  assert.equal(world.cells.length, world.size ** 2);
+  for (const kind of ['town', 'dungeon', 'enemy']) {
+    assert.ok(adventure.objects.some(object => object.kind === kind && adventure.sprites[object.sprite]?.frames.length), `packaged world has ${kind} sprites`);
+  }
+  const terrainImages = world.biomes.flatMap(biome => {
+    assert.ok(biome.tiles?.frames.length, `packaged biome: ${biome.name}`);
+    return [biome.tiles.image, ...biome.terrain.map(terrain => {
+      assert.ok(terrain.tiles?.frames.length, `packaged terrain in ${biome.name}`);
+      return terrain.tiles.image;
+    }), ...biome.decorations.map(decoration => decoration.sprite.image)];
+  });
+  await adventureImages(adventure.assetBase, [...terrainImages, ...Object.values(adventure.sprites).map(sprite => sprite.image)]);
+  adventure = await peer.request(campaign('enter', { region: 'rat' }), 'campaign');
+  assert.ok(adventure.map.layers.some(layer => layer.gids.some(gid => gid !== 0)), 'packaged dungeon map');
+  await adventureImages(adventure.assetBase, adventure.map.tilesets.map(tileset => tileset.image));
+  await peer.request(campaign('close'), 'campaignClosed');
   await stop();
 
   peer = await boot();
@@ -115,6 +159,12 @@ try {
   assert.equal(info.language, 'pt-BR');
   assert.equal(info.skin, 'editorial');
   assert.ok((await peer.request({ type: 'listDecks' }, 'decks')).mine.includes(name));
+  adventure = await peer.request(campaign('open', { id: adventureId }), 'campaign');
+  assert.equal(adventure.region, 'rat', 'packaged Adventure position survives restart');
+  adventure = await peer.request(campaign('leave'), 'campaign');
+  assert.deepEqual(adventure.world, world, 'packaged Adventure world survives restart');
+  await peer.request(campaign('close'), 'campaignClosed');
+  console.log('OK: packaged Quest starters, Adventure heroes/portraits, Shandalar world, sprites, terrain, dungeon and campaign persistence');
   if (image) {
     assert.deepEqual(await picture(info.imageBase, bolt.imageKey), image, 'cached image survives restart');
     for (const cached of cachedImages) {
