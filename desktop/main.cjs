@@ -58,13 +58,16 @@ let quitting = false;
 // Starts the Java bridge and resolves with the port it printed on its READY line.
 function startEngine() {
   return new Promise((resolve, reject) => {
+    const forgeAssets = app.isPackaged && process.platform === 'darwin'
+      ? require('./engine-assets.cjs').writableEngineAssets(paths.forgeAssets, path.join(app.getPath('userData'), 'engine-assets'))
+      : paths.forgeAssets;
     let ready = false;
     let buffer = '';
     let stdout = '';
     const timeout = setTimeout(() => {
       reject(new Error('Engine startup timed out (120 s)'));
     }, 120_000);
-    engine = spawn(paths.java, ['-Xmx2g', '-jar', paths.engineJar, '--port', '0', '--assets', paths.forgeAssets, '--exit-with-parent'], {
+    engine = spawn(paths.java, ['-Xmx2g', '-jar', paths.engineJar, '--port', '0', '--assets', forgeAssets, '--exit-with-parent'], {
       cwd: paths.cwd,
       windowsHide: true,
       env: { ...process.env, RE_FORGE_RELAY_URL: process.env.RE_FORGE_RELAY_URL || require('./package.json').config?.relayUrl || '' },
@@ -112,7 +115,7 @@ async function createWindow() {
     backgroundColor: '#1f3b2d',
     autoHideMenuBar: true,
     title: 'RE:Forge',
-    icon: path.join(__dirname, 'icon.ico'),
+    icon: process.platform === 'win32' ? path.join(__dirname, 'icon.ico') : undefined,
     webPreferences: { contextIsolation: true, sandbox: true },
   });
   win.loadURL(SPLASH);

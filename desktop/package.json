@@ -19,7 +19,7 @@
     "productName": "RE-Forge",
     "electronVersion": "45.0.0",
     "directories": { "output": "../dist-app" },
-    "files": ["main.cjs", "package.json", "icon.ico"],
+    "files": ["main.cjs", "engine-assets.cjs", "package.json", "icon.ico"],
     "extraResources": [
       { "from": "../ui/dist", "to": "ui" },
       { "from": "../engine/target/re-forge-engine.jar", "to": "engine/re-forge-engine.jar" },
@@ -30,6 +30,14 @@
       { "from": "../forge/forge-gui/res/adventure/Shandalar/world", "to": "forge-gui/res/adventure/Shandalar/world" },
       { "from": "../forge/LICENSE", "to": "licenses/Forge-LICENSE.txt" }
     ],
+    "mac": {
+      "target": ["dmg"],
+      "icon": "icon.svg",
+      "category": "public.app-category.games",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "artifactName": "RE-Forge-${version}-macOS-${arch}.${ext}"
+    },
     "win": {
       "target": ["nsis"],
       "icon": "icon.ico"

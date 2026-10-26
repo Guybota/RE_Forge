@@ -1,9 +1,9 @@
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
 import { animationOn, getAnimationSettings } from './animationPrefs';
-import { CardZoom } from './CardZoom';
+import { InspectableCard } from './CardInspection';
 
 type Item = GameState['stack'][number];
 type Shown = { item: Item; card?: CardState; leaving: boolean };
@@ -21,7 +21,6 @@ export function StackColumn({ game, allCards, names, onHover }: {
   game: GameState; allCards: CardState[]; names: Map<number, string>; onHover: (card: CardState | null) => void;
 }) {
   const t = useT();
-  const zoom = useContext(CardZoom);
   const [shown, setShown] = useState<Shown[]>([]);
   const moving = animationOn('stack');
   const slide = Math.round(SLIDE_MS / getAnimationSettings().speed);
@@ -54,15 +53,15 @@ export function StackColumn({ game, allCards, names, onHover }: {
             const art = card?.imageKey ? cardImage(card.imageKey, s.isSpell ? 'full' : 'crop') : null;
             const isNext = s.id === next;
             return (
-              <li key={s.id} data-stack-id={leaving ? undefined : s.id} data-hover-card={card?.id}
+              <InspectableCard as="li" card={leaving ? null : card} key={s.id} data-stack-id={leaving ? undefined : s.id} data-hover-card={leaving ? undefined : card?.id}
                 className={`stack-col__item ${isNext ? 'is-next' : ''} ${s.isSpell ? '' : 'is-ability'} ${leaving ? 'is-leaving' : ''}`}
                 aria-current={isNext || undefined} aria-hidden={leaving || undefined} title={isNext ? `${t('resolvesNext')}: ${s.text}` : s.text}
                 onMouseEnter={card ? () => onHover(card) : undefined} onMouseLeave={card ? () => onHover(null) : undefined}
-                onContextMenu={card?.imageKey ? (e) => { e.preventDefault(); zoom({ id: card.id, name: card.name, imageKey: card.imageKey }); } : undefined}>
+                onFocus={card ? () => onHover(card) : undefined} onBlur={() => onHover(null)}>
                 {s.isSpell && art ? <img src={art} alt={s.text} />
                   : <div className="stack-col__ability">{art && <img src={art} alt="" />}<p>{s.text}</p></div>}
                 {owner && <span className="stack-col__owner">{owner}</span>}
-              </li>
+              </InspectableCard>
             );
           })}
         </ol>

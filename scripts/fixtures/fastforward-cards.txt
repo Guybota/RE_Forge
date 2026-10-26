@@ -1,0 +1,13 @@
+# Real opponent spells while the human has a legal Shock response. Fast-forward must skip them and stop next turn.
+activeplayer=p1
+activephase=MAIN1
+turn=2
+p0life=40
+p1life=40
+p0battlefield=Mountain;Mountain;Forest
+p0hand=Shock
+p1battlefield=Mountain;Mountain;Mountain
+p1hand=
+p1putonstack=Hill Giant
+p0library=Mountain;Mountain;Mountain;Mountain;Mountain;Mountain;Mountain;Mountain
+p1library=Mountain;Mountain;Mountain;Mountain;Mountain;Mountain;Mountain;Mountain

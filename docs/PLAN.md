@@ -244,6 +244,16 @@ traduzidas; as outras com o texto de lembrete do Forge, só em inglês). Testes:
 `attachments` do `DialogHarness`. Limite conhecido: num convidado remoto a troca de turno chega com atraso de rede, por isso
 a primeira prioridade do próprio turno pode ainda ser passada se não houver nada para jogar.
 
+Ajustes da mesa (`feat/stack-hover-fast-forward`, 26/10/2026): o zoom flutuante ancora-se na carta sob o ponteiro,
+incluindo cartas e habilidades na stack; inspeção da stack usa os mesmos gestos da mão e do campo. Removida a dica
+visual de clique direito/tecla I, mantendo a descrição e atalhos para leitores de ecrã. Botão de avanço rápido na barra:
+usa um marcador nativo do Forge até à próxima manutenção do jogador, passa respostas aos adversários mesmo havendo
+cartas jogáveis e interrompe quando o jogador é atacado. Bloqueios e escolhas continuam manuais; o botão permite
+cancelar e não altera preferências guardadas. Sobrescritas de interrupções vivem só no controlador e são repostas no fim.
+UI e motor compilam; `engine:smoke-fastforward`, `engine:smoke-autopass` e `ui:smoke-design` passaram.
+Zoom e inspeção da stack e ativação do botão até ao regresso ao turno próprio verificados no browser em landscape.
+Inclusão na mesma versão 0.1.4 solicitada pelo utilizador; reempacotamento e atualização da release em curso.
+
 Feedback da mesa ao estilo Arena (`feat/table-feedback`, levantamento em [TABLE_FEEDBACK.md](TABLE_FEEDBACK.md)): quem tem
 a prioridade ("Decides tu" / "A pensar"), "À espera de {nome}" com segundos, botão Resolver/Passar que pulsa quando
 podes responder, item da stack que resolve a seguir, setas da stack para os alvos (cartas e jogadores), aviso do teu
@@ -342,6 +352,11 @@ o mesmo teste passou nessa instalação, com dados temporários.
 Verificação no browser com o JAR, Java e recursos instalados: menu sem erro, criação e mapa de Shandalar com herói visível.
 Distribuição retomada a pedido do utilizador: instalador `dist-app/RE-Forge-Setup-0.1.4.exe`, com a versão do motor,
 Electron e lockfile alinhadas. UI e motor compilam; `package:smoke` passou nos recursos finais da versão 0.1.4.
+
+macOS solicitado pelo utilizador (26/10/2026): empacotamento nativo em DMG para Apple Silicon e Intel, cada um com
+Java 21 da mesma arquitetura, pelo workflow `package-macos.yml`. Assinatura ad-hoc de teste, sem notarização Apple.
+O perfil gravável do Forge fica fora do `.app`, com um link para os recursos incluídos; mover a app atualiza esse link.
+O workflow verifica e monta cada DMG em modo de leitura e executa os testes do pacote e avanço rápido no Java incluído.
 
 ## Passo 7 — Modos (fases 3–4)
 

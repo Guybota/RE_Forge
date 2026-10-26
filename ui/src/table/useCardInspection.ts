@@ -50,7 +50,6 @@ export function useCardInspection(card: CardState | null | undefined) {
     zoom(card);
   };
   return {
-    title: t('inspectCardHint'),
     'aria-description': t('inspectCardHint'),
     'aria-keyshortcuts': 'i Shift+F10',
     onContextMenu: (e: React.MouseEvent<HTMLElement>) => {

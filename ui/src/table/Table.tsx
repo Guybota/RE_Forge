@@ -6,7 +6,7 @@ import { ChoiceDialog } from './ChoiceDialog';
 import { CombatArrows } from './CombatArrows';
 import { GameMenu } from './GameMenu';
 import { ZoneViewer, type OpenZone } from './ZoneViewer';
-import { PanelIcon } from './icons';
+import { FastForwardIcon, PanelIcon } from './icons';
 import { PHASE_TRACK, attachmentsByHost, phaseKey } from './cards';
 import { Preview } from './CardZoom';
 import { useT } from '../i18n';
@@ -59,7 +59,9 @@ function FloatPreview({ card }: { card: CardState }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   useLayoutEffect(() => {
-    const target = document.querySelector(`[data-card-id="${card.id}"]`)?.getBoundingClientRect();
+    const candidates = [...document.querySelectorAll(`[data-card-id="${card.id}"], [data-hover-card="${card.id}"]`)];
+    const anchor = candidates.find((el) => el.matches(':hover')) ?? candidates.find((el) => el === document.activeElement);
+    const target = anchor?.getBoundingClientRect();
     const box = ref.current?.getBoundingClientRect();
     if (!target || !box) return;
     const gap = 12, w = box.width, h = box.height;
@@ -274,7 +276,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   useEffect(() => {
     if (!hovered) return;
     const id = String(hovered.id);
-    const over = [...document.querySelectorAll(':hover')].some((el) => el.getAttribute('data-card-id') === id || el.getAttribute('data-hover-card') === id);
+    const over = [...document.querySelectorAll(':hover, :focus')].some((el) => el.getAttribute('data-card-id') === id || el.getAttribute('data-hover-card') === id);
     if (!over) setHovered(null);
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -316,6 +318,14 @@ ${game.puzzle.description}`}>
           </span>}
             {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
             {promptButtons}
+            {!game.gameOver && !me.hasLost && <button type="button"
+              className={`btn ${game.fastForward ? 'btn--primary' : 'btn--ghost'} bar__fast-forward`}
+              aria-label={t(game.fastForward ? 'stopFastForward' : 'fastForward')} aria-pressed={!!game.fastForward}
+              title={t(game.fastForward ? 'stopFastForward' : 'fastForwardHint')}
+              disabled={!game.fastForward && (myTurn || !game.phase || !!engine.choice || game.phase === 'COMBAT_DECLARE_ATTACKERS' || game.phase === 'COMBAT_DECLARE_BLOCKERS')}
+              onClick={() => send({ type: 'action', action: 'fastForward', enabled: !game.fastForward })}>
+              <FastForwardIcon />
+            </button>}
             {!sideOpen && !game.gameOver && !me.hasLost && (
               <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>
             )}

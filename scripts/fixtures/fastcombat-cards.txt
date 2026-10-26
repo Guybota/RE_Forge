@@ -1,0 +1,13 @@
+# The human can respond with Shock, but must still decide how to block the much larger attacker.
+activeplayer=p1
+activephase=MAIN1
+turn=2
+p0life=40
+p1life=40
+p0battlefield=Grizzly Bears;Mountain;Mountain
+p0hand=Shock
+p1battlefield=Craw Wurm;Forest;Forest
+p1hand=
+p0library=Mountain;Mountain;Mountain;Mountain;Mountain;Mountain;Mountain;Mountain
+p1library=Forest;Forest;Forest;Forest;Forest;Forest;Forest;Forest
+removesummoningsickness=true

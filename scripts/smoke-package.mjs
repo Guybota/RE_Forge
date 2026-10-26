@@ -9,8 +9,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const resources = path.resolve(process.argv[2] ?? path.join(root, 'dist-app/win-unpacked/resources'));
-const java = path.join(resources, 'runtime/bin/java.exe');
+const defaultResources = process.platform === 'darwin'
+  ? `dist-app/mac${process.arch === 'arm64' ? '-arm64' : ''}/RE-Forge.app/Contents/Resources`
+  : 'dist-app/win-unpacked/resources';
+const resources = path.resolve(process.argv[2] ?? path.join(root, defaultResources));
+const java = path.join(resources, 'runtime/bin', process.platform === 'win32' ? 'java.exe' : 'java');
 const jar = path.join(resources, 'engine/re-forge-engine.jar');
 const shippedAssets = path.join(resources, 'forge-gui');
 const data = mkdtempSync(path.join(os.tmpdir(), 'reforge-package-'));

@@ -407,6 +407,13 @@ public final class EngineServer extends WebSocketServer {
         String action = msg.has("action") ? msg.get("action").getAsString() : "";
         int id = msg.has("id") ? msg.get("id").getAsInt() : -1;
         switch (action) {
+            case "fastForward" -> {
+                if (!msg.has("enabled") || !msg.get("enabled").isJsonPrimitive() || !msg.getAsJsonPrimitive("enabled").isBoolean()) {
+                    c.session.send(error("Expected a boolean enabled flag"));
+                    return;
+                }
+                gui.setFastForward(msg.get("enabled").getAsBoolean());
+            }
             case "ok" -> controller.selectButtonOk();
             case "cancel" -> controller.selectButtonCancel();
             case "card" -> {

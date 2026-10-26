@@ -33,7 +33,7 @@ npm run dev
 Starts Vite and Electron; Electron launches the engine and passes its port to the UI.
 For a production-style run: `npm run build` then `npm start`.
 
-## Windows installer
+## Windows and macOS installers
 
 On Windows x64, with JDK 21 (`JAVA_HOME`), Node and Maven available:
 
@@ -66,6 +66,16 @@ next to `res/` at startup. The per-user installation provides that access.
 Set `SMOKE_PACKAGE_IMAGES=1` to also download a real Scryfall image and verify the cache
 after restart; this optional check needs Internet access.
 
+On macOS, the same `npm run package` command builds a DMG for the Mac's native architecture,
+including its Java 21 runtime. Outputs are `RE-Forge-0.1.4-macOS-arm64.dmg` (Apple Silicon)
+and `RE-Forge-0.1.4-macOS-x64.dmg` (Intel). Open the DMG and drag RE-Forge to Applications.
+The macOS test builds are ad-hoc signed and are not notarized by Apple.
+
+The macOS workflow builds on native Apple Silicon and Intel runners, verifies and mounts each
+DMG read-only, and runs `package:smoke` and `engine:smoke-fastforward` using its bundled Java
+and resources. Forge's writable profile is kept outside the `.app`; game data stays in `~/.re-forge`.
+`npm run desktop:smoke-assets` checks the profile/resource link and relocating the application.
+
 ## Tests
 
 ```bash
@@ -75,6 +85,7 @@ npm run engine:smoke-combat   # plays an active game (lands, spells, targets, at
 npm run engine:smoke-import   # imports scripts/fixtures/riders-of-rohan-arena.txt, plays it, exports, renames, deletes it
 npm run engine:smoke-online   # two engines: lobby, chat, private hands, remote turns and concession
 npm run engine:smoke-settings # settings survive restart; phase stops change live priority
+npm run engine:smoke-fastforward # native fast-forward: legal responses, cancellation, own turn and blockers
 npm run engine:smoke-dialogs  # deterministic choices, invalid answers, scry/surveil and a real double block
 npm run engine:smoke-images   # card/token image URLs, per-language cache, English fallback, retries (simulated Scryfall)
 npm run engine:smoke-builder  # deck builder catalog: names in two languages, filters, identity, pages, printings
@@ -161,7 +172,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `puzzles` / `startPuzzle` | → `puzzles` (`id`, `name`, `difficulty`, `goal`, `turns`, `description`, `solved`); `id` starts that puzzle (its `state` carries `puzzle`) |
 | UI → engine | `setAiOptions` | `profile` ("" = random) and/or `timeout` (seconds, one of `engineInfo.ai.timeouts`) → `engineInfo` with `ai` |
 | UI → engine | `chat` | `text` (up to 2000 characters) |
-| UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave` |
+| UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave`; `fastForward` + boolean `enabled` yields until the next local turn or an attack against the local player. The state carries transient `fastForward`; blocks and choices remain manual |
 | UI → engine | `answer` | Reply to a `choice` by `id`: `picked` indices, `amounts`, `value`, or `skip: true` when allowed |
 | engine → UI | `state` | Full board snapshot (players, zones, stack, combat, log, prompt), at most every 40 ms |
 | engine → UI | `choice` | A question the game waits on: `choose`, `reveal`, `confirm`, `order`, `arrange`, `amounts`, `text` |

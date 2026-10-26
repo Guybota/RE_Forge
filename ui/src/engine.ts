@@ -165,6 +165,8 @@ export type GameState = {
   /** Who holds priority in Forge right now; may be stale while a non-priority decision (blocks, a choice) is pending. */
   priorityPlayerId: number | null;
   gameOver: boolean;
+  /** Transient yield until our next turn; stops when attacked or cancelled. */
+  fastForward?: boolean;
   winner: string | null;
   players: PlayerState[];
   stack: { id: number; text: string; isSpell?: boolean; sourceCardId: number | null; card?: CardState; controllerId: number | null; targetCardIds: number[]; targetPlayerIds: number[] }[];
@@ -332,6 +334,7 @@ export type ClientMessage =
   | { type: 'removeSlot' | 'kickPlayer'; index: number }
   | { type: 'chat'; text: string }
   | { type: 'action'; action: Action; id?: number }
+  | { type: 'action'; action: 'fastForward'; enabled: boolean }
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null; skip?: boolean };
 
 export type EngineHandlers = {

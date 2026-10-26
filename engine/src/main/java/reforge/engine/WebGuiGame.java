@@ -29,6 +29,7 @@ import forge.game.spellability.SpellAbilityView;
 import forge.gamemodes.net.NetworkGuiGame;
 import forge.gamemodes.net.client.FGameClient;
 import forge.gamemodes.match.Selection;
+import forge.gamemodes.match.YieldUpdate;
 import forge.gui.interfaces.IGuiGame;
 import forge.interfaces.IGameController;
 import forge.item.PaperCard;
@@ -102,8 +103,10 @@ final class WebGuiGame extends NetworkGuiGame {
         if (game == null) return;
         // A remote client gets no updateTurn, only the new view.
         syncAutoPass();
+        syncFastForward();
         try {
             GameSnapshot snapshot = new GameSnapshot(game, this, prompt);
+            snapshot.json.addProperty("fastForward", fastForwardController != null);
             if (puzzle != null) snapshot.json.add("puzzle", puzzle);
             lastSnapshot = snapshot;
             session.send(snapshot.json);
@@ -155,6 +158,7 @@ final class WebGuiGame extends NetworkGuiGame {
     }
 
     void dispose() {
+        setFastForward(false);
         disposed = true;
         super.afterGameEnd();
         session.cancelQuestions();
@@ -665,6 +669,54 @@ final class WebGuiGame extends NetworkGuiGame {
     }
 
     private Boolean autoPassSent;
+
+    private volatile IGameController fastForwardController;
+    private PlayerView fastForwardPlayer;
+    private final Map<FPref, String> fastForwardPrefs = new java.util.EnumMap<>(FPref.class);
+    private static final List<FPref> FAST_FORWARD_INTERRUPTS = List.of(
+            FPref.YIELD_INTERRUPT_ON_ATTACKERS, FPref.YIELD_INTERRUPT_ON_OPPONENT_SPELL,
+            FPref.YIELD_INTERRUPT_ON_TARGETING, FPref.YIELD_INTERRUPT_ON_TRIGGERS,
+            FPref.YIELD_INTERRUPT_ON_REVEAL, FPref.YIELD_INTERRUPT_ON_MASS_REMOVAL);
+
+    /**
+     * Native yield marker, enforced on the game host even for a remote player. It expires before our next upkeep,
+     * or when attackers are declared against us. Only priority is yielded: blocks and other choices remain manual.
+     * Interrupt overrides live in this controller, never in the player's saved settings.
+     */
+    synchronized void setFastForward(boolean enabled) {
+        if ((fastForwardController != null) == enabled) return;
+        if (!enabled) {
+            IGameController controller = fastForwardController;
+            fastForwardController = null;
+            controller.sendYieldUpdate(new YieldUpdate.ClearMarker(fastForwardPlayer));
+            fastForwardPrefs.forEach((pref, value) -> controller.sendYieldUpdate(new YieldUpdate.SetYieldPref(pref, value)));
+            fastForwardPrefs.clear();
+            fastForwardPlayer = null;
+            markDirty();
+            return;
+        }
+        GameView game = getGameView();
+        PlayerView local = getCurrentPlayer();
+        IGameController controller = getGameController();
+        if (disposed || controller == null || local == null || local.getHasLost() || game == null || game.isGameOver()
+                || game.getPlayerTurn() == null || isLocalPlayer(game.getPlayerTurn()) || game.getPhase() == null
+                || game.getPhase() == PhaseType.COMBAT_DECLARE_ATTACKERS || game.getPhase() == PhaseType.COMBAT_DECLARE_BLOCKERS) return;
+        fastForwardController = controller;
+        fastForwardPlayer = local;
+        for (FPref pref : FAST_FORWARD_INTERRUPTS) {
+            fastForwardPrefs.put(pref, controller.getYieldController().getStringPref(pref));
+            controller.sendYieldUpdate(new YieldUpdate.SetYieldPref(pref, String.valueOf(pref == FPref.YIELD_INTERRUPT_ON_ATTACKERS)));
+        }
+        controller.sendYieldUpdate(new YieldUpdate.SetMarker(local, PhaseType.UPKEEP, false));
+        markDirty();
+    }
+
+    private synchronized void syncFastForward() {
+        if (fastForwardController == null) return;
+        GameView game = getGameView();
+        if (game == null || game.isGameOver() || fastForwardPlayer.getHasLost()
+                || fastForwardController.getYieldController().getAutoPassUntilMarker() == null) setFastForward(false);
+    }
 
     /**
      * Forge's "auto-pass when no actions" (any turn) switched on only while an opponent has the turn. The local

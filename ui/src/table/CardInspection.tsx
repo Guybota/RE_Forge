@@ -18,7 +18,7 @@ export function InspectableCard({ as = 'article', card, children, title, onKeyDo
     ...(available ? inspection : {}),
     type: as === 'button' ? 'button' : undefined,
     tabIndex: available && as !== 'button' ? props.tabIndex ?? 0 : props.tabIndex,
-    title: available ? [title, inspection.title].filter(Boolean).join(' · ') : title,
+    title,
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => { if (available) inspection.onKeyDown(e); if (!e.defaultPrevented) onKeyDown?.(e); },
     className: [props.className, available && 'inspectable-card'].filter(Boolean).join(' '),
   }, children);

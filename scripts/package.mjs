@@ -1,4 +1,4 @@
-// Builds the Windows installer: UI + engine + a trimmed Java runtime + Forge's card data, packed by electron-builder.
+// Builds a native Windows installer or macOS DMG with a bundled Java runtime and Forge resources.
 // Run with: npm run package   (output in dist-app/)
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const win = process.platform === 'win32';
-if (!win) throw new Error('The Windows installer must be built on Windows.');
+if (!win && process.platform !== 'darwin') throw new Error('Build on Windows or macOS for the matching platform.');
+if (!['x64', 'arm64'].includes(process.arch) || win && process.arch !== 'x64') throw new Error('Unsupported packaging architecture.');
 
 // What the engine jar needs (jdeps --print-module-deps), plus TLS for Scryfall and locale/charset data.
 const MODULES = [
@@ -15,6 +16,9 @@ const MODULES = [
   'java.scripting', 'java.security.jgss', 'java.sql', 'jdk.httpserver', 'jdk.sctp', 'jdk.unsupported',
   'jdk.crypto.ec', 'jdk.charsets', 'jdk.localedata',
 ];
+// SCTP is not shipped by every macOS JDK; Forge's normal TCP/WebSocket connections do not use it.
+const availableModules = new Set(execFileSync(jdkTool('java'), ['--list-modules'], { encoding: 'utf8' }).trim().split(/\r?\n/).map(line => line.split('@')[0]));
+const modules = MODULES.filter(name => name !== 'jdk.sctp' || availableModules.has(name));
 
 function run(cmd, args, cwd = root) {
   console.log(`\n> ${cmd} ${args.join(' ')}`);
@@ -37,12 +41,12 @@ const signatureFile = path.join(root, 'build', 'runtime.json');
 const signature = JSON.stringify({
   jdk: execFileSync(jdkTool('jlink'), ['--version'], { encoding: 'utf8' }).trim(),
   release: process.env.JAVA_HOME ? readFileSync(path.join(process.env.JAVA_HOME, 'release'), 'utf8') : '',
-  modules: MODULES,
+  platform: process.platform, arch: process.arch, modules,
 });
-if (process.argv.includes('--fresh') || !existsSync(path.join(runtime, 'bin', 'java.exe'))
+if (process.argv.includes('--fresh') || !existsSync(path.join(runtime, 'bin', win ? 'java.exe' : 'java'))
     || !existsSync(signatureFile) || readFileSync(signatureFile, 'utf8') !== signature) {
   rmSync(runtime, { recursive: true, force: true });
-  run(jdkTool('jlink'), ['--add-modules', MODULES.join(','), '--strip-debug', '--no-man-pages',
+  run(jdkTool('jlink'), ['--add-modules', modules.join(','), '--strip-debug', '--no-man-pages',
     '--no-header-files', '--compress=zip-6', '--output', runtime]);
   writeFileSync(signatureFile, signature);
 }
@@ -57,5 +61,5 @@ for (const folder of ['cardsfolder', 'tokenscripts']) {
 }
 
 run(process.execPath, [path.join(root, 'node_modules', 'electron-builder', 'cli.js'),
-  '--win', '--x64', '--projectDir', 'desktop', '--publish', 'never']);
+  win ? '--win' : '--mac', `--${process.arch}`, '--projectDir', 'desktop', '--publish', 'never']);
 console.log('\nInstaller written to dist-app/');

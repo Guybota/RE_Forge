@@ -80,6 +80,11 @@ docs/       PLAN.md (roadmap).
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
 - `table/GameMenu.tsx` — in-game skin, saved phase stops, reset and concede. Escape closes it; a Forge choice takes precedence. Live phase changes use Forge's `YieldUpdate` path for local/remote controllers.
+- The table's fast-forward button uses a transient native yield marker until the next local upkeep. Opponent spells
+  are yielded even with playable responses; an attack against the local player interrupts it. Blocks and choices stay
+  manual. Interrupt overrides are controller-local and restored on cancellation, interruption or game end.
+- Packaged macOS uses `desktop/engine-assets.cjs` for a writable profile under Electron's userData, linked to the
+  bundled `res`. Never write inside the `.app` or mounted DMG. The engine's own data still defaults to `~/.re-forge`.
 - Multiplayer table: identical permanents fold into a pile with a count (`groupCards` in `table/cards.ts`; cards in combat,
   targeted or with attachments stay apart). With 2–3 opponents their boards are compact and flow in one row; clicking an
   opponent's name enlarges that board and collapses the others (not during combat). Short windows (≤ 820 px) flow every board. The icon next to an opponent's life maximizes that board with large cards;
@@ -157,6 +162,7 @@ npm run engine:smoke-relay-drop # TCP proxy cuts the guest's, then the host's re
 npm run engine:smoke-online-lobby # leave/rejoin, closed window, host closes room, kick (--relay; RE_FORGE_RELAY_URL tests the published relay)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-autopass # opponent's turn passes by itself once auto-pass is switched on live; own turn stops again
+npm run engine:smoke-fastforward # playable responses, a real opponent spell, cancellation, own turn and manual blockers
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
 npm run engine:smoke-limited  # puzzles (list, start), sealed (pool, deck rules, game, result), full draft, events after restart
 npm run engine:smoke-tutor    # Wishclaw Talisman in pt-BR: library search from the table and its prompt, card to hand, shuffle, opponent gains control

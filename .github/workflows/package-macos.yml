@@ -1,0 +1,76 @@
+name: macOS installers
+
+on:
+  push:
+    branches: [feat/stack-hover-fast-forward]
+    paths:
+      - .github/workflows/package-macos.yml
+      - desktop/**
+      - engine/**
+      - ui/**
+      - scripts/**
+      - package*.json
+      - pom.xml
+      - forge
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            java_arch: aarch64
+          - runner: macos-15-intel
+            arch: x64
+            java_arch: x64
+    env:
+      MAVEN_OPTS: -Xmx3g
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: ${{ matrix.java_arch }}
+          cache: maven
+      - run: npm ci --ignore-scripts
+      - run: npm run desktop:smoke-assets
+      - run: npm run package
+      - name: Verify the DMG and test its bundled Java, resources and fast-forward
+        shell: bash
+        run: |
+          dmg="dist-app/RE-Forge-$(node -p "require('./desktop/package.json').version")-macOS-${{ matrix.arch }}.dmg"
+          hdiutil verify "$dmg"
+          mountpoint="$RUNNER_TEMP/reforge-dmg"
+          mkdir -p "$mountpoint"
+          hdiutil attach "$dmg" -mountpoint "$mountpoint" -readonly -nobrowse
+          trap 'hdiutil detach "$mountpoint"' EXIT
+          resources="$mountpoint/RE-Forge.app/Contents/Resources"
+          npm run package:smoke -- "$resources"
+          npm run engine:smoke-fastforward -- "$resources"
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: RE-Forge-macOS-${{ matrix.arch }}
+          path: dist-app/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
