@@ -197,6 +197,7 @@ final class Settings {
         FModel.getPreferences().save();
         Lang.createInstance(code);
         Localizer.getInstance().initialize(code, ForgeConstants.LANG_DIR);
+        LangPortuguese.fixMessages();
         CardTranslation.preloadTranslation(code, ForgeConstants.LANG_DIR);
 
         props.setProperty("language", code);

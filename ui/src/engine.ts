@@ -147,6 +147,8 @@ export type GameState = {
     priority: boolean;
     selectable: Ids;
     chosen: Ids;
+    /** Selectable cards the table does not show, e.g. a library search. */
+    cards: CardState[];
   };
 };
 

@@ -64,7 +64,7 @@ final class GameSnapshot {
         json.add("stack", stack(game, gui));
         json.add("combat", combat(game.getCombat()));
         json.add("log", log(game));
-        json.add("prompt", prompt(prompt));
+        json.add("prompt", prompt(prompt, gui));
     }
 
     private JsonObject player(PlayerView p, GameView game, WebGuiGame gui) {
@@ -265,7 +265,7 @@ final class GameSnapshot {
         return arr;
     }
 
-    private static JsonObject prompt(Prompt p) {
+    private JsonObject prompt(Prompt p, WebGuiGame gui) {
         JsonObject o = new JsonObject();
         o.addProperty("message", p.message());
         o.add("ok", button(p.ok(), p.okEnabled()));
@@ -276,6 +276,14 @@ final class GameSnapshot {
         p.selection().cards().forEach(c -> selectable.getAsJsonArray("cards").add(c.getId()));
         o.add("selectable", selectable);
         o.add("chosen", ids(p.selection().chosen()));
+        // Selectable cards the table does not show (a library search, an opponent's hand) travel with the prompt.
+        JsonArray offTable = new JsonArray();
+        for (CardView c : p.selection().cards()) {
+            ZoneType zone = c.getZone();
+            boolean onTable = zone != null && (List.of(PUBLIC_ZONES).contains(zone) || zone == ZoneType.Hand && gui.isLocalPlayer(c.getController()));
+            if (!onTable) offTable.add(card(c, gui));
+        }
+        o.add("cards", offTable);
         return o;
     }
 

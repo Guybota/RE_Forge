@@ -55,10 +55,15 @@ public final class DialogHarness {
         match.setStartGameHook(() -> {
             try {
                 GameState state = new GameState();
-                state.parse(Files.readAllLines(Path.of(List.of("images", "zones", "table", "sounds", "animations", "autopass", "attachments").contains(scenario)
+                state.parse(Files.readAllLines(Path.of(List.of("images", "zones", "table", "sounds", "animations", "autopass", "attachments", "tutor").contains(scenario)
                         ? "scripts/fixtures/" + scenario.replace("images", "image").replace("sounds", "sound") + "-cards.txt" : "scripts/fixtures/dialog-combat.txt")));
                 // Applying a native Forge state on the game thread creates real cards/combat.
                 state.applyToGame(match.getGame());
+                // "tutor": Forge's own shuffle event proves the library search shuffled.
+                if (scenario.equals("tutor")) match.getGame().subscribeToEvents(new Object() {
+                    @com.google.common.eventbus.Subscribe
+                    public void shuffled(forge.game.event.GameEventShuffle event) { gui.message("SHUFFLED " + event.player().getName()); }
+                });
                 gui.pushStateNow();
                 if (scenario.equals("suite")) exerciseDialogs(gui, match);
             } catch (Exception | AssertionError error) {

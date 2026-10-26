@@ -1,0 +1,10 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Wishclaw Talisman|Set:ELD|Counters:WISH=3;Island|Set:M11;Island|Set:M11
+p1battlefield=Forest|Set:M11
+p0library=Lightning Bolt|Set:M11;Llanowar Elves|Set:M11;Serra Angel|Set:M11;Forest;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

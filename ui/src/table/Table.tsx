@@ -219,6 +219,20 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const promptText = waitingFor
     ? t('waitingFor', { name: waitingFor.name }) + (waited >= 5 ? ` · ${t('waitingSeconds', { n: waited })}` : '')
     : prompt.message.split('\n').join(' ');
+  // Shared by the bar and the off-table cards viewer (library searches), which must offer the same answer.
+  const promptButtons = <>
+    {prompt.cancel.label && (
+      <button type="button" className="btn btn--ghost" disabled={!prompt.cancel.enabled} onClick={() => send({ type: 'action', action: 'cancel' })}>
+        {prompt.cancel.label}
+      </button>
+    )}
+    {prompt.ok.label && (
+      <button type="button" className={`btn btn--primary ${respond ? 'is-attention' : ''}`} disabled={!prompt.ok.enabled}
+        onClick={() => send({ type: 'action', action: 'ok' })} title={okHint}>
+        {okLabel}
+      </button>
+    )}
+  </>;
   const activeTrack = PHASE_TRACK.findIndex((step) => game.phase && step.phases.includes(game.phase));
   const currentStep = phaseKey(game.phase);
   const myTurn = game.activePlayerId === me.id;
@@ -300,17 +314,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
           <span className="bar__buttons">
             {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
-            {prompt.cancel.label && (
-              <button type="button" className="btn btn--ghost" disabled={!prompt.cancel.enabled} onClick={() => send({ type: 'action', action: 'cancel' })}>
-                {prompt.cancel.label}
-              </button>
-            )}
-            {prompt.ok.label && (
-              <button type="button" className={`btn btn--primary ${respond ? 'is-attention' : ''}`} disabled={!prompt.ok.enabled}
-                onClick={() => send({ type: 'action', action: 'ok' })} title={okHint}>
-                {okLabel}
-              </button>
-            )}
+            {promptButtons}
             {!sideOpen && !game.gameOver && !me.hasLost && (
               <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>
             )}
@@ -366,8 +370,13 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
       {zone && !menuOpen && !engine.choice && (() => {
         const owner = game.players.find((p) => p.id === zone.playerId);
-        return owner && <ZoneViewer player={owner} zone={zone.zone} ctx={ctx} onClose={() => setZone(null)} />;
+        // Most recent on top, like the physical pile.
+        return owner && <ZoneViewer title={`${t(zone.zone)} · ${owner.name}`} cards={[...owner.zones[zone.zone]].reverse()} ctx={ctx} onClose={() => setZone(null)} />;
       })()}
+
+      {prompt.cards.length > 0 && !menuOpen && !engine.choice && (
+        <ZoneViewer title={prompt.message.split('\n').pop() ?? ''} cards={prompt.cards} ctx={ctx}><span className="bar__buttons">{promptButtons}</span></ZoneViewer>
+      )}
 
       {engine.choice && <ChoiceDialog key={engine.choice.id} choice={engine.choice} answer={engine.answer} onHover={setHovered} cards={game} />}
 
