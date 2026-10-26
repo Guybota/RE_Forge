@@ -82,12 +82,13 @@ docs/       PLAN.md (roadmap).
 - Leaving a match from the menu concedes (Forge confirms) and goes home; `useEngine` ignores the old match's late
   states and questions after `leaveGame` until a new match starts.
 - `table/ZoneViewer.tsx` — a player's graveyard or exile (the counters in `PlayerArea` open it). Usable cards, e.g. flashback,
-  are cast from here; face-down cards stay hidden.
+  are cast from here; face-down cards stay hidden. It also shows the cards a prompt offers off the table
+  (`prompt.cards`: a library search, an opponent's hand), with the prompt's buttons, until the prompt moves on.
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
 
 `engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
-fixture (`--scenario suite|combat|images|zones|table|sounds|animations`, `table` = busy four-player board, `sounds` = known spells and attacker,
-`animations` = legendary mythic, equipment, counters, mill and discard,
+fixture (`--scenario suite|combat|images|zones|table|sounds|animations|tutor`, `table` = busy four-player board, `sounds` = known spells and attacker,
+`animations` = legendary mythic, equipment, counters, mill and discard, `tutor` = Wishclaw Talisman library search,
 fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 
 ## Environment (Windows dev machine)
@@ -122,6 +123,7 @@ npm run engine:smoke-relay   # netplay through local Worker (SMOKE_ONLINE_HUMANS
 npm run engine:smoke-online-lobby # leave/rejoin, closed window, host closes room, kick (--relay; RE_FORGE_RELAY_URL tests the published relay)
 npm run engine:smoke-settings # persist across restart; change phase stops live, skin and language guard
 npm run engine:smoke-dialogs  # deterministic choice validation, native scry/surveil and real double-block combat
+npm run engine:smoke-tutor    # Wishclaw Talisman in pt-BR: library search from the table and its prompt, card to hand, shuffle, opponent gains control
 npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
 npm run engine:smoke-images   # image URLs (cards, tokens), per-language cache, English fallback, retries
 ```
@@ -163,6 +165,8 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 - `forge/.mvn/maven.config` points at a settings file relative to `forge/`; the root reactor build avoids it.
 - Java-WebSocket's ping timeout closed idle local connections (code 1006) → `setConnectionLostTimeout(0)`.
 - Forge's priority prompt starts with Priority/Turn/Phase/Stack lines; `WebGuiGame` strips them in any language.
+- Forge's `UI_SELECT_FROM_CARD_DISPLAYS` (on) makes searches click cards "in their zone", library included, instead of
+  asking a choice: `GameSnapshot` sends those off-table selectables in `prompt.cards` and `ZoneViewer` shows them.
 - Forge only marks playable/attacking/blocking cards (`actionable`) when `UI_SHOW_ACTIONABLE_HIGHLIGHTS` is on.
 - `ImageFetcher` asserts it runs on the GUI thread, so `ImageServer` builds Scryfall URLs itself (`ImageUtil`;
   tokens via `CardEdition.getTokens`). Collector numbers differ between printings: check real ones (e.g. Bolt M11 = 149).
@@ -170,6 +174,8 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
   Available"; only the card JSON's `image_status` (`placeholder`) tells. `ImageServer` checks it before non-English downloads.
 - Forge has no Portuguese `Lang` (ordinals, possessives) and fell back to English ("2nd", "X's Upkeep"):
   `LangPortuguese` is registered for pt-BR before `FModel.initialize`.
+  Forge's pt-BR zone prompts put the possessive first ("de {0} {1}" → "de de você grimório"); `LangPortuguese.fixMessages`
+  overrides those seven keys after Forge loads its messages (start and language change).
 - `UI_PREFERRED_ART` is `ORIGINAL_ART_CORE_EXPANSIONS_REPRINT_ONLY`: "latest" picked promos and sets Forge lists before
   release (no picture on Scryfall).
 - Smoke-test bots must act on the latest state, not on prompt text (prompts can be empty or repeat).

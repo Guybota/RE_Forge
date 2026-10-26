@@ -43,6 +43,7 @@ public final class Main {
         Settings settings = new Settings(new File(data));
         LangPortuguese.register();
         FModel.initialize(null, settings::applyTo);
+        LangPortuguese.fixMessages();
 
         int imagePort = new ImageServer().start();
         EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card", settings, matches);
