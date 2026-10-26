@@ -18,9 +18,12 @@ import { CardZoomProvider } from './table/CardZoom';
 import { useEngine } from './useEngine';
 import './App.css';
 import { installClickSounds } from './audio/sounds';
+import { installAppearanceSettings } from './settings/appearancePrefs';
+import './settings/appearance.css';
 
 export default function App() {
   useEffect(installClickSounds, []);
+  useEffect(installAppearanceSettings, []);
   const engine = useEngine();
   const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.

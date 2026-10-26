@@ -62,6 +62,12 @@
   --danger: #b9472e;
   --danger-text: #ff8a6e;
   --select: #f3d58a;
+  --focus-table: #8fd6c2;
+  --focus-panel: #006b57;
+  --focus: var(--focus-table);
+  --playable: #8fd6c2;
+  --chosen: #f3d58a;
+  --damage-ink: #ff8a6e;
   --anim-ring: #e8a33d;
   --select-ink: #1c1a17;
   --life-gain: #8fd18a;
@@ -121,6 +127,12 @@
   --danger: #b3361f;
   --danger-text: #b3361f;
   --select: #2f6fd0;
+  --focus-table: #2f6fd0;
+  --focus-panel: #2f6fd0;
+  --focus: var(--focus-table);
+  --playable: #24663b;
+  --chosen: #2f6fd0;
+  --damage-ink: #ff8a6e;
   --anim-ring: #c2410c;
   --select-ink: #ffffff;
   --life-gain: #23763a;
@@ -181,6 +193,12 @@
   --danger: #8e2f1c;
   --danger-text: #8e2f1c;
   --select: #b8954a;
+  --focus-table: #765518;
+  --focus-panel: #765518;
+  --focus: var(--focus-table);
+  --playable: #3a5c37;
+  --chosen: #765518;
+  --damage-ink: #ff8a6e;
   --anim-ring: #a0522d;
   --select-ink: #1c1408;
   --life-gain: #3d6b2a;
@@ -240,6 +258,12 @@
   --danger: #ff6b4a;
   --danger-text: #ff6b4a;
   --select: #ffb000;
+  --focus-table: #ffb000;
+  --focus-panel: #ffb000;
+  --focus: var(--focus-table);
+  --playable: #5fd07a;
+  --chosen: #ffb000;
+  --damage-ink: #8e2f1c;
   --anim-ring: #ff5f1f;
   --select-ink: #0c0c0c;
   --life-gain: #4ade80;
@@ -283,9 +307,11 @@ button {
 }
 
 :focus-visible {
-  outline: 2px solid var(--select);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
+/* Focus is scoped to the surface, rather than reusing a selection fill. */
+.choice, .side, .float-preview, .float-stack { --focus: var(--focus-panel); }
 /* Fields already have a border: the ring hugs it instead of drawing a second box around it. */
 .input:focus-visible, textarea.input:focus-visible { outline-offset: -1px; }
 

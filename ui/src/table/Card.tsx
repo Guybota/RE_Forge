@@ -1,8 +1,8 @@
-import { useContext, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
 import { colorKey, manaSymbols } from './cards';
-import { CardZoom } from './CardZoom';
+import { useCardInspection } from './useCardInspection';
 import { useT } from '../i18n';
 
 type Props = {
@@ -23,26 +23,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
   // In hand the card is shown as printed; on the table the drawn frame stays compact and readable.
   const [fullFailed, setFullFailed] = useState<string | null>(null);
   const t = useT();
-  const zoom = useContext(CardZoom);
-  // Touch has no right click: a long press zooms instead, and the click that ends it is swallowed.
-  const press = useRef<number | undefined>(undefined);
-  const longPressed = useRef(false);
-  const endPress = () => window.clearTimeout(press.current);
-  const zoomProps = {
-    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); zoom(card); },
-    onPointerDown: (e: React.PointerEvent) => {
-      if (e.pointerType !== 'touch') return;
-      longPressed.current = false;
-      press.current = window.setTimeout(() => { longPressed.current = true; zoom(card); }, 450);
-    },
-    onPointerUp: endPress,
-    onPointerCancel: endPress,
-    onPointerLeave: endPress,
-  };
-  const click = onClick && (() => {
-    if (longPressed.current) { longPressed.current = false; return; }
-    onClick();
-  });
+  const zoomProps = useCardInspection(card);
   const requestedFull = size === 'hand' ? cardImage(card.imageKey, 'full') : null;
   const full = requestedFull !== fullFailed ? requestedFull : null;
 
@@ -63,7 +44,11 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
     count > 1 && 'card--pile',
   ].filter(Boolean).join(' ');
   const pile = (count > 1 || badge) && <span className="card__count" title={badge?.title} aria-hidden={!badge}>{badge ? badge.text : `×${count}`}</span>;
-  const label = count > 1 ? `${card.name} ×${count}` : card.name;
+  const states = [chosen && t('cardSelected'), selectable && t('cardSelectable'), card.actionable && t('cardAvailable'), target && t('cardTarget')].filter(Boolean);
+  const label = [count > 1 ? `${card.name} ×${count}` : card.name, ...states].filter(Boolean).join(', ');
+  const stateMark = chosen
+    ? <span className="card__state" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m3 8 3 3 7-7" /></svg></span>
+    : card.actionable && <span className="card__state card__state--available" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m6 3 6 5-6 5Z" /></svg></span>;
 
   if (full) {
     return (
@@ -71,7 +56,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
         type="button"
         className={classes}
         data-card-id={card.id}
-        onClick={click}
+        onClick={onClick}
         {...zoomProps}
         onMouseEnter={() => onHover?.(card)}
         onMouseLeave={() => onHover?.(null)}
@@ -81,6 +66,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
       >
         <img src={full} alt="" decoding="async" onError={() => setFullFailed(full)} />
         {pile}
+        {stateMark}
       </button>
     );
   }
@@ -95,7 +81,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
       role={onClick ? undefined : 'img'}
       className={classes}
       data-card-id={card.id}
-      onClick={click}
+      onClick={onClick}
       {...zoomProps}
       onMouseEnter={() => onHover?.(card)}
       onMouseLeave={() => onHover?.(null)}
@@ -104,6 +90,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
       aria-pressed={chosen}
     >
       {pile}
+      {stateMark}
       {card.commander && size !== 'mini' && <span className="card__tag">{t('commander')}</span>}
       <span className="card__top">
         <span className="card__name">{card.name}</span>

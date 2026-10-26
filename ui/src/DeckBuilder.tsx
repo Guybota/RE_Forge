@@ -1,11 +1,12 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GROUPS } from './DeckCards';
 import { DeckStatistics } from './DeckStatistics';
 import { decklist, replacePrinting, matchesDeckFilter, type DeckFilter } from './deckAnalysis';
 import type { CatalogCard, DeckDetail, Printings } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
-import { CardZoom } from './table/CardZoom';
+import { InspectableCard } from './table/CardInspection';
+import { cardForInspection } from './table/useCardInspection';
 import { manaSymbols } from './table/cards';
 import { ArtIcon, CrownIcon } from './table/icons';
 import type { Engine } from './useEngine';
@@ -23,7 +24,6 @@ let nextCatalogRequest = 0;
 /** Build or change a Commander deck: catalog on the left, the deck on the right. */
 export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initial?: DeckDetail; onDone: (saved: string | null) => void }) {
   const t = useT();
-  const zoom = useContext(CardZoom);
   const { send } = engine;
   const [name, setName] = useState(initial?.name ?? '');
   const [entries, setEntries] = useState<Entry[]>(() => (initial?.lines ?? [])
@@ -131,7 +131,6 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
     .reduce((n, e) => n + e.qty, 0));
   const tallest = Math.max(1, ...curve);
   const picture = hovered ? cardImage(hovered.imageKey, 'full') : null;
-  const zoomOn = (c: CatalogCard) => (e: React.MouseEvent) => { e.preventDefault(); zoom({ id: -1, name: c.name, imageKey: c.imageKey }); };
 
   return (
     <main className="builder">
@@ -181,11 +180,11 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
           <ul className="builder__results">
             {shownResults.map((c) => (
               <li key={c.nameEn}>
-                <button type="button" className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
-                  onClick={() => add(c)} onContextMenu={zoomOn(c)} onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)}>
+                <InspectableCard as="button" card={cardForInspection(c)} className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
+                  onClick={() => add(c)} onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(c)}>
                   <img src={cardImage(c.imageKey, 'full') ?? undefined} alt="" loading="lazy" decoding="async" />
                   <span>{c.name}</span>
-                </button>
+                </InspectableCard>
               </li>
             ))}
           </ul>
@@ -220,7 +219,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
                 </div>
                 <ul className="import__lines builder__lines">
                   {lines.map((e) => (
-                    <li key={`${e.imageKey}:${e.commander}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onContextMenu={zoomOn(e)}>
+                    <InspectableCard as="li" card={cardForInspection(e)} key={`${e.imageKey}:${e.commander}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(e)}>
                       <button type="button" className="builder__step" aria-label={t('removeCard', { name: e.name })} onClick={() => setQty(e, -1)}>−</button>
                       <span className="import__qty">{e.qty}</span>
                       <span className="builder__name" title={`${e.name} · ${e.set} #${e.number}`}>{e.name}</span>
@@ -237,7 +236,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
                       <button type="button" className="builder__step" title={t('changePrinting')} aria-label={t('changePrinting')} onClick={() => setPrintingsOf(e)}>
                         <ArtIcon /><span className="builder__edition">{e.set}</span>
                       </button>
-                    </li>
+                    </InspectableCard>
                   ))}
                 </ul>
               </section>
@@ -263,7 +262,6 @@ function PrintingsDialog({ title, printings, current, onClose, onPick, onRetry }
   onRetry: () => void;
 }) {
   const t = useT();
-  const zoom = useContext(CardZoom);
   const ref = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState('');
   const [timedOut, setTimedOut] = useState(false);
@@ -295,15 +293,14 @@ function PrintingsDialog({ title, printings, current, onClose, onPick, onRetry }
           {timedOut && <button type="button" className="btn btn--ghost" onClick={() => { setTimedOut(false); setAttempt(n => n + 1); onRetry(); }}>{t('retryPrintings')}</button>}
         </li> : !visible?.length ? <li className="builder__printing-message" role="status">{t('noPrintings')}</li> : visible.map((p) => (
           <li key={p.imageKey}>
-            <button type="button" className={`builder__result ${p.imageKey === current ? 'is-on' : ''}`} aria-pressed={p.imageKey === current}
+            <InspectableCard as="button" card={{ id: -1, name: title, imageKey: p.imageKey }} className={`builder__result ${p.imageKey === current ? 'is-on' : ''}`} aria-pressed={p.imageKey === current}
               aria-label={`${p.setName} (${p.set}) #${p.number} · ${t('printingArt', { n: p.artIndex })}`}
-              title={`${p.setName} (${p.set}) #${p.number}`} onClick={() => onPick(p)}
-              onContextMenu={e => { e.preventDefault(); zoom({ id: -1, name: title, imageKey: p.imageKey }); }}>
+              title={`${p.setName} (${p.set}) #${p.number}`} onClick={() => onPick(p)}>
               <img src={cardImage(p.imageKey, 'full') ?? undefined} alt={`${title} · ${p.set} #${p.number}`} loading="lazy" decoding="async" />
               <span>{p.setName}</span>
               <span className="muted">{p.set} #{p.number} · {t('printingArt', { n: p.artIndex })}</span>
               {p.imageKey === current && <span className="builder__current-printing">{t('currentPrinting')}</span>}
-            </button>
+            </InspectableCard>
           </li>
         ))}
       </ul>

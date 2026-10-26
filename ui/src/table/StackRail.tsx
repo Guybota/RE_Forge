@@ -1,8 +1,8 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
-import { CardZoom } from './CardZoom';
+import { InspectableCard } from './CardInspection';
 
 /**
  * The stack, drawn once, like Arena: a column of cards at the right of the battlefield while something waits to
@@ -15,7 +15,6 @@ export function StackRail({ game, allCards, names, onHover }: {
   game: GameState; allCards: CardState[]; names: Map<number, string>; onHover: (card: CardState | null) => void;
 }) {
   const t = useT();
-  const zoom = useContext(CardZoom);
   const [folded, setFolded] = useState(false);
   const size = game.stack.length;
   const previous = useRef(size);
@@ -37,14 +36,14 @@ export function StackRail({ game, allCards, names, onHover }: {
           const owner = game.players.length > 2 && s.controllerId !== null ? names.get(s.controllerId) : undefined;
           const art = card?.imageKey ? cardImage(card.imageKey, s.isSpell ? 'full' : 'crop') : null;
           return (
-            <li key={s.id} data-stack-id={s.id} data-hover-card={card?.id} className={`stack-rail__item ${i === 0 ? 'is-next' : ''} ${s.isSpell ? '' : 'is-ability'}`}
+            <InspectableCard as="li" card={card} key={s.id} data-stack-id={s.id} data-hover-card={card?.id} className={`stack-rail__item ${i === 0 ? 'is-next' : ''} ${s.isSpell ? '' : 'is-ability'}`}
               aria-current={i === 0 || undefined} title={i === 0 ? `${t('resolvesNext')}: ${s.text}` : s.text}
-              onMouseEnter={card ? () => onHover(card) : undefined} onMouseLeave={card ? () => onHover(null) : undefined}
-              onContextMenu={card?.imageKey ? (e) => { e.preventDefault(); zoom({ id: card.id, name: card.name, imageKey: card.imageKey }); } : undefined}>
+              onFocus={card ? () => onHover(card) : undefined}
+              onMouseEnter={card ? () => onHover(card) : undefined} onMouseLeave={card ? () => onHover(null) : undefined}>
               {s.isSpell && art ? <img src={art} alt={s.text} />
                 : <div className="stack-rail__ability">{art && <img src={art} alt="" />}<p>{s.text}</p></div>}
               {owner && <span className="stack-rail__owner">{owner}</span>}
-            </li>
+            </InspectableCard>
           );
         })}
       </ol>}

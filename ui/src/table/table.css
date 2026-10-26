@@ -103,12 +103,12 @@
   cursor: default;
 }
 .life.is-chosen {
-  outline: 3px solid var(--danger);
+  outline: 4px double var(--chosen);
   outline-offset: 3px;
 }
 .life.is-selectable {
   cursor: pointer;
-  outline: 3px solid var(--select);
+  outline: 3px dashed var(--focus-table);
   outline-offset: 3px;
 }
 
@@ -187,11 +187,16 @@
   --lift: -14px;
   box-shadow: var(--card-shadow-lifted);
 }
-.card.is-selectable { outline: 3px solid var(--select); outline-offset: 2px; }
-.card.is-chosen { outline: 3px solid var(--danger); outline-offset: 2px; }
+.card.is-selectable { outline: 3px dashed var(--focus); outline-offset: 2px; }
+.card.is-chosen { outline: 4px double var(--chosen); outline-offset: 2px; }
 /* Forge's "you can use this now": playable, can attack, can block. */
-.card.is-actionable { box-shadow: 0 0 0 2px var(--select), var(--card-shadow); }
+.card.is-actionable { box-shadow: 0 0 0 2px var(--playable), var(--card-shadow); }
 .card.is-target { outline: 2px dashed var(--on-table); outline-offset: 5px; }
+.card:focus-visible, .life:focus-visible { outline: 3px solid var(--focus); outline-offset: 7px; }
+.life.is-selectable.is-chosen { outline: 4px double var(--chosen); }
+.card__state { position: absolute; z-index: 3; left: 3px; top: 3px; width: 18px; height: 18px; display: grid; place-items: center; background: var(--card-ink); color: var(--card-bg); border-radius: var(--card-radius); pointer-events: none; }
+.card__state svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
+.card__state--available { top: auto; bottom: 3px; }
 .card:hover { --lift: -4px; }
 .card.is-attacking:hover { --lift: -18px; }
 
@@ -295,7 +300,7 @@
   font-size: 11px;
   font-weight: 600;
 }
-.card__pt em { font-style: normal; color: var(--danger-text); }
+.card__pt em { font-style: normal; color: var(--damage-ink); }
 .card__counters {
   position: absolute;
   left: 4px;
@@ -335,12 +340,14 @@
 /* ---------- centre bar */
 
 .bar {
-  flex: 0 0 64px;
-  display: flex;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'turn phases phases' 'prompt prompt buttons';
   align-items: center;
-  gap: 16px;
+  gap: 6px 16px;
   margin: 0 16px;
-  padding: 0 8px;
+  padding: 8px;
   border-block: 1px solid var(--table-line);
 }
 .bar.is-shaking { animation: shake 0.4s; }
@@ -349,12 +356,14 @@
   75% { transform: translateX(6px); }
 }
 .bar__turn {
+  grid-area: turn;
   font-family: var(--font-display);
   font-size: 15px;
   color: var(--on-table-muted);
   white-space: nowrap;
 }
 .bar__phases {
+  grid-area: phases;
   display: flex;
   gap: 2px;
   margin: 0;
@@ -366,15 +375,15 @@
 .bar__phases li { padding: 5px 9px; border-radius: var(--radius-control); white-space: nowrap; }
 .bar__phases li.is-current { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .bar__prompt {
-  flex: 1;
+  grid-area: prompt;
   min-width: 0;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
-.bar__buttons { display: flex; gap: 10px; }
+.bar > .bar__buttons { grid-area: buttons; justify-content: flex-end; }
+.bar__buttons { display: flex; flex-wrap: wrap; gap: 10px; }
 /* A narrow table column (side panel open on a small window) keeps only the current phase, so the buttons fit. */
 .table__main { container-type: inline-size; }
 @container (max-width: 980px) {
@@ -565,6 +574,7 @@
 .choice__preview h3 { font-family: var(--font-display); font-weight: var(--display-weight); margin: 0 0 8px; }
 .choice__preview p { white-space: pre-line; font-size: 13px; }
 .choice__error { color: var(--danger); }
+.choice__constraint { align-self: center; margin-right: auto; color: var(--panel-ink-muted); }
 .choice__search { width: 100%; margin-bottom: 12px; }
 .choice__ordered-row { display: flex; align-items: center; gap: 6px; }
 .choice__ordered-row .choice__option { flex: 1; min-width: 0; }
@@ -768,7 +778,7 @@
   .table--narrow .player--collapsed { width: auto; }
   .table--narrow .player--collapsed .player__head { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
   .table--narrow .opponents--1 { flex: 1 1 0; }
-  .table--narrow .bar { flex-wrap: wrap; row-gap: 6px; padding: 8px 12px; }
+  .table--narrow .bar { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'turn buttons' 'prompt prompt'; row-gap: 6px; padding: 8px 12px; }
   .table--narrow .bar__phases { display: none; }
   .table--narrow .bar__prompt { order: 3; flex-basis: 100%; white-space: normal; }
   .table--narrow .player { padding: 8px 12px; }
@@ -874,7 +884,8 @@
 .stack-rail__count { display: inline-block; min-width: 1.6em; margin-left: 4px; padding: 0 6px; border-radius: var(--radius-control); background: var(--select); color: var(--select-ink); text-align: center; }
 .stack-rail__items { position: absolute; top: calc(100% + 8px); right: 8px; z-index: 6; list-style: none; margin: 0; padding: 4px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-height: 60vh; overflow-y: auto; }
 .stack-rail__item { position: relative; width: 104px; border-radius: var(--card-radius); box-shadow: var(--card-shadow); transition: transform 0.12s ease; cursor: help; }
-.stack-rail__item.is-next { width: 156px; outline: 3px solid var(--select); outline-offset: 2px; box-shadow: var(--card-shadow-lifted); }
+.stack-rail__item.is-next { width: 156px; outline: 3px solid var(--focus-table); outline-offset: 2px; box-shadow: var(--card-shadow-lifted); }
+.stack-rail__item:focus-visible { outline: 3px solid var(--focus-table); outline-offset: 6px; }
 .stack-rail__item:hover { transform: translateX(-6px); }
 .stack-rail__item > img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: var(--card-radius); }
 .stack-rail__ability { overflow: hidden; border-radius: var(--card-radius); background: var(--panel); color: var(--panel-ink); border: var(--panel-edge); }

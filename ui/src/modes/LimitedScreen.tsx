@@ -1,9 +1,10 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CatalogCard, LimitedEvent, LimitedMode, PoolCard } from '../engine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
 import { manaSymbols } from '../table/cards';
-import { CardZoom } from '../table/CardZoom';
+import { InspectableCard } from '../table/CardInspection';
+import { cardForInspection } from '../table/useCardInspection';
 import type { Engine } from '../useEngine';
 import './modes.css';
 
@@ -80,14 +81,12 @@ export function LimitedScreen({ mode, engine, onBack }: { mode: LimitedMode; eng
 function CardTile({ card, label, onClick, onDoubleClick, selected, count }: {
   card: CatalogCard; label: string; onClick: () => void; onDoubleClick?: () => void; selected?: boolean; count?: number;
 }) {
-  const zoom = useContext(CardZoom);
   return (
-    <button type="button" className={`builder__result ${selected ? 'is-on' : ''}`} aria-label={label} aria-pressed={selected}
-      onClick={onClick} onDoubleClick={onDoubleClick} title={card.name}
-      onContextMenu={(e) => { e.preventDefault(); zoom({ id: -1, name: card.name, imageKey: card.imageKey }); }}>
+    <InspectableCard as="button" card={cardForInspection(card)} className={`builder__result ${selected ? 'is-on' : ''}`} aria-label={label} aria-pressed={selected}
+      onClick={onClick} onDoubleClick={onDoubleClick} title={card.name}>
       <img src={cardImage(card.imageKey, 'full') ?? undefined} alt="" loading="lazy" decoding="async" />
       {count !== undefined && count > 1 && <span className="modes__count">×{count}</span>}
-    </button>
+    </InspectableCard>
   );
 }
 
@@ -126,7 +125,7 @@ function DeckLine({ card, onClick, label }: { card: PoolCard; onClick?: () => vo
     <span className="modes__line-name">{card.name}</span>
     <span className="builder__cost">{manaSymbols(card.cost).map((s, i) => <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>)}</span>
   </>;
-  return <li className="modes__line">{onClick ? <button type="button" aria-label={label} onClick={onClick}>{content}</button> : <div>{content}</div>}</li>;
+  return <li className="modes__line"><InspectableCard as={onClick ? 'button' : 'div'} card={cardForInspection(card)} aria-label={label} onClick={onClick}>{content}</InspectableCard></li>;
 }
 
 function EventView({ engine, event }: { engine: Engine; event: LimitedEvent }) {

@@ -1,0 +1,35 @@
+.choice.settings-dialog {
+  --focus: var(--focus-panel);
+  width: min(720px, calc(100vw - 24px));
+  max-width: none;
+  max-height: calc(100dvh - 24px);
+  padding: 20px;
+}
+.settings-dialog[open] { display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+.settings-dialog__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: 0 0 auto; }
+.settings-dialog__head .choice__title { margin: 0; }
+.settings-dialog__nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; flex: 0 0 auto; }
+.settings-dialog__nav .btn { padding-inline: 8px; min-height: 44px; height: auto; white-space: normal; overflow-wrap: anywhere; }
+.settings-dialog__nav [aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--panel-ink); }
+.settings-dialog__section-picker { display: none; flex: 0 0 auto; width: 100%; }
+.settings-dialog__body { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 4px; }
+.settings-dialog__field { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr); gap: 16px; align-items: center; margin-block: 12px; }
+.settings-dialog__field .input { width: 100%; min-width: 0; }
+.settings-dialog .input { color: var(--panel-ink); border-color: var(--panel-line); }
+.settings-dialog .btn--ghost { border-color: var(--panel-ink-muted); }
+.settings-dialog .error { color: var(--danger); margin: 0; }
+.settings-dialog__reset, .settings-dialog__footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.settings-dialog__reset { margin-top: 16px; }
+.settings-dialog__footer { flex: 0 0 auto; border-top: 1px solid var(--panel-line); padding-top: 12px; justify-content: flex-end; }
+@media (max-width: 520px) {
+  .choice.settings-dialog { padding: 12px; }
+  .settings-dialog__nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-dialog__field { grid-template-columns: 1fr; gap: 6px; }
+}
+/* A section picker leaves room for the controls in short landscape windows, even at 200% text. */
+@media (max-height: 520px) {
+  .settings-dialog__nav { display: none; }
+  .settings-dialog__section-picker { display: block; }
+  .choice.settings-dialog { padding-block: 12px; }
+  .settings-dialog[open] { gap: 10px; }
+}

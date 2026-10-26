@@ -211,7 +211,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
         setMaximize(null);
         return;
       }
-      if (menuOpen || zone || engine.choice || (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, dialog'))) return;
+      if (menuOpen || zone || engine.choice || (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, dialog, button, a, [role="button"]'))) return;
       if (e.code === 'Space' && prompt.ok.enabled) {
         e.preventDefault();
         send({ type: 'action', action: 'ok' });
@@ -310,8 +310,8 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
             ))}
           </ol>
           <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
-          <StackRail game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
-          <span className="bar__buttons">
+          <div className="bar__buttons">
+            <StackRail game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
             {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
             {promptButtons}
             {!sideOpen && !game.gameOver && !me.hasLost && (
@@ -322,7 +322,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
                 <PanelIcon />
               </button>
             )}
-          </span>
+          </div>
         </div>
 
         <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} priority={priorityOf(me)} ctx={ctx} />

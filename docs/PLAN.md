@@ -19,6 +19,12 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 
 ## Estado (feito)
 
+Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN_PLAN.md](DESIGN_PLAN.md).
+Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,
+definições partilhadas, contraste, estados das cartas, instruções/confirmações da mesa, texto até 200%,
+inspeção universal e orientação em Adventure. Build e sete testes UI passam; testes visuais em landscape.
+Faltam hierarquia do início, seleção visual de decks e arte nos seletores. Ver progresso e limites nesse plano.
+
 | Commit | O quê |
 |---|---|
 | `5e2456c` | Ponte Java (WebSocket), mesa React, Electron, Commander contra 1–3 IAs, testes de fumo |

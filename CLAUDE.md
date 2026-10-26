@@ -68,6 +68,14 @@ docs/       PLAN.md (roadmap).
 - `audio/` — offline Web Audio effects, local volume/mute settings and consecutive-snapshot game cues.
   `App` installs trusted click/keyboard activation once; `useEngine` compares each incoming state before React batches it.
   First snapshots are silent, turns replace simultaneous phase cues, and stack `isSpell` excludes abilities.
+- `settings/SettingsDialog.tsx` — shared main/match settings: appearance, audio, gameplay and accessibility.
+  Only its body scrolls. `GameplaySettings` owns phase-stop saving; language stays disabled during a match.
+  `appearancePrefs.ts` persists text-only scale (100–200%) and density locally; `appearance.css` keeps the
+  existing typographic hierarchy and reflows controls without scaling card art or the viewport.
+- `table/useCardInspection.ts` + `CardInspection.tsx` — shared right-click, long-press and I/Shift+F10
+  inspection for cards, lists, catalogs and shops; touch release never executes the primary action.
+- `campaigns/adventureGuidance.ts` — tracked quest fallback, marker shapes and offscreen waypoint placement.
+  Adventure stores tracking and known place names per campaign locally; map motion follows reduced motion and animation settings.
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
@@ -172,6 +180,7 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 
 - **Design:** no subtitles or descriptions that repeat what is visible. Explanations go in a tooltip (hover on desktop,
   long-press on mobile). No emoji in the UI. Accessibility: real buttons, labels, 44 px targets, visible focus.
+  The app targets **landscape** on every device; validate short landscape windows rather than portrait (owner, 26/10/2026).
 - **Text:** every new UI string goes in `i18n.ts` in both `pt` and `en`. Card logic must use `typeEn`, never `type`.
 - **Skins:** never hard-code a colour, font or radius in component CSS; add or reuse a token and define it in all four skins.
 - **Ids:** card, player and stack ids are separate number spaces. Keep them in separate fields/lists.

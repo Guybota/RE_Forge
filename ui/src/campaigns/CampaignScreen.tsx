@@ -1,8 +1,9 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AtlasSprite, CampaignMode, CampaignRequest, CampaignState } from '../engine';
 import { useT, type MessageKey } from '../i18n';
 import { cardImage } from '../images';
-import { CardZoom } from '../table/CardZoom';
+import { InspectableCard } from '../table/CardInspection';
+import { cardForInspection } from '../table/useCardInspection';
 import type { Engine } from '../useEngine';
 import { AdventureMap } from './AdventureMap';
 import './campaigns.css';
@@ -20,7 +21,6 @@ export function CampaignScreen({ mode, engine, onBack }: { mode: CampaignMode; e
   const list = engine.campaigns?.mode === mode ? engine.campaigns : null;
   useEffect(() => { send({ type: 'campaign', action: 'list', mode }); }, [send, mode]);
   const goBack = () => { send({ type: 'campaign', action: 'close' }); onBack(); };
-  const zoom = useContext(CardZoom);
   return (
     <main className="campaign">
       <header className="campaign__head">
@@ -65,7 +65,7 @@ export function CampaignScreen({ mode, engine, onBack }: { mode: CampaignMode; e
         {tab === 'deck' ? <CampaignDeck key={campaign.id} campaign={campaign} send={send} error={engine.error} /> : tab === 'shop' && campaign.mode === 'quest' ? (
           <section className="campaign__shop" aria-label={t('shop')}>
             {campaign.shop.length === 0 && <p className="muted">{t('campaignShopEmpty')}</p>}
-            {campaign.shop.map(card => <article className="campaign__shop-card" key={card.key} onContextMenu={e => { e.preventDefault(); zoom({ id: -1, name: card.name, imageKey: card.imageKey }); }}><img src={cardImage(card.imageKey, 'full') ?? undefined} alt={card.name} loading="lazy" /><strong>{card.name}</strong><button type="button" className="btn btn--primary" disabled={card.price > campaign.credits} aria-label={t('buyCard', { name: card.name, n: card.price })} onClick={() => send({ type: 'campaign', action: 'buy', key: card.key })}>{t('campaignCredits', { n: card.price })}</button></article>)}
+            {campaign.shop.map(card => <InspectableCard as="article" card={cardForInspection(card)} className="campaign__shop-card" key={card.key}><img src={cardImage(card.imageKey, 'full') ?? undefined} alt={card.name} loading="lazy" /><strong>{card.name}</strong><button type="button" className="btn btn--primary" disabled={card.price > campaign.credits} aria-label={t('buyCard', { name: card.name, n: card.price })} onClick={() => send({ type: 'campaign', action: 'buy', key: card.key })}>{t('campaignCredits', { n: card.price })}</button></InspectableCard>)}
           </section>
         ) : campaign.mode === 'quest' ? (
           <section className="campaign__duels" aria-label={t('duels')}>{campaign.duels.map(duel => <article className="campaign__duel" key={duel.id}><h2 title={duel.description}>{duel.name}</h2><span>{duel.difficulty}</span><button type="button" className="btn btn--primary" onClick={() => send({ type: 'campaign', action: 'duel', target: duel.id })}>{t('fight')}</button></article>)}</section>
@@ -90,7 +90,7 @@ function AtlasPortrait({ sprite, base }: { sprite?: AtlasSprite; base?: string }
 }
 
 function CampaignDeck({ campaign, send, error }: { campaign: CampaignState; send: (r: CampaignRequest) => void; error: string | null }) {
-  const t = useT(); const zoom = useContext(CardZoom);
+  const t = useT();
   const [quantities, setQuantities] = useState(() => Object.fromEntries(campaign.cards.map(c => [c.key, c.qty])));
   const [query, setQuery] = useState(''); const [saving, setSaving] = useState(false); const [saved, setSaved] = useState(false);
   const atSave = useRef(campaign);
@@ -98,6 +98,6 @@ function CampaignDeck({ campaign, send, error }: { campaign: CampaignState; send
   const count = useMemo(() => Object.values(quantities).reduce((sum, n) => sum + n, 0), [quantities]);
   return <section className="campaign-deck">
     <div className="campaign-deck__bar"><input className="input" type="search" aria-label={t('searchCards')} placeholder={t('searchCards')} value={query} onChange={e => setQuery(e.target.value)} /><strong title={t('campaignDeckMinimum')}>{t('campaignDeckSize', { n: count })}</strong><button className="btn btn--primary" type="button" disabled={count < 40 || saving && !error} onClick={() => { atSave.current = campaign; setSaving(true); setSaved(false); send({ type: 'campaign', action: 'deck', entries: campaign.cards.map(c => ({ key: c.key, qty: quantities[c.key] ?? 0 })) }); }}>{t('save')}</button>{saved && <span role="status">{t('campaignDeckSaved')}</span>}</div>
-    <div className="campaign-deck__cards">{campaign.cards.filter(c => `${c.name} ${c.nameEn}`.toLowerCase().includes(query.toLowerCase())).map(c => <article className="campaign-deck__card" key={c.key} onContextMenu={e => { e.preventDefault(); zoom({ id: -1, name: c.name, imageKey: c.imageKey }); }}><img src={cardImage(c.imageKey, 'full') ?? undefined} alt={c.name} loading="lazy" /><strong>{c.name}</strong><div title={t('ownedCards', { n: c.owned })}><button type="button" className="btn btn--ghost" aria-label={t('less', { name: c.name })} disabled={!quantities[c.key]} onClick={() => { setSaved(false); setQuantities(q => ({ ...q, [c.key]: Math.max(0, (q[c.key] ?? 0) - 1) })); }}>−</button><span>{quantities[c.key] ?? 0}/{c.owned}</span><button type="button" className="btn btn--ghost" aria-label={t('more', { name: c.name })} disabled={(quantities[c.key] ?? 0) >= c.owned} onClick={() => { setSaved(false); setQuantities(q => ({ ...q, [c.key]: (q[c.key] ?? 0) + 1 })); }}>+</button></div></article>)}</div>
+    <div className="campaign-deck__cards">{campaign.cards.filter(c => `${c.name} ${c.nameEn}`.toLowerCase().includes(query.toLowerCase())).map(c => <InspectableCard as="article" card={cardForInspection(c)} className="campaign-deck__card" key={c.key}><img src={cardImage(c.imageKey, 'full') ?? undefined} alt={c.name} loading="lazy" /><strong>{c.name}</strong><div title={t('ownedCards', { n: c.owned })}><button type="button" className="btn btn--ghost" aria-label={t('less', { name: c.name })} disabled={!quantities[c.key]} onClick={() => { setSaved(false); setQuantities(q => ({ ...q, [c.key]: Math.max(0, (q[c.key] ?? 0) - 1) })); }}>−</button><span>{quantities[c.key] ?? 0}/{c.owned}</span><button type="button" className="btn btn--ghost" aria-label={t('more', { name: c.name })} disabled={(quantities[c.key] ?? 0) >= c.owned} onClick={() => { setSaved(false); setQuantities(q => ({ ...q, [c.key]: (q[c.key] ?? 0) + 1 })); }}>+</button></div></InspectableCard>)}</div>
   </section>;
 }

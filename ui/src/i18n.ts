@@ -4,6 +4,15 @@ import { createContext, useContext } from 'react';
 // these cover the rest. Languages without their own table use English.
 
 const pt = {
+  settingsSection: 'Secção das definições',
+  chooseExactly: 'Escolhe {n}.', chooseBetween: 'Escolhe entre {min} e {max}.',
+  confirmChoiceCount: 'Confirmar seleção ({n})', confirmOrderCount: 'Confirmar ordem ({n})', confirmDistribution: 'Confirmar distribuição ({n})',
+  inspectCardHint: 'Inspecionar: clique direito, toque prolongado ou tecla I.',
+  readingSettings: 'Leitura', textScale: 'Tamanho do texto', interfaceDensity: 'Densidade da interface',
+  densityCompact: 'Compacta', densityComfortable: 'Confortável',
+  appearance: 'Aparência', audio: 'Áudio', gameplay: 'Jogabilidade', accessibility: 'Acessibilidade',
+  languageOutsideMatch: 'Podes mudar o idioma fora da partida.',
+  cardAvailable: 'Disponível', cardSelected: 'Selecionada', cardSelectable: 'Pode ser escolhida', cardTarget: 'Alvo',
   soundEffects: 'Efeitos sonoros', enableSounds: 'Ativar sons', soundVolume: 'Volume', testSound: 'Testar som',
   settings: 'Definições', animations: 'Animações', enableAnimations: 'Ativar animações', animationSpeed: 'Velocidade',
   animation_cast: 'Feitiços sobem ao centro e voam para a stack', animation_enter: 'Permanentes entram a levantar e pousar',
@@ -82,6 +91,9 @@ const pt = {
   abandonQuestNamed: 'Abandonar a missão {name}', confirmAbandon: 'Abandonar «{name}»?',
   enterPlace: 'Entrar: {name}', campaignRested: 'Descansaste em {name} e recuperaste toda a vida.',
   adventureMap: 'Mapa de Adventure', adventureControls: 'Usa as setas ou WASD para andar. Aproxima-te de uma cidade, caverna, loja ou inimigo para interagir.',
+  adventureCurrentLocation: 'Local atual', adventureRegion: 'Região', trackedQuest: 'Missão acompanhada',
+  trackQuest: 'Acompanhar', questTracked: 'Acompanhada', trackQuestNamed: 'Acompanhar a missão {name}',
+  mapLegend: 'Legenda do mapa', mapKind_town: 'Cidade', mapKind_shop: 'Loja', mapKind_dungeon: 'Masmorra', mapKind_enemy: 'Inimigo',
   moveUpMap: 'Andar para cima', moveDownMap: 'Andar para baixo', moveLeftMap: 'Andar para a esquerda', moveRightMap: 'Andar para a direita',
   interact: 'Interagir', adventureDefeated: 'Sem vida para combater. Descansa numa cidade para recuperar.',
   campaignDeckSaved: 'Deck guardado.', campaignShopEmpty: 'Não há cartas disponíveis na loja.',
@@ -375,6 +387,15 @@ const pt = {
 export type MessageKey = keyof typeof pt;
 
 const en: Record<MessageKey, string> = {
+  settingsSection: 'Settings section',
+  chooseExactly: 'Choose {n}.', chooseBetween: 'Choose between {min} and {max}.',
+  confirmChoiceCount: 'Confirm selection ({n})', confirmOrderCount: 'Confirm order ({n})', confirmDistribution: 'Confirm distribution ({n})',
+  inspectCardHint: 'Inspect: right-click, touch and hold, or press I.',
+  readingSettings: 'Reading', textScale: 'Text size', interfaceDensity: 'Interface density',
+  densityCompact: 'Compact', densityComfortable: 'Comfortable',
+  appearance: 'Appearance', audio: 'Audio', gameplay: 'Gameplay', accessibility: 'Accessibility',
+  languageOutsideMatch: 'You can change the language outside a match.',
+  cardAvailable: 'Available', cardSelected: 'Selected', cardSelectable: 'Can be chosen', cardTarget: 'Target',
   soundEffects: 'Sound effects', enableSounds: 'Enable sounds', soundVolume: 'Volume', testSound: 'Test sound',
   settings: 'Settings', animations: 'Animations', enableAnimations: 'Enable animations', animationSpeed: 'Speed',
   animation_cast: 'Spells lift to the centre and fly to the stack', animation_enter: 'Permanents enter with lift, hold and drop',
@@ -453,6 +474,9 @@ const en: Record<MessageKey, string> = {
   abandonQuestNamed: 'Abandon the quest {name}', confirmAbandon: 'Abandon “{name}”?',
   enterPlace: 'Enter: {name}', campaignRested: 'You rested in {name} and recovered all your life.',
   adventureMap: 'Adventure map', adventureControls: 'Use the arrow keys or WASD to move. Approach a town, cave, shop or enemy to interact.',
+  adventureCurrentLocation: 'Current location', adventureRegion: 'Region', trackedQuest: 'Tracked quest',
+  trackQuest: 'Track', questTracked: 'Tracked', trackQuestNamed: 'Track the quest {name}',
+  mapLegend: 'Map legend', mapKind_town: 'Town', mapKind_shop: 'Shop', mapKind_dungeon: 'Dungeon', mapKind_enemy: 'Enemy',
   moveUpMap: 'Move up', moveDownMap: 'Move down', moveLeftMap: 'Move left', moveRightMap: 'Move right',
   interact: 'Interact', adventureDefeated: 'No life left to fight. Rest in a town to recover.',
   campaignDeckSaved: 'Deck saved.', campaignShopEmpty: 'No cards are available in the shop.',

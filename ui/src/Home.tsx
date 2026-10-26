@@ -1,14 +1,13 @@
 import { useT } from './i18n';
 import { useState } from 'react';
-import { SettingsDialog } from './audio/SoundSettings';
-import { SKINS } from './skins';
+import { SettingsDialog } from './settings/SettingsDialog';
 import type { Engine } from './useEngine';
 
 export type HomeDestination = 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | 'decks' | 'online' | 'skin' | 'language';
 
 export function Home({ engine, onPick }: { engine: Engine; onPick: (destination: HomeDestination) => void }) {
   const t = useT(); const info = engine.info;
-  const [soundOpen, setSoundOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   return (
     <main className="mode-home">
       <header className="mode-home__brand"><h1 title={info ? t('cardCount', { cards: info.cards.toLocaleString(info.language), editions: info.editions }) : undefined}>RE:Forge</h1></header>
@@ -23,12 +22,10 @@ export function Home({ engine, onPick }: { engine: Engine; onPick: (destination:
       <footer className="mode-home__footer">
         <nav aria-label={t('decks')}><button className="btn btn--ghost" type="button" onClick={() => onPick('decks')}>{t('decks')}</button><button className="btn btn--ghost" type="button" onClick={() => onPick('online')}>{t('online')}</button></nav>
         <nav aria-label={t('menu')}>
-          <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setSoundOpen(true)}>{t('settings')}</button>
-          <button type="button" className="btn btn--ghost" onClick={() => onPick('skin')}>{t(SKINS.find(s => s.id === info?.skin)?.name ?? 'skinMesa')}</button>
-          <button type="button" className="btn btn--ghost" onClick={() => onPick('language')}>{info?.languages.find(l => l.code === info.language)?.name ?? t('language')}</button>
+          <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>{t('settings')}</button>
         </nav>
       </footer>
-      {soundOpen && <SettingsDialog onClose={() => setSoundOpen(false)} />}
+      {settingsOpen && <SettingsDialog engine={engine} onClose={() => setSettingsOpen(false)} />}
     </main>
   );
 }

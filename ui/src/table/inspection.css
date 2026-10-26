@@ -1,0 +1,3 @@
+.inspectable-card { -webkit-touch-callout: none; user-select: none; }
+.inspectable-card > img { user-select: none; -webkit-user-drag: none; }
+.inspectable-card:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }

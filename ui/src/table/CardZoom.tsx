@@ -75,8 +75,9 @@ function ZoomDialog({ card, onClose }: { card: CardState; onClose: () => void })
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
+    const source = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
-    return () => dialog?.close();
+    return () => { dialog?.close(); if (source?.isConnected) source.focus({ preventScroll: true }); };
   }, []);
   return (
     <dialog ref={ref} className="zoom" aria-label={card.name} onClick={onClose}

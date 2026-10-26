@@ -1,8 +1,9 @@
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import type { DeckPreview } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
-import { CardZoom } from './table/CardZoom';
+import { InspectableCard } from './table/CardInspection';
+import { cardForInspection } from './table/useCardInspection';
 
 type Line = DeckPreview['lines'][number];
 export const GROUPS: { id: string; label: MessageKey }[] = [
@@ -22,7 +23,6 @@ export function DeckCards({ preview, onCommander, onReplace }: {
   onReplace?: (requested: string, nameEn: string) => void;
 }) {
   const t = useT();
-  const zoom = useContext(CardZoom);
   const [hovered, setHovered] = useState<Line | null>(null);
   const loose = preview.lines.filter((l) => !l.group);
   const picture = hovered?.imageKey ? cardImage(hovered.imageKey, 'full') : null;
@@ -30,15 +30,15 @@ export function DeckCards({ preview, onCommander, onReplace }: {
     const lead = onCommander && l.canCommand && l.group !== 'commander' && l.nameEn;
     const fixes = onReplace && l.requested && l.suggestions?.length ? l.suggestions : null;
     return (
-      <li key={i} className={`import__line import__line--${l.status}${lead || fixes ? ' import__line--actions' : ''}`} title={l.message ?? l.text}
-        onMouseEnter={() => setHovered(l)} onMouseLeave={() => setHovered(null)}
-        onContextMenu={l.imageKey ? (e) => { e.preventDefault(); zoom({ id: -1, name: l.name, imageKey: l.imageKey }); } : undefined}>
+      <InspectableCard as="li" card={l.imageKey ? cardForInspection(l) : null} key={i}
+        className={`import__line import__line--${l.status}${lead || fixes ? ' import__line--actions' : ''}`} title={l.message ?? l.text}
+        onMouseEnter={() => setHovered(l)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(l)}>
         <span className="import__text">{l.group ? <><span className="import__qty">{l.qty}</span> {l.name}</> : l.text}</span>
         {lead && <button type="button" className="import__fix" title={t('makeCommanderHint')} aria-label={t('setCommander', { name: l.name ?? lead })}
           onClick={() => onCommander(lead)}>{t('commander')}</button>}
         {fixes?.map((s) => <button key={s.nameEn} type="button" className="import__fix" title={t('replaceWith', { name: s.nameEn })}
           aria-label={t('replaceWith', { name: s.name })} onClick={() => onReplace!(l.requested!, s.nameEn)}>{s.name}</button>)}
-      </li>
+      </InspectableCard>
     );
   };
 

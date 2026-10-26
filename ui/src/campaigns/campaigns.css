@@ -1,4 +1,4 @@
-.mode-home { min-height: 100vh; max-width: 1180px; margin: auto; padding: clamp(24px, 5vw, 72px); display: flex; flex-direction: column; justify-content: center; gap: 56px; }
+.mode-home { min-height: 100dvh; max-width: 1180px; margin: auto; padding: clamp(20px, 5vh, 56px) clamp(24px, 5vw, 72px); display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 48px); }
 .mode-home__brand h1 { font-family: var(--font-display); font-weight: var(--display-weight); font-size: clamp(48px, 7vw, 88px); margin: 0; line-height: 1; }
 .mode-home__modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--table-line); border-bottom: 1px solid var(--table-line); }
 .mode-home__mode { min-width: 0; min-height: 190px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 36px; padding: 28px; border: 0; border-right: 1px solid var(--table-line); background: transparent; color: var(--on-table); cursor: pointer; text-align: left; font-family: var(--font-display); font-weight: var(--display-weight); font-size: clamp(28px, 3.7vw, 48px); }
@@ -9,6 +9,16 @@
 .mode-home__mode svg { align-self: flex-end; width: 80px; height: 64px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .mode-home__footer, .mode-home__footer nav { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .mode-home__footer { justify-content: space-between; }
+@media (min-width: 761px) and (max-height: 800px) {
+  .mode-home__brand h1 { font-size: clamp(48px, 8vh, 64px); }
+  .mode-home__mode { min-height: 148px; gap: 16px; padding: 20px 24px; font-size: clamp(28px, 3.3vw, 40px); }
+  .mode-home__mode svg { width: 64px; height: 48px; }
+}
+@media (min-width: 761px) and (max-height: 580px) {
+  .mode-home { gap: 16px; padding-block: 16px; }
+  .mode-home__mode { min-height: 108px; flex-direction: row; align-items: center; padding: 16px; }
+  .mode-home__mode svg { width: 48px; height: 40px; align-self: center; }
+}
 .campaign { max-width: 1400px; margin: auto; padding: 28px 40px; min-height: 100vh; }
 .campaign__head { display: flex; align-items: center; gap: 24px; margin-bottom: 32px; }
 .campaign__head > div { flex: 1; min-width: 0; }

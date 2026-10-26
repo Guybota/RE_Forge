@@ -1,8 +1,41 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AdventureObject, AdventureState, AtlasSprite, CampaignRequest, QuestDialog } from '../engine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
-import { CardZoom } from '../table/CardZoom';
+import { InspectableCard } from '../table/CardInspection';
+import { cardForInspection } from '../table/useCardInspection';
+import { getAnimationSettings, subscribeAnimationSettings } from '../table/animationPrefs';
+import { markerForQuest, trackedQuest, questWaypoint, type QuestMarker } from './adventureGuidance';
+import './adventure-guidance.css';
+
+const trackingKey = (id: string) => `reforge.adventure.trackedQuest.${encodeURIComponent(id)}`;
+function savedTracking(id: string) { try { return localStorage.getItem(trackingKey(id)); } catch { return null; } }
+function savedPlace(id: string, region: string): { name: string; kind: string } | undefined {
+  try {
+    const place = JSON.parse(localStorage.getItem(`reforge.adventure.place.${encodeURIComponent(id)}`) ?? 'null');
+    return place?.id === region && typeof place.name === 'string' && ['town', 'dungeon'].includes(place.kind) ? place : undefined;
+  } catch { return undefined; }
+}
+function subscribeReducedMotion(listener: () => void) {
+  const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function MapSymbol({ kind }: { kind: string }) {
+  const paths: Record<string, string> = {
+    town: 'M3 11 12 3l9 8 M6 10v11h12V10 M10 21v-7h4v7',
+    shop: 'M4 9h16v12H4Z M3 9l2-6h14l2 6 M9 21v-7h6v7',
+    dungeon: 'M3 21h18L12 3Z M10 21v-7h4v7',
+    enemy: 'm5 3 14 18 M19 3 5 21 M3 15l6 6 M15 21l6-6',
+    world: 'M3 18 8 5l5 11 4-8 4 10Z',
+    circle: 'M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
+    diamond: 'm12 3 9 9-9 9-9-9Z',
+    square: 'M4 4h16v16H4Z',
+  };
+  return <span className="adventure-guidance__symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d={paths[kind] ?? paths.world} /></svg></span>;
+}
 
 const FULL = 0b111_111_111;
 // Forge's BiomeTexture autotiles: a 3×4 block of 16 px tiles. Neighbour bits run 8..0 from the top-left to the
@@ -36,6 +69,18 @@ function noise(seed: number, x: number, y: number) {
 
 export function AdventureMap({ state, send }: { state: AdventureState; send: (request: CampaignRequest) => void }) {
   const t = useT();
+  const quests = state.quests ?? [];
+  const [tracking, setTracking] = useState(() => ({ campaign: state.id, quest: savedTracking(state.id) }));
+  const selected = trackedQuest(quests, tracking.campaign === state.id ? tracking.quest : savedTracking(state.id));
+  const selectedId = useRef(selected?.id);
+  const animationSettings = useSyncExternalStore(subscribeAnimationSettings, getAnimationSettings);
+  const reduced = useSyncExternalStore(subscribeReducedMotion, reducedMotion);
+  const animate = useRef(animationSettings.enabled && !reduced);
+  const [location, setLocation] = useState<{ campaign: string; id: string; name: string; kind: string } | null>(null);
+  const track = (id: string) => {
+    setTracking({ campaign: state.id, quest: id });
+    try { localStorage.setItem(trackingKey(state.id), id); } catch { /* Keep the selection for this session. */ }
+  };
   const canvas = useRef<HTMLCanvasElement>(null);
   const images = useRef(new Map<string, HTMLImageElement>());
   const direction = useRef<[number, number] | null>(null);
@@ -74,7 +119,7 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
       const sprite = (key: string | undefined, x: number, y: number, perPixel: number, fit = Infinity) => {
         const s = key ? c.sprites?.[key] : undefined, img = s && image(s.image);
         if (!s || !img || !s.frames.length) return false;
-        const [fx, fy, fw, fh] = s.frames[Math.floor(performance.now() / 150) % s.frames.length], k = Math.min(perPixel, fit / Math.max(fw, fh));
+        const [fx, fy, fw, fh] = s.frames[animate.current ? Math.floor(performance.now() / 150) % s.frames.length : 0], k = Math.min(perPixel, fit / Math.max(fw, fh));
         ctx.drawImage(img, fx, fy, fw, fh, x - fw * k / 2, y - fh * k / 2, fw * k, fh * k);
         return true;
       };
@@ -122,24 +167,53 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
         }
         ctx.lineWidth = 1.5 / T; ctx.strokeStyle = style.getPropertyValue('--panel-ink');
         for (const o of c.objects ?? []) {
-          if (Math.abs(o.x - px) > rx + 4 || Math.abs(o.y - py) > ry + 4 || sprite(o.sprite, o.x + 0.5, o.y + 0.5, 1 / 16)) continue;
-          ctx.fillStyle = style.getPropertyValue(o.kind === 'enemy' ? '--danger' : o.kind === 'town' ? '--panel' : '--c-M');
-          ctx.beginPath(); ctx.arc(o.x + 0.5, o.y + 0.5, 0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          if (Math.abs(o.x - px) > rx + 4 || Math.abs(o.y - py) > ry + 4) continue;
+          if (!sprite(o.sprite, o.x + 0.5, o.y + 0.5, 1 / 16)) {
+            ctx.fillStyle = style.getPropertyValue(o.kind === 'enemy' ? '--danger' : o.kind === 'town' ? '--panel' : '--c-M');
+            ctx.beginPath(); ctx.arc(o.x + 0.5, o.y + 0.5, 0.4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          }
+          // Preserve Forge's sprites, adding the same location glyph used in the legend.
+          if (['town', 'dungeon', 'enemy'].includes(o.kind)) {
+            const size = 18 / T, ox = o.x + 0.8, oy = o.y;
+            ctx.save(); ctx.translate(ox, oy); ctx.scale(size / 24, size / 24);
+            ctx.fillStyle = style.getPropertyValue('--panel'); ctx.fillRect(-2, -2, 28, 28);
+            ctx.strokeStyle = style.getPropertyValue('--panel-ink'); ctx.lineWidth = 2;
+            const shape = o.kind === 'enemy' ? 'm5 3 14 18 M19 3 5 21 M3 15l6 6 M15 21l6-6'
+              : o.kind === 'town' ? 'M3 11 12 3l9 8 M6 10v11h12V10 M10 21v-7h4v7' : 'M3 21h18L12 3Z M10 21v-7h4v7';
+            ctx.stroke(new Path2D(shape)); ctx.restore();
+          }
         }
         if (!sprite(c.player, px, py, 1 / 16)) {
           ctx.fillStyle = style.getPropertyValue('--accent');
           ctx.beginPath(); ctx.arc(px, py, 0.45, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         }
-        // Quest targets: a pulsing ring when in view, otherwise an arrow at the edge pointing the way.
-        const pulse = 1 + Math.sin(performance.now() / 250) * 0.12, hx = bounds.width / T / 2 - 1, hy = bounds.height / T / 2 - 1;
-        ctx.strokeStyle = ctx.fillStyle = style.getPropertyValue('--select'); ctx.lineWidth = 3 / T;
-        for (const [qx, qy] of (c.quests ?? []).flatMap(q => q.targets)) {
-          const dx = qx + 0.5 - px, dy = qy + 0.5 - py;
-          if (Math.abs(dx) <= hx && Math.abs(dy) <= hy) { ctx.beginPath(); ctx.arc(qx + 0.5, qy + 0.5, 1.3 * pulse, 0, Math.PI * 2); ctx.stroke(); continue; }
-          const k = Math.min(hx / Math.abs(dx || 1e-6), hy / Math.abs(dy || 1e-6)), ax = px + dx * k, ay = py + dy * k, a = Math.atan2(dy, dx);
-          ctx.save(); ctx.translate(ax, ay); ctx.rotate(a);
-          ctx.beginPath(); ctx.moveTo(0.7, 0); ctx.lineTo(-0.5, -0.5); ctx.lineTo(-0.5, 0.5); ctx.closePath(); ctx.fill(); ctx.restore();
-        }
+        // Each active quest has its own shape, matching the tracker and quest list.
+        const pulse = animate.current ? 1 + Math.sin(performance.now() / 250) * 0.12 : 1;
+        const hx = bounds.width / T / 2 - 1.2, hy = bounds.height / T / 2 - 1.2;
+        const activeQuests = c.quests ?? [];
+        activeQuests.forEach((quest, index) => {
+          const tracked = quest.id === selectedId.current, marker = markerForQuest(activeQuests, quest.id);
+          for (const [qx, qy] of quest.targets) {
+            const point = questWaypoint(qx + 0.5 - px, qy + 0.5 - py, hx, hy, index - 1);
+            ctx.save(); ctx.translate(px + point.x, py + point.y);
+            if (point.offscreen) {
+              ctx.save(); ctx.rotate(point.angle); ctx.fillStyle = style.getPropertyValue('--panel-ink');
+              ctx.beginPath(); ctx.moveTo(0.85, 0); ctx.lineTo(0.35, -0.3); ctx.lineTo(0.35, 0.3); ctx.closePath(); ctx.fill(); ctx.restore();
+            }
+            const r = (tracked ? 0.38 * pulse : 0.3);
+            const shape = (kind: QuestMarker) => {
+              ctx.beginPath();
+              if (kind === 'circle') ctx.arc(0, 0, r, 0, Math.PI * 2);
+              else if (kind === 'square') ctx.rect(-r, -r, r * 2, r * 2);
+              else { ctx.moveTo(0, -r * 1.25); ctx.lineTo(r * 1.25, 0); ctx.lineTo(0, r * 1.25); ctx.lineTo(-r * 1.25, 0); ctx.closePath(); }
+            };
+            ctx.fillStyle = style.getPropertyValue('--panel');
+            ctx.strokeStyle = style.getPropertyValue(tracked ? '--focus-panel' : '--panel-ink');
+            ctx.lineWidth = (tracked ? 3 : 2) / T; shape(marker); ctx.fill(); ctx.stroke();
+            if (tracked) { ctx.fillStyle = style.getPropertyValue('--panel-ink'); ctx.beginPath(); ctx.arc(0, 0, 0.08, 0, Math.PI * 2); ctx.fill(); }
+            ctx.restore();
+          }
+        });
         return;
       }
       if (!map) return;
@@ -171,7 +245,7 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
       ctx.strokeStyle = style.getPropertyValue('--panel-ink'); ctx.lineWidth = 1;
       // A sign hangs from the object's bottom-left with Forge's offsets (libGDX y points up).
       const sign = (key: string, left: number, bottom: number) => {
-        const s = c.sprites?.[key], img = s && image(s.image), f = s?.frames[Math.floor(performance.now() / 150) % s.frames.length];
+        const s = c.sprites?.[key], img = s && image(s.image), f = s?.frames[animate.current ? Math.floor(performance.now() / 150) % s.frames.length : 0];
         if (img && f) ctx.drawImage(img, f[0], f[1], f[2], f[3], left, bottom - f[3], f[2], f[3]);
       };
       // Entries are invisible in Forge too; the exit button covers them.
@@ -181,9 +255,18 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
         const ownTile = !!object.gid && object.kind !== 'enemy' && !object.sprite;
         if (ownTile) drawGid(object.gid!, left, bottom - object.h!, object.w!, object.h!);
         if (object.sign) for (const key of [object.sign, object.overlay]) if (key) sign(key, left + (object.signX ?? 0), bottom - (object.signY ?? 0));
-        if (ownTile || sprite(object.sprite, object.x, object.y, 1)) continue;
-        ctx.fillStyle = style.getPropertyValue(object.kind === 'enemy' ? '--danger' : '--c-M');
-        ctx.beginPath(); ctx.arc(object.x, object.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        if (!ownTile && !sprite(object.sprite, object.x, object.y, 1)) {
+          ctx.fillStyle = style.getPropertyValue(object.kind === 'enemy' ? '--danger' : '--c-M');
+          ctx.beginPath(); ctx.arc(object.x, object.y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+        if (object.kind === 'shop' || object.kind === 'enemy') {
+          const size = 18 / scale;
+          ctx.save(); ctx.translate(object.x + 5, object.y - 10); ctx.scale(size / 24, size / 24);
+          ctx.fillStyle = style.getPropertyValue('--panel'); ctx.fillRect(-2, -2, 28, 28);
+          ctx.strokeStyle = style.getPropertyValue('--panel-ink'); ctx.lineWidth = 2;
+          ctx.stroke(new Path2D(object.kind === 'shop' ? 'M4 9h16v12H4Z M3 9l2-6h14l2 6 M9 21v-7h6v7' : 'm5 3 14 18 M19 3 5 21 M3 15l6 6 M15 21l6-6'));
+          ctx.restore();
+        }
       }
       if (!sprite(c.player, c.x ?? 0, c.y ?? 0, 1)) {
         ctx.fillStyle = style.getPropertyValue('--accent');
@@ -195,11 +278,17 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
     const animation = setInterval(draw, 150);
     return () => { active = false; resize.disconnect(); clearInterval(animation); };
   }, [state.id, state.region, state.assetBase]);
-  useEffect(() => { current.current = state; sentAt.current = 0; frame.current(); }, [state]);
+  useEffect(() => {
+    current.current = state; sentAt.current = 0; selectedId.current = selected?.id;
+    animate.current = animationSettings.enabled && !reduced;
+    frame.current();
+  }, [state, selected?.id, animationSettings.enabled, reduced]);
   const directions: Record<string, [number, number]> = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] };
   const x = state.x ?? 0, y = state.y ?? 0;
   const nearby = (state.objects ?? []).filter(o => o.kind !== 'entry').filter(o => state.map ? Math.hypot(o.x - x, o.y - y) <= 30 : Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) <= (state.world?.tiles ?? 1));
-  const quests = state.quests ?? [];
+  const place = state.map ? location?.campaign === state.id && location.id === state.region ? location : savedPlace(state.id, state.region) : undefined;
+  const biome = state.world && state.world.biomes[state.world.cells.charCodeAt(Math.floor(y / state.world.tiles) * state.world.size + Math.floor(x / state.world.tiles)) - 48];
+  const locationName = state.map ? place?.name || t('adventureRegion') : biome ? `Shandalar · ${biome.name}` : 'Shandalar';
   // Forge's quest giver: one active quest per town, at most three at once.
   const canAsk = quests.length < 3 && !quests.some(q => q.source === state.region);
   const label = (o: AdventureObject) => o.kind === 'enemy' ? `${t('fight')}: ${o.name}` : o.kind === 'town' || o.kind === 'dungeon' ? t('enterPlace', { name: o.name })
@@ -207,7 +296,27 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
     : o.kind === 'entry' ? t('campaignExit') : t('campaignLoot');
   return (
     <section className="adventure-region">
+      <div className="adventure-guidance">
+        <div className="adventure-guidance__location" aria-label={t('adventureCurrentLocation')}>
+          <MapSymbol kind={state.map ? place?.kind ?? 'dungeon' : 'world'} /><strong>{locationName}</strong>
+        </div>
+        {selected && <div className="adventure-guidance__tracking">
+          <MapSymbol kind={markerForQuest(quests, selected.id)} />
+          <label>{t('trackedQuest')}<select className="input" value={selected.id} onChange={e => track(e.target.value)}>
+            {quests.map(q => <option value={q.id} key={q.id}>{q.name}</option>)}
+          </select></label>
+        </div>}
+      </div>
+      {selected && <div className="adventure-guidance__objective" role="status">
+        <p>{selected.stage.description || selected.stage.name}</p>
+        {selected.stage.count > 1 && <span>{t('questProgress', { n: selected.stage.progress, total: selected.stage.count })}</span>}
+      </div>}
       <canvas ref={canvas} className="adventure-map" tabIndex={0} role="application" aria-label={t('adventureMap')} title={t('adventureControls')} onKeyDown={e => { const d = directions[e.key]; if (d && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); direction.current = d; if (!e.repeat) move(...d); } }} onBlur={() => { direction.current = null; }} />
+      <details className="adventure-guidance__legend">
+        <summary>{t('mapLegend')}</summary>
+        <ul>{(['town', 'shop', 'dungeon', 'enemy'] as const).map(kind => <li key={kind}><MapSymbol kind={kind} />{t(`mapKind_${kind}`)}</li>)}</ul>
+        {quests.length > 0 && <ul>{quests.map(q => <li key={q.id}><MapSymbol kind={markerForQuest(quests, q.id)} />{q.name}</li>)}</ul>}
+      </details>
       <div className="adventure-region__controls">
         <div className="adventure-pad" aria-label={t('adventureControls')}>
           {([{ dir: [0, -1], label: 'moveUpMap', symbol: '↑' }, { dir: [-1, 0], label: 'moveLeftMap', symbol: '←' }, { dir: [0, 1], label: 'moveDownMap', symbol: '↓' }, { dir: [1, 0], label: 'moveRightMap', symbol: '→' }] as const).map(({ dir, label, symbol }) => (
@@ -216,15 +325,24 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
         </div>
         <div className="adventure-region__encounters">
           {nearby.filter(o => o.kind !== 'quest' || canAsk).map(o => <button key={o.id} type="button" className="btn btn--primary" title={o.title}
-            onClick={() => { direction.current = null; send({ type: 'campaign', action: o.kind === 'enemy' ? 'duel' : 'interact', target: o.id }); }}>{label(o)}</button>)}
+            onClick={() => {
+              direction.current = null;
+              if (o.kind === 'town' || o.kind === 'dungeon') {
+                setLocation({ campaign: state.id, id: o.id, name: o.name, kind: o.kind });
+                try { localStorage.setItem(`reforge.adventure.place.${encodeURIComponent(state.id)}`, JSON.stringify({ id: o.id, name: o.name, kind: o.kind })); } catch { /* The current location remains available in memory. */ }
+              }
+              send({ type: 'campaign', action: o.kind === 'enemy' ? 'duel' : 'interact', target: o.id });
+            }}>{label(o)}</button>)}
         </div>
         {state.map && <button type="button" className="btn btn--ghost" onClick={() => send({ type: 'campaign', action: 'leave' })}>{t('campaignExit')}</button>}
       </div>
       {quests.length > 0 && <section className="adventure-quests" aria-label={t('quests')}>
         <h2>{t('quests')}</h2>
-        {quests.map(q => <article key={q.id} className="adventure-quests__quest">
-          <div><h3>{q.name}</h3><p>{q.stage.description || q.stage.name}</p></div>
-          {q.stage.count > 1 && <span className="adventure-quests__progress">{t('questProgress', { n: q.stage.progress, total: q.stage.count })}</span>}
+        {quests.map(q => <article key={q.id} className={`adventure-quests__quest ${q.id === selected?.id ? 'is-tracked' : ''}`}>
+          <div><h3 className="adventure-guidance__quest-name"><MapSymbol kind={markerForQuest(quests, q.id)} />{q.name}</h3>{q.id !== selected?.id && <p>{q.stage.description || q.stage.name}</p>}</div>
+          {q.stage.count > 1 && q.id !== selected?.id && <span className="adventure-quests__progress">{t('questProgress', { n: q.stage.progress, total: q.stage.count })}</span>}
+          <button type="button" className="btn btn--ghost adventure-quests__track" aria-pressed={q.id === selected?.id}
+            aria-label={t('trackQuestNamed', { name: q.name })} onClick={() => track(q.id)}>{t(q.id === selected?.id ? 'questTracked' : 'trackQuest')}</button>
           <button type="button" className="btn btn--ghost" aria-label={t('abandonQuestNamed', { name: q.name })}
             onClick={() => { if (window.confirm(t('confirmAbandon', { name: q.name }))) send({ type: 'campaign', action: 'abandonQuest', id: q.id }); }}>{t('abandonQuest')}</button>
         </article>)}
@@ -238,7 +356,6 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
 /** A town shop's stock from Forge's shops.json, bought with gold. */
 function TownShop({ shop, gold, send }: { shop: NonNullable<AdventureState['shop']>; gold: number; send: (request: CampaignRequest) => void }) {
   const t = useT();
-  const zoom = useContext(CardZoom);
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
   const close = () => send({ type: 'campaign', action: 'closeShop' });
@@ -250,12 +367,12 @@ function TownShop({ shop, gold, send }: { shop: NonNullable<AdventureState['shop
         <button type="button" className="btn btn--ghost" onClick={close} autoFocus>{t('close')}</button>
       </header>
       <div className="campaign__shop">
-        {shop.items.map(card => <article className="campaign__shop-card" key={card.key} onContextMenu={e => { e.preventDefault(); zoom({ id: -1, name: card.name, imageKey: card.imageKey }); }}>
+        {shop.items.map(card => <InspectableCard as="article" card={cardForInspection(card)} className="campaign__shop-card" key={card.key}>
           <img src={cardImage(card.imageKey, 'full') ?? undefined} alt={card.name} loading="lazy" />
           <strong>{card.name}</strong>
           <button type="button" className="btn btn--primary" disabled={card.sold || card.price > gold} aria-label={t('buyFor', { name: card.name, n: card.price })}
             onClick={() => send({ type: 'campaign', action: 'buy', key: card.key })}>{card.sold ? t('sold') : t('campaignGold', { n: card.price })}</button>
-        </article>)}
+        </InspectableCard>)}
       </div>
     </dialog>
   );

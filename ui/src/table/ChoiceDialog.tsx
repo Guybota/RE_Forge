@@ -135,10 +135,11 @@ function Pick({ choice, answer, hover }: { choice: Choice; answer: Engine['answe
         })}
       </ul>
       <div className="choice__buttons">
+        {!instant && <span className="choice__constraint">{min === max ? t('chooseExactly', { n: min }) : t('chooseBetween', { min, max })}</span>}
         {instant && min === 0 && <button type="button" className="btn btn--ghost" onClick={() => answer({ picked: [] })}>{t('none')}</button>}
         {!instant && (
           <button type="button" className="btn btn--primary" disabled={!valid} onClick={() => answer({ picked })}>
-            {t('confirm')}{max > 1 ? ` · ${picked.length}` : ''}
+            {t(ordered ? 'confirmOrderCount' : 'confirmChoiceCount', { n: picked.length })}
           </button>
         )}
       </div>
@@ -179,7 +180,7 @@ function Arrange({ choice, answer, hover }: { choice: Choice; answer: Engine['an
         </li>;
       })}
     </ol>
-    <div className="choice__buttons"><button type="button" className="btn btn--primary" onClick={() => answer({ picked: order })}>{t('confirm')}</button></div>
+    <div className="choice__buttons"><button type="button" className="btn btn--primary" onClick={() => answer({ picked: order })}>{t('confirmOrderCount', { n: order.length })}</button></div>
   </>;
 }
 
@@ -216,7 +217,7 @@ function Amounts({ choice, answer, hover }: { choice: Choice; answer: Engine['an
         <span className="muted">{left > 0 ? t('left', { n: left }) : ''}</span>
         <button type="button" className="btn btn--ghost" onClick={() => setAmounts([...initial])}>{t('autoAssign')}</button>
         {choice.maySkip && <button type="button" className="btn btn--ghost" onClick={() => answer({ skip: true })}>{t('skipDamage')}</button>}
-        <button type="button" className="btn btn--primary" disabled={left !== 0 || !legal} title={!legal ? t(choice.ordered ? 'damageOrderHint' : 'trampleHint') : undefined} onClick={() => answer({ amounts })}>{t('confirm')}</button>
+        <button type="button" className="btn btn--primary" disabled={left !== 0 || !legal} title={!legal ? t(choice.ordered ? 'damageOrderHint' : 'trampleHint') : undefined} onClick={() => answer({ amounts })}>{t('confirmDistribution', { n: total - left })}</button>
       </div>
     </>
   );

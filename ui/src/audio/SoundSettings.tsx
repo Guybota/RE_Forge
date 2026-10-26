@@ -1,7 +1,6 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useT } from '../i18n';
 import { getSoundSettings, playSound, setSoundSettings, subscribeSoundSettings, unlockSounds } from './sounds';
-import { AnimationSettings } from '../table/AnimationPanel';
 import './sounds.css';
 
 export function SoundSettings() {
@@ -25,19 +24,5 @@ export function SoundSettings() {
       </label>
       <button type="button" className="btn btn--ghost" disabled={!settings.enabled || settings.volume === 0} onClick={() => { unlockSounds(); playSound('turn'); }}>{t('testSound')}</button>
     </fieldset>
-  );
-}
-
-/** Main-menu settings: sound and table animations. */
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const t = useT();
-  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
-  return (
-    <dialog ref={ref} className="choice sound-dialog" aria-label={t('settings')} onCancel={e => { e.preventDefault(); onClose(); }}>
-      <SoundSettings />
-      <AnimationSettings />
-      <button type="button" className="btn btn--ghost" onClick={onClose} autoFocus>{t('close')}</button>
-    </dialog>
   );
 }
