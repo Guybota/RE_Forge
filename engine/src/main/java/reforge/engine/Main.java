@@ -13,7 +13,7 @@ import forge.model.FModel;
  * Prints "READY <port>" on stdout once the UI can connect (the Electron shell waits for it).
  */
 public final class Main {
-    public static final String VERSION = "0.1.1";
+    public static final String VERSION = "0.1.2";
 
     public static void main(String[] args) throws Exception {
         launch(args, MatchStarter::startCommander);
