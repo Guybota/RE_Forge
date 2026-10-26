@@ -149,7 +149,7 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
   app.whenReady().then(() => {
-    app.setAppUserModelId('app.reforge.desktop');
+    if (process.platform === 'win32') app.setAppUserModelId('app.reforge.desktop');
     return createWindow();
   }).catch((err) => {
     dialog.showErrorBox('RE:Forge', err.message);
