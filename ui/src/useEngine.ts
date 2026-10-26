@@ -30,6 +30,8 @@ export type Engine = {
   campaign: CampaignState | null;
   /** Draft, Sealed and Puzzles replies, merged as they arrive. */
   modes: ModesData;
+  /** An online guest's game lost the host and Forge is reconnecting. */
+  reconnecting: boolean;
   send: (m: ClientMessage) => void;
   /** Answers the open choice and closes it locally. */
   answer: (a: Omit<Extract<ClientMessage, { type: 'answer' }>, 'type' | 'id'>) => void;
@@ -55,6 +57,7 @@ export function useEngine(): Engine {
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignList | null>(null);
   const [modes, setModes] = useState<ModesData>({});
+  const [reconnecting, setReconnecting] = useState(false);
   const [campaign, setCampaign] = useState<CampaignState | null>(null);
   const conn = useRef<EngineConnection | null>(null);
   // After leaving a match its last states and questions may still arrive; they must not reopen the table.
@@ -86,11 +89,12 @@ export function useEngine(): Engine {
       onLobby: (l) => {
         left.current = !l;
         setLobby(l);
-        if (!l) { previousSoundState.current = null; setGame(null); setChoice(null); setChat([]); }
+        if (!l) { setReconnecting(false); previousSoundState.current = null; setGame(null); setChoice(null); setChat([]); }
       },
       onChat: (m) => setChat((messages) => [...messages.slice(-199), m]),
       onCampaigns: setCampaigns,
       onModes: (update) => setModes((current) => ({ ...current, ...update })),
+      onConnection: setReconnecting,
       onCampaign: setCampaign,
       onError: setError,
       onClosed: () => {
@@ -126,5 +130,5 @@ export function useEngine(): Engine {
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckPreview, deckText, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, campaigns, campaign, modes, send, answer, leaveGame };
+  return { status, failure, info, decks, deckPreview, deckText, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
 }

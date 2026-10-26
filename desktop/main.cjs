@@ -1,6 +1,7 @@
 // Electron shell: starts the Forge engine bridge (Java) and opens the UI.
 const { app, BrowserWindow, dialog } = require('electron');
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 const isDev = !app.isPackaged && process.env.RE_FORGE_DEV === '1';
@@ -26,6 +27,31 @@ const paths = app.isPackaged
 const SPLASH = `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html><body style="margin:0;height:100vh;display:grid;place-items:center;background:#1f3b2d;color:#efe7d6;font:600 64px Georgia,serif">
 <div>RE:Forge</div></body></html>`)}`;
 
+// The engine's output for this run (and the previous one), so a failure can be explained after the fact.
+// shortcut: stops writing past 20 MB per run instead of rotating; enough for a long session.
+const LOG_LIMIT = 20 * 1024 * 1024;
+function openEngineLog() {
+  try {
+    const dir = path.join(app.getPath('userData'), 'logs');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'engine.log');
+    if (fs.existsSync(file)) fs.renameSync(file, path.join(dir, 'engine.prev.log'));
+    const stream = fs.createWriteStream(file);
+    stream.on('error', () => {});
+    stream.write(`RE:Forge ${app.getVersion()} — ${new Date().toISOString()}
+`);
+    let written = 0;
+    return (chunk) => {
+      if (written > LOG_LIMIT) return;
+      written += chunk.length;
+      stream.write(chunk);
+    };
+  } catch {
+    return () => {};
+  }
+}
+const engineLog = openEngineLog();
+
 let engine = null;
 let quitting = false;
 
@@ -45,6 +71,9 @@ function startEngine() {
     });
     engine.on('error', (err) => { clearTimeout(timeout); reject(err); });
     engine.on('exit', (code) => {
+      engineLog(`
+Engine exited with code ${code} at ${new Date().toISOString()}
+`);
       clearTimeout(timeout);
       engine = null;
       const message = `Engine exited with code ${code}\n\n${buffer.slice(-4000)}`;
@@ -55,10 +84,12 @@ function startEngine() {
       }
     });
     engine.stderr.on('data', (d) => {
+      engineLog(d);
       process.stderr.write(`[engine] ${d}`);
       buffer = (buffer + d.toString()).slice(-16000);
     });
     engine.stdout.on('data', (d) => {
+      engineLog(d);
       process.stdout.write(`[engine] ${d}`);
       buffer = (buffer + d.toString()).slice(-16000);
       stdout = (stdout + d.toString()).slice(-1024);

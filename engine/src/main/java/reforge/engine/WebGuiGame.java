@@ -146,7 +146,12 @@ final class WebGuiGame extends NetworkGuiGame {
             case CONNECTED -> false;
         };
         Runnable action = connectionLost;
-        if (lost && action != null) action.run();
+        if (lost && action != null) { action.run(); return; }
+        // During a game Forge reconnects by itself (through the relay too): say so, or the table just looks frozen.
+        JsonObject connection = new JsonObject();
+        connection.addProperty("type", "connection");
+        connection.addProperty("reconnecting", state == FGameClient.ReconnectState.RECONNECTING);
+        session.send(connection);
     }
 
     void dispose() {

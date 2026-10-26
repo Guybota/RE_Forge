@@ -99,8 +99,14 @@ os seus endereços. Esta implementação não altera ficheiros em `forge/`.
 
 - Quatro humanos no máximo por sala, contando o anfitrião; os lugares de IA continuam a ser geridos pelo Forge.
 - Salas expiram após 24 horas. Sair do anfitrião fecha a sala; uma nova partida pode criar outro código.
-- A ligação perdida ao relay fecha o lobby e apresenta um erro. Não há recuperação automática do túnel nem migração
-  de anfitrião nesta versão; não confundir isto com a reconexão nativa do Forge em ligações diretas.
+- Uma ligação ao relay que cai não acaba o jogo. As streams que levava fecham-se e a reconexão nativa do Forge
+  retoma os jogadores (estado, registo e decisão pendente). O anfitrião volta a tentar a sala durante ~3 min; o relay
+  guarda-a 3 min, fecha os convidados para se religarem e aceita o token mesmo que a ligação antiga ainda pareça
+  aberta. Cada nova ligação do cliente Forge do convidado abre uma stream nova. Só uma saída deliberada (fecho
+  `1000 Host left`) ou uma sala fechada/expirada acabam a sessão; o convidado vê "A religar…" enquanto dura.
+  `engine:smoke-relay-drop` corta a ligação do convidado e depois a do anfitrião a meio do jogo (retoma em ~1 s).
+- A aplicação instalada guarda a saída do motor em `%APPDATA%\RE-Forge\logs\engine.log` (a sessão anterior em
+  `engine.prev.log`); as linhas `Relay:` explicam cada queda e reconexão.
 - O código de convite permite entrar; ainda não há contas, lista pública nem matchmaking automático.
 - A instância usa a API de hibernação: não mantém timers ativos nem guarda snapshots no armazenamento Cloudflare.
 - Pedidos de criação/ligação são limitados a 30 por minuto por IP e localização Cloudflare. É uma proteção aproximada,

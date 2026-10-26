@@ -99,6 +99,9 @@ Critério de feito: colar uma exportação do Moxfield de 100 cartas, guardar e 
 Salas por código implementadas localmente no ramo `feat/online-relay`: Worker Cloudflare com Durable Objects SQLite,
 ponte Java TCP/WebSocket sobre o protocolo Forge, códigos de oito caracteres e escolha entre código e ligação direta.
 Configuração e limites em [ONLINE_RELAY.md](ONLINE_RELAY.md). Publicado em `reforge-relay.tempo-portugal.workers.dev` (0.1.1).
+Quedas (`fix/online-resilience`, após o jogo de 25/10 em que o anfitrião "perdeu" quando a ligação ao relay caiu):
+uma ligação que cai já não acaba o jogo; o relay guarda a sala e a reconexão nativa do Forge retoma os jogadores.
+Registo do motor em ficheiro na app instalada.
 Lobby (`feat/online-kick`): o anfitrião expulsa jogadores; sair, fechar a janela ou o anfitrião fechar a sala nunca
 deixam a sessão presa (antes, em ligação direta, o convidado ficava 2 min à espera da reconexão do Forge).
 Validação: UI e motor compilam; testes do Worker, partida com quatro humanos e partida com dois humanos + IA pelo

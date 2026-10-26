@@ -276,6 +276,7 @@ type EngineMessage =
   | CampaignList | CampaignState | { type: 'campaignClosed' }
   | { type: 'limitedSets'; sets: NonNullable<ModesData['sets']> } | { type: 'limitedEvents'; events: LimitedEventSummary[] }
   | LimitedEvent | DraftState | { type: 'draftClosed' } | { type: 'puzzles'; puzzles: PuzzleInfo[] }
+  | { type: 'connection'; reconnecting: boolean }
   | EngineInfo
   | GameState
   | Choice
@@ -343,6 +344,7 @@ export type EngineHandlers = {
   onCampaigns: (campaigns: CampaignList) => void;
   onCampaign: (campaign: CampaignState | null) => void;
   onModes: (update: ModesData) => void;
+  onConnection: (reconnecting: boolean) => void;
 };
 
 export function enginePort(): number | null {
@@ -380,6 +382,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'draft': h.onModes({ draft: msg }); break;
       case 'draftClosed': h.onModes({ draft: null }); break;
       case 'puzzles': h.onModes({ puzzles: msg.puzzles }); break;
+      case 'connection': h.onConnection(msg.reconnecting); break;
       case 'campaign': h.onCampaign(msg); break;
       case 'campaignClosed': h.onCampaign(null); break;
       case 'engineInfo': h.onInfo(msg); break;

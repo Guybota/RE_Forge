@@ -5,6 +5,10 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE = /^[A-HJ-NP-Z2-9]{8}$/;
 const MAX_FRAME = 32 * 1024 + 4;
 const MAX_ROOM_AGE = 24 * 60 * 60 * 1000;
+// A host whose connection drops (not a deliberate leave) keeps the room this long to reconnect.
+const HOST_GRACE = 3 * 60 * 1000;
+// The close a host sends when it really leaves; anything else counts as a dropped connection.
+const HOST_LEFT = 'Host left';
 const json = (body, status = 200) => Response.json(body, {
   status, headers: { 'Cache-Control': 'no-store' },
 });
@@ -55,7 +59,13 @@ export class RelayRoom extends DurableObject {
     const host = sockets.find(ws => ws.deserializeAttachment().role === 'host');
     if (role === 'host') {
       if (request.headers.get('Authorization') !== `Bearer ${room.token}`) return json({ error: 'Invalid host token' }, 403);
-      if (host) return json({ error: 'Host already connected' }, 409);
+      // A reconnecting host may arrive before the edge noticed its old connection died: the token wins.
+      if (host) { host.serializeAttachment({ ...host.deserializeAttachment(), replaced: true }); try { host.close(1000, 'Replaced'); } catch { /* already closed */ } }
+      // Guests still on streams from before the drop can't be resumed: they reconnect through Forge.
+      for (const guest of sockets) {
+        if (guest.deserializeAttachment().role === 'guest') try { guest.close(1001, 'Host reconnecting'); } catch { /* already closed */ }
+      }
+      if (room.hostAway) { delete room.hostAway; await this.scheduleAlarm(room); }
     } else if (role === 'guest') {
       if (!host) return json({ error: 'Host is not connected' }, 409);
       if (sockets.filter(ws => ws.deserializeAttachment().role === 'guest').length >= 3) return json({ error: 'Room is full' }, 423);
@@ -98,14 +108,19 @@ export class RelayRoom extends DurableObject {
 
   reject(ws) { ws.close(1008, 'Invalid relay frame'); }
 
-  async webSocketClose(ws) {
+  async webSocketClose(ws, code, reason) {
     const sender = ws.deserializeAttachment();
     try { ws.close(1000, 'Connection closed'); } catch { /* already closed */ }
     if (sender.role === 'host') {
+      if (sender.replaced) return; // a reconnected host took its place
       const room = await this.ctx.storage.get('room');
-      if (room) { room.closed = true; await this.ctx.storage.put('room', room); }
+      if (room && code === 1000 && reason === HOST_LEFT) room.closed = true;
+      else if (room) room.hostAway = Date.now();
+      if (room) { await this.ctx.storage.put('room', room); await this.scheduleAlarm(room); }
+      // Guests reconnect through Forge once the host is back; their old streams can't be resumed byte by byte.
       for (const peer of this.ctx.getWebSockets()) {
-        try { peer.close(1001, 'Host disconnected'); } catch { /* already closed */ }
+        if (peer === ws) continue;
+        try { peer.close(1001, room?.closed ? 'Host disconnected' : 'Host reconnecting'); } catch { /* already closed */ }
       }
     } else {
       for (const peer of this.ctx.getWebSockets()) {
@@ -116,9 +131,19 @@ export class RelayRoom extends DurableObject {
     }
   }
 
-  async webSocketError(ws) { await this.webSocketClose(ws); }
+  async webSocketError(ws) { await this.webSocketClose(ws, 1006, ''); }
+
+  /** One alarm: the room's 24 h expiry, or the end of a dropped host's grace period if that comes first. */
+  async scheduleAlarm(room) {
+    await this.ctx.storage.setAlarm(room.hostAway ? Math.min(room.expires, room.hostAway + HOST_GRACE) : room.expires);
+  }
 
   async alarm() {
+    const room = await this.ctx.storage.get('room');
+    const now = Date.now();
+    const hostBack = this.ctx.getWebSockets().some(ws => ws.readyState === 1 && ws.deserializeAttachment().role === 'host');
+    const graceOver = room?.hostAway && !hostBack && now >= room.hostAway + HOST_GRACE;
+    if (room && now < room.expires && !graceOver && !room.closed) return this.scheduleAlarm(room);
     for (const ws of this.ctx.getWebSockets()) {
       try { ws.close(1001, 'Room expired'); } catch { /* already closed */ }
     }

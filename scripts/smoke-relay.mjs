@@ -3,7 +3,7 @@ import { startRelay } from './relay-test-server.mjs';
 
 const relay = await startRelay();
 const sockets = [];
-const deadline = setTimeout(() => { console.error('FAIL: relay smoke timed out'); process.exit(1); }, 45_000);
+const deadline = setTimeout(() => { console.error('FAIL: relay smoke timed out'); process.exit(1); }, 90_000);
 async function create() {
   const response = await relay.mf.dispatchFetch(`${relay.url}/rooms`, { method: 'POST' });
   assert.equal(response.status, 201);
@@ -57,7 +57,6 @@ try {
   assert.equal((await upgrade(room, 'guest')).status, 409, 'guest cannot enter without host');
   assert.equal((await upgrade(room, 'host', 'wrong')).status, 403, 'room code does not authorize hosting');
   const host = await connect(room, 'host', room.hostToken);
-  assert.equal((await upgrade(room, 'host', room.hostToken)).status, 409, 'cannot replace a connected host');
   const guests = [];
   for (let n = 0; n < 3; n++) guests.push(await connect(room, 'guest'));
   assert.equal((await upgrade(room, 'guest')).status, 423, 'four players maximum');
@@ -104,13 +103,34 @@ try {
   assert.ok(guests[2].closed(), 'host departure closes guests');
   assert.equal((await upgrade(room, 'guest')).status, 404, 'closed room cannot be joined');
   assert.equal((await upgrade(room, 'host', room.hostToken)).status, 404, 'old token cannot reopen a room');
+  // A host whose connection drops keeps the room: guests are sent back to reconnect, the token lets the host in again.
+  const dropRoom = await create();
+  const dropHost = await connect(dropRoom, 'host', dropRoom.hostToken);
+  const dropGuest = await connect(dropRoom, 'guest');
+  await dropHost.wait(m => m.type === 'peerJoined' && m.channel === dropGuest.channel);
+  dropHost.ws.close(4000, 'Network lost');
+  // Miniflare takes ~10 s to finish a close with a non-1000 code; a real drop has no close handshake at all.
+  for (let n = 0; n < 1500 && !dropGuest.closed(); n++) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.ok(dropGuest.closed(), 'guests reconnect after a host drop');
+  assert.equal((await upgrade(dropRoom, 'guest')).status, 409, 'guests wait while the host is away');
+  const back = await connect(dropRoom, 'host', dropRoom.hostToken);
+  const rejoined = await connect(dropRoom, 'guest');
+  await back.wait(m => m.type === 'peerJoined' && m.channel === rejoined.channel);
+  assert.ok(rejoined.channel > dropGuest.channel, 'a rejoining guest gets a fresh stream');
+  // A host back before the edge saw the old connection die replaces it; that guest's stream restarts too.
+  const replacing = await connect(dropRoom, 'host', dropRoom.hostToken);
+  for (let n = 0; n < 1500 && !(back.closed() && rejoined.closed()); n++) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.ok(back.closed() && rejoined.closed(), 'the stale host and its guests are closed');
+  assert.equal((await upgrade(dropRoom, 'guest')).status, 101, 'the room stays open with the new host');
+  replacing.ws.close(1000, 'Host left');
+
   let limited = false;
   for (let n = 0; n < 40; n++) {
     const response = await upgrade({ code: 'ZZZZZZZZ' }, 'guest');
     if (response.status === 429) { limited = true; break; }
   }
   assert.ok(limited, 'connection attempts are rate limited before allocating more objects');
-  console.log('OK: real Worker/SQLite DO; host authentication, four seats, private ordered channels, room isolation, spoof/size rejection and cleanup');
+  console.log('OK: real Worker/SQLite DO; host authentication, four seats, private ordered channels, room isolation, spoof/size rejection, host drop and reconnection, and cleanup');
 } finally {
   clearTimeout(deadline);
   sockets.forEach(ws => { try { ws.close(); } catch { /* already closed */ } });

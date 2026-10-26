@@ -385,6 +385,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
       {engine.choice && <ChoiceDialog key={engine.choice.id} choice={engine.choice} answer={engine.answer} onHover={setHovered} cards={game} />}
 
+      {engine.reconnecting && !game.gameOver && <div className="toast toast--error" role="status">{t('reconnectingHost')}</div>}
       {engine.notice && (engine.notice.kind === 'message' || engine.notice.kind === 'error') && engine.notice.text && (
         <div key={engine.notice.at} className={`toast ${engine.notice.kind === 'error' ? 'toast--error' : ''}`} role="status">
           {engine.notice.text}

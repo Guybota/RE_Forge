@@ -27,6 +27,7 @@
     "relay:smoke": "node scripts/smoke-relay.mjs",
     "engine:smoke-relay": "node scripts/smoke-online.mjs --relay",
     "engine:smoke-online-lobby": "node scripts/smoke-online-lobby.mjs",
+    "engine:smoke-relay-drop": "node scripts/smoke-relay-drop.mjs",
     "engine:smoke-settings": "node scripts/smoke-settings.mjs",
     "engine:smoke-autopass": "node scripts/smoke-autopass.mjs",
     "engine:smoke-dialogs": "node scripts/smoke-dialogs.mjs",
