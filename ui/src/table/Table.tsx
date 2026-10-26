@@ -11,26 +11,12 @@ import { PHASE_TRACK, attachmentsByHost, phaseKey } from './cards';
 import { Preview } from './CardZoom';
 import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
-import { firstPlayer, planAnimations, rememberLocations, yourTurn, type Location } from './animationPlan';
+import { planAnimations, rememberLocations, yourTurn, type Location } from './animationPlan';
+import { CoinFlip } from './CoinFlip';
 import { cardRects, runAnimations } from './animationRunner';
 import { StackColumn } from './StackColumn';
 import { animationOn, getAnimationSettings } from './animationPrefs';
 import './table.css';
-
-/** Cosmetic coin toss naming who plays first; Forge has already decided. */
-function CoinFlip({ name, onDone }: { name: string; onDone: () => void }) {
-  const t = useT();
-  const duration = 1600 / getAnimationSettings().speed;
-  // Once per toss: new snapshots re-render the table but must not restart the timer.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { const timer = window.setTimeout(onDone, duration + 900); return () => window.clearTimeout(timer); }, []);
-  return (
-    <div className="coin-flip" role="status">
-      <div className="coin-flip__coin" style={{ animationDuration: `${duration}ms` }} aria-hidden="true" />
-      <p className="coin-flip__text" style={{ animationDelay: `${duration}ms` }}>{t('coinFirst', { name })}</p>
-    </div>
-  );
-}
 
 /** Brief "your turn" notice when your turn begins. */
 function TurnBanner({ onDone }: { onDone: () => void }) {
@@ -115,13 +101,10 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // Last known place and position of every card, kept after it leaves the screen (see rememberLocations).
   const lastRects = useRef(new Map<number, DOMRect>());
   const lastLocations = useRef(new Map<number, Location>());
-  const [coin, setCoin] = useState<number | null>(null);
   const [turnBanner, setTurnBanner] = useState(0);
   useLayoutEffect(() => {
     const root = tableRoot.current, layer = animationLayer.current, previous = previousGame.current;
     if (root && layer) runAnimations(planAnimations(previous, game, lastLocations.current), lastRects.current, root, layer);
-    const first = firstPlayer(previous, game);
-    if (first !== null && animationOn('coin') && !document.hidden) setCoin(first);
     if (yourTurn(previous, game) && animationOn('turn') && !document.hidden) setTurnBanner((n) => n + 1);
     previousGame.current = game;
     rememberLocations(lastLocations.current, game);
@@ -270,7 +253,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     return () => clearTimeout(timer);
   }, [leaving, engine.choice, me.hasLost, game.gameOver]);
 
-  const allCards = game.players.flatMap((p) => Object.values(p.zones).flat());
+  const allCards = game.players.flatMap((p) => [...Object.values(p.zones).flat(), ...(p.libraryTop ? [p.libraryTop] : [])]);
   // A card that leaves under the mouse (a spell resolving, a creature dying) never gets mouseleave, and it may still
   // exist elsewhere (the graveyard): keep its floating preview only while the pointer is really over it.
   useEffect(() => {
@@ -284,7 +267,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     <div ref={tableRoot} className={`table ${narrow ? 'table--narrow' : ''}`}>
       <div ref={animationLayer} className="anim-layer" aria-hidden="true" />
       {turnBanner > 0 && <TurnBanner key={turnBanner} onDone={() => setTurnBanner(0)} />}
-      {coin !== null && <CoinFlip name={game.players.find((p) => p.id === coin)?.name ?? ''} onDone={() => setCoin(null)} />}
+      {engine.openingCoin && <CoinFlip key={engine.openingCoin.gameId} toss={engine.openingCoin} onDone={engine.finishOpeningCoin} />}
       <div className={`table__main ${maximized ? 'table__main--max' : ''}`} ref={main}>
         <CombatArrows game={game} container={tableRoot} />
         {maximized ? (
@@ -380,14 +363,20 @@ ${game.puzzle.description}`}>
       {zone && !menuOpen && !engine.choice && (() => {
         const owner = game.players.find((p) => p.id === zone.playerId);
         // Most recent on top, like the physical pile.
-        return owner && <ZoneViewer title={`${t(zone.zone)} · ${owner.name}`} cards={[...owner.zones[zone.zone]].reverse()} ctx={ctx} onClose={() => setZone(null)} />;
+        const cards = zone.zone === 'library' ? owner?.libraryTop ? [owner.libraryTop] : [] : owner ? [...owner.zones[zone.zone]].reverse() : [];
+        return owner && <ZoneViewer title={`${t(zone.zone === 'library' ? 'libraryTop' : zone.zone)} · ${owner.name}`} cards={cards} ctx={ctx} onClose={() => setZone(null)} />;
       })()}
 
       {prompt.cards.length > 0 && !menuOpen && !engine.choice && (
         <ZoneViewer title={prompt.message.split('\n').pop() ?? ''} cards={prompt.cards} ctx={ctx}><span className="bar__buttons">{promptButtons}</span></ZoneViewer>
       )}
 
-      {engine.choice && <ChoiceDialog key={engine.choice.id} choice={engine.choice} answer={engine.answer} onHover={setHovered} cards={game} />}
+      {engine.choice && !engine.openingCoin && <ChoiceDialog key={engine.choice.id} choice={engine.choice} answer={engine.answer} onHover={setHovered} cards={game} />}
+      {prompt.placement && !engine.choice && !engine.openingCoin && <ChoiceDialog key={`${prompt.placement.card.id}:${prompt.message}`}
+        choice={{ type: 'choice', id: -1, kind: 'choose', title: prompt.message, min: 0, max: 1, placement: prompt.placement.destination,
+          options: [{ label: prompt.placement.card.name ?? '', card: prompt.placement.card }] }}
+        answer={answer => { const move = !!answer.picked?.length; const action = move ? prompt.placement!.moveAction : prompt.placement!.moveAction === 'ok' ? 'cancel' : 'ok'; send({ type: 'action', action }); }}
+        onHover={setHovered} cards={game} />}
 
       {engine.reconnecting && !game.gameOver && <div className="toast toast--error" role="status">{t('reconnectingHost')}</div>}
       {engine.notice && (engine.notice.kind === 'message' || engine.notice.kind === 'error') && engine.notice.text && (

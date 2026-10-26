@@ -1,0 +1,12 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Bolas's Citadel;Grizzly Bears|Id:1;Forest;Island;Swamp;Mountain;Plains
+p1battlefield=Forest
+p0hand=Naturalize
+p1hand=
+p0library=Forest;Sol Ring;Llanowar Elves;Divination;Plains;Mountain
+p1library=Island;Mountain;Swamp;Forest;Plains
+removesummoningsickness=true

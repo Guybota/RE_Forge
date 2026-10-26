@@ -76,6 +76,9 @@ docs/       PLAN.md (roadmap).
   inspection for cards, lists, catalogs and shops; touch release never executes the primary action.
 - `campaigns/adventureGuidance.ts` — tracked quest fallback, marker shapes and offscreen waypoint placement.
   Adventure stores tracking and known place names per campaign locally; map motion follows reduced motion and animation settings.
+- `Home.tsx` / `home.css` — library-style home: six modes in the side rail, Decks/Online/Settings in the header,
+  feature and up to three actual most-played modes. `modeUsage.ts` counts confirmed play sessions, never navigation;
+  local storage, bounded validated records, stable ranking and no invented history. Artwork reuses cards seen in play.
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
@@ -106,7 +109,9 @@ docs/       PLAN.md (roadmap).
   cards plus loose "ghost" cards in `.anim-layer`), run from `Table`'s layout effect with the previous render's card
   rects. Forge takes a spell out of the hand while costs are paid, so `rememberLocations` keeps each card's last place.
   Preferences (on/off, speed, per kind) are local (`animationPrefs.ts`), off by default under reduced motion; the panel
-  sits in the main-menu settings and the game menu. The coin flip is cosmetic (shown when turn 1 starts).
+  sits in the main-menu settings and the game menu. The opening coin is the native `GameEventFlipCoin` before play/draw,
+  forwarded as `openingCoin`; `CoinFlip` is modal and `openingCoin.ts` gates actions and answers until it ends.
+  Snapshots never recreate a coin; puzzles and later games without a native toss do not show one.
 - Leaving a match from the menu concedes (Forge confirms) and goes home; `useEngine` ignores the old match's late
   states and questions after `leaveGame` until a new match starts.
 - Whose move it is (`Table`): your input = a choice, an enabled button or selectable cards/players; otherwise the

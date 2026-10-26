@@ -1,6 +1,7 @@
 // Deterministic animation routing from consecutive snapshots (the DOM runner is checked in the browser).
 import assert from 'node:assert/strict';
-import { firstPlayer, planAnimations, rememberLocations, yourTurn } from '../ui/src/table/animationPlan.ts';
+import { planAnimations, rememberLocations, yourTurn } from '../ui/src/table/animationPlan.ts';
+import { coinTiming, createOpeningCoinGate } from '../ui/src/table/openingCoin.ts';
 
 const card = (id, extra = {}) => ({ id, typeEn: 'Creature', ...extra });
 const player = (id, isLocal) => ({ id, isLocal, librarySize: 50, zones: { hand: [], battlefield: [], graveyard: [], exile: [], command: [] } });
@@ -81,11 +82,30 @@ assert.equal(yourTurn(b, theirs), false, "not on an opponent's turn");
 const first = structuredClone(a); first.turn = 1; first.activePlayerId = 1;
 assert.equal(yourTurn(a, first), false, 'turn 1 has the coin flip');
 
-const opening = state(); opening.turn = 0; opening.activePlayerId = 1;
-assert.equal(firstPlayer(null, opening), null, 'turn 0 is still the play-or-draw question');
-const started = structuredClone(opening); started.turn = 1; started.activePlayerId = 2;
-assert.equal(firstPlayer(null, started), 2, 'the coin names the first active player');
-assert.equal(firstPlayer(opening, started), 2);
-assert.equal(firstPlayer(started, structuredClone(started)), null, 'only once');
-assert.equal(firstPlayer(null, before), null, 'reconnecting mid-game shows no coin');
+const gate = createOpeningCoinGate();
+const toss = { type: 'openingCoin', gameId: 17, winnerId: 2, winnerName: 'AI' };
+assert.equal(gate.blocks({ type: 'action', action: 'ok' }), false);
+assert.equal(gate.receive(toss, true, true), toss, 'native event starts the gate before rendering');
+assert.equal(gate.acceptsState(16), false, 'late snapshots of a previous game cannot dismiss the new toss');
+assert.equal(gate.acceptsState(17), true);
+assert.equal(gate.acceptsState(undefined), true, 'older engines remain compatible');
+for (const action of ['ok', 'cancel', 'card', 'player', 'undo', 'attackAll', 'fastForward', 'nextGame']) {
+  assert.equal(gate.blocks({ type: 'action', action }), true, `blocks ${action} during the toss`);
+}
+assert.equal(gate.blocks({ type: 'answer', id: 1, picked: [0] }), true, 'play/draw and mulligan answers cannot bypass the modal');
+assert.equal(gate.blocks({ type: 'setSkin', skin: 'mesa' }), false);
+assert.equal(gate.receive(toss, true, true), null, 'duplicate network events never restart the animation');
+assert.equal(gate.finish(16), false, 'an old timer cannot unlock a different toss');
+assert.equal(gate.blocks({ type: 'action', action: 'ok' }), true);
+assert.equal(gate.finish(17), true);
+assert.equal(gate.blocks({ type: 'answer', id: 1 }), false, 'the held question is usable after the animation');
+assert.equal(gate.receive(toss, true, true), null, 'reconnect never replays a finished toss');
+assert.equal(gate.receive({ ...toss, gameId: 18 }, false, true), null, 'disabled animation never blocks play');
+assert.equal(gate.receive({ ...toss, gameId: 19 }, true, false), null, 'hidden windows do not queue an animation');
+assert.equal(gate.blocks({ type: 'action', action: 'ok' }), false);
+gate.receive({ ...toss, gameId: 20 }, true, true); gate.clear();
+assert.equal(gate.blocks({ type: 'action', action: 'ok' }), false, 'leaving or disconnection releases the gate');
+assert.deepEqual(coinTiming(0.5), { spin: 3200, total: 5000 });
+assert.deepEqual(coinTiming(2), { spin: 800, total: 1250 });
+assert.deepEqual(coinTiming(NaN), { spin: 1600, total: 2500 });
 console.log('OK: animation plans (cast, enter, ring, counters, equip, discard, mill, dies, life, your turn, coin)');

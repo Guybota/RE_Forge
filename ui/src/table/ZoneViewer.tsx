@@ -4,7 +4,7 @@ import { useT } from '../i18n';
 import { Card } from './Card';
 import type { TableContext } from './PlayerArea';
 
-export type OpenZone = { playerId: number; zone: 'graveyard' | 'exile' };
+export type OpenZone = { playerId: number; zone: 'graveyard' | 'exile' | 'library' };
 
 /** A player's graveyard or exile, or the cards a prompt offers off the table, live from the latest state.
  *  Playable cards (e.g. flashback) can be clicked here. Without onClose it stays until the prompt moves on. */

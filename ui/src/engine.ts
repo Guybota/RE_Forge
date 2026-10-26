@@ -122,6 +122,8 @@ export type PlayerState = {
   hasLost: boolean;
   handSize: number;
   librarySize: number;
+  /** Only present when Forge allows this viewer to see the current top card. */
+  libraryTop?: CardState;
   zones: { hand: CardState[]; battlefield: CardState[]; graveyard: CardState[]; exile: CardState[]; command: CardState[] };
   commanderDamage: { commanderId: number; fromPlayerId: number; damage: number }[];
 };
@@ -155,6 +157,8 @@ export type LimitedRequest = { type: 'limited'; action: 'sets' | 'events' | 'ope
 
 export type GameState = {
   type: 'state';
+  /** Native game identity; optional for older engines. */
+  gameId?: number;
   /** Set while playing a puzzle: its goal and limits (Forge's goal card never reaches the views). */
   puzzle?: PuzzleInfo;
   /** Matches of several games (best of three): games played, whether it's over, and wins by player name. */
@@ -173,6 +177,8 @@ export type GameState = {
   combat: { attackerId: number; defenderPlayerId?: number; defenderCardId?: number; blockerIds: number[] }[];
   log: string[];
   prompt: {
+    /** Native one-card Scry / Surveil / Explore confirmation, with the exact permitted destination. */
+    placement?: { card: CardState; destination: 'bottom' | 'graveyard'; moveAction: 'ok' | 'cancel' };
     message: string;
     ok: { label: string; enabled: boolean };
     cancel: { label: string; enabled: boolean };
@@ -184,6 +190,9 @@ export type GameState = {
     cards: CardState[];
   };
 };
+
+/** Forge's actual opening toss: the winner still chooses whether to play or draw. */
+export type OpeningCoin = { type: 'openingCoin'; gameId: number; winnerId: number; winnerName: string };
 
 export type ChoiceOption = { label: string; cardId?: number; playerId?: number; card?: CardState };
 
@@ -212,6 +221,8 @@ export type Choice = {
   toTop?: boolean;
   toBottom?: boolean;
   toAnywhere?: boolean;
+  /** The native selection's destination. Does not change the answer contract. */
+  placement?: 'bottom' | 'graveyard' | 'top';
   options?: ChoiceOption[];
   /** Sideboarding between games: each printing with its copies in the deck (`main`) and sideboard (`side`); answer with `amounts` in the deck. */
   cards?: (CatalogCard & { main: number; side: number })[];
@@ -282,6 +293,7 @@ export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name:
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
 type EngineMessage =
+  | OpeningCoin
   | CampaignList | CampaignState | { type: 'campaignClosed' }
   | { type: 'limitedSets'; sets: NonNullable<ModesData['sets']> } | { type: 'limitedEvents'; events: LimitedEventSummary[] }
   | LimitedEvent | DraftState | { type: 'draftClosed' } | { type: 'puzzles'; puzzles: PuzzleInfo[] }
@@ -338,6 +350,7 @@ export type ClientMessage =
   | { type: 'answer'; id: number; picked?: number[]; amounts?: number[]; value?: string | null; skip?: boolean };
 
 export type EngineHandlers = {
+  onOpeningCoin: (toss: OpeningCoin) => void;
   onInfo: (info: EngineInfo) => void;
   onDecks: (decks: DeckLists) => void;
   onDeckPreview: (preview: DeckPreview) => void;
@@ -386,6 +399,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       return;
     }
     switch (msg.type) {
+      case 'openingCoin': h.onOpeningCoin(msg); break;
       case 'campaigns': h.onCampaigns(msg); break;
       case 'limitedSets': h.onModes({ sets: msg.sets }); break;
       case 'limitedEvents': h.onModes({ events: msg.events }); break;

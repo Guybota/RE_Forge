@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { placementAnswer, placementIndices } from '../ui/src/table/libraryPlacement.ts';
+const scry = { kind: 'arrange', options: Array.from({ length: 5 }, () => ({})), movable: [0, 1] };
+assert.deepEqual(placementIndices(scry).fixed, [2, 3, 4]);
+assert.deepEqual(placementAnswer(scry, [1], [0]), [1, 2, 3, 4, 0]);
+assert.deepEqual(placementAnswer(scry, [], [1, 0]), [2, 3, 4, 1, 0]);
+assert.deepEqual(placementAnswer(scry, [1, 0], []), [1, 0, 2, 3, 4]);
+const surveil = { kind: 'order', placement: 'graveyard', options: [{}, {}, {}] };
+assert.deepEqual(placementAnswer(surveil, [0, 2], [1]), [1], 'Surveil answers the cards for the graveyard, not a library permutation');
+assert.deepEqual(placementAnswer(surveil, [2], [1, 0]), [1, 0], 'native destination ordering is preserved');
+assert.deepEqual(placementAnswer({ ...surveil, placement: 'top' }, [2, 0, 1], []), [2, 0, 1]);
+const one = { kind: 'choose', placement: 'graveyard', options: [{}] };
+assert.deepEqual(placementAnswer(one, [0], []), []);
+assert.deepEqual(placementAnswer(one, [], [0]), [0]);
+console.log('OK: shared Scry/Surveil/Explore destinations, full permutations, fixed library order and native subsets');

@@ -43,7 +43,7 @@ npm run package
 ```
 
 This builds the UI and engine, creates a Java runtime with `jlink`, and writes
-`dist-app/RE-Forge-Setup-0.1.4.exe`. The installer runs per user; players do not need
+`dist-app/RE-Forge-Setup-0.1.5.exe`. The installer runs per user; players do not need
 Java, Node or Maven installed. `dist-app/win-unpacked/` contains the same application
 before installation. Includes Adventure's shared maps, decks, world data and sprites plus
 Shandalar's world data. Other Adventure worlds and music are excluded. Card and token
@@ -67,8 +67,8 @@ Set `SMOKE_PACKAGE_IMAGES=1` to also download a real Scryfall image and verify t
 after restart; this optional check needs Internet access.
 
 On macOS, the same `npm run package` command builds a DMG for the Mac's native architecture,
-including its Java 21 runtime. Outputs are `RE-Forge-0.1.4-macOS-arm64.dmg` (Apple Silicon)
-and `RE-Forge-0.1.4-macOS-x64.dmg` (Intel). Open the DMG and drag RE-Forge to Applications.
+including its Java 21 runtime. Outputs are `RE-Forge-<version>-macOS-arm64.dmg` (Apple Silicon)
+and `RE-Forge-<version>-macOS-x64.dmg` (Intel). Open the DMG and drag RE-Forge to Applications.
 The macOS test builds are ad-hoc signed and are not notarized by Apple.
 
 The macOS workflow builds on native Apple Silicon and Intel runners, verifies and mounts each
@@ -175,12 +175,20 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `action` | `ok`, `cancel`, `card` + `id`, `player` + `id`, `undo`, `attackAll`, `concede`, `leave`; `fastForward` + boolean `enabled` yields until the next local turn or an attack against the local player. The state carries transient `fastForward`; blocks and choices remain manual |
 | UI → engine | `answer` | Reply to a `choice` by `id`: `picked` indices, `amounts`, `value`, or `skip: true` when allowed |
 | engine → UI | `state` | Full board snapshot (players, zones, stack, combat, log, prompt), at most every 40 ms |
+| engine → UI | `openingCoin` | Native opening toss before play/draw: `gameId`, `winnerId`, `winnerName`. The UI blocks game input until its animation ends; winning the toss does not necessarily mean playing first |
 | engine → UI | `choice` | A question the game waits on: `choose`, `reveal`, `confirm`, `order`, `arrange`, `amounts`, `text` |
 | engine → UI | `notice` | `incorrectAction`, `alert`, `message`, `error` |
 | engine → UI | `lobby` | Full lobby snapshot: `host`, `localSlot`, `port`, `addresses`, `transport` (`direct`/`relay`), optional `roomCode`, `slots` (kind, name, deck, ready, editable, controllable). Relay lobbies do not publish IP addresses |
 | engine → UI | `chatMessage`, `lobbyClosed` | Chat `source`, `text`, `kind`; lobby closure also clears the game/choice in the UI |
 
 Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
+Each player may carry `libraryTop`, only when Forge permits this viewer to see the current top card.
+Snapshots also carry `gameId`, so late states from a previous game cannot interrupt an opening toss.
+Its native `actionable` flag and card id use the same play/inspect path as cards on the board; no other library cards are exposed.
+Scry, Surveil and Explore use a shared destination picker. Native one-card prompts may carry
+`placement: {card, destination, moveAction}`; list choices use `placement: bottom|graveyard|top`.
+Answers keep Forge's original contracts: a complete permutation for Scry's `arrange`, an ordered subset for Surveil,
+and the original OK/Cancel action for one-card confirmations.
 Stack entries include `isSpell`, distinguishing casts from activated and triggered abilities for sound cues.
 Choice options may include `card` metadata for previews; hidden options have an empty label and no card details.
 An explicit reveal exposes only the listed cards. Invalid answers repeat the choice with a fresh `id` and `invalid: true`.
@@ -198,6 +206,12 @@ Numeric `text` prompts include `numeric`, `numberMin` and `numberMax`; `value: n
 Relay `error` messages also carry an optional `code` for translated room/connection errors; `message` retains the diagnostic text.
 Card `name`, `type` and `text` are in the chosen language; `typeEn` is the English type line for UI logic.
 Our own UI strings live in `ui/src/i18n.ts` (Portuguese and English; other languages fall back to English).
+
+The main menu uses a side library of modes and up to three most-played shortcuts. Usage is local to this device,
+starts with the next confirmed play sessions and survives restarts. Visiting menus, failed starts and repeated
+snapshots do not count; opening a campaign/event is one session, including its duels, picks and best-of-three games.
+Before the WebSocket is available, the desktop shell displays `PROGRESS <0..95>` from Forge's real card loading;
+`READY <port>` hands off to the UI's connection progress bar.
 
 ## Design rule
 

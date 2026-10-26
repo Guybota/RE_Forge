@@ -3,6 +3,7 @@ import type { CardState, Choice, GameState } from '../engine';
 import type { Engine } from '../useEngine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
+import { LibraryChoice } from './LibraryChoice';
 
 type Props = {
   choice: Choice;
@@ -30,6 +31,7 @@ export function ChoiceDialog({ choice, answer, onHover, cards }: Props) {
   const hover = (i: number) => { setPreviewIndex(i); onHover(cardAt(i)); };
   const preview = cardAt(previewIndex);
   const hasCards = options.some((_, i) => cardAt(i) && !cardAt(i)?.hidden);
+  const libraryChoice = !!choice.placement || choice.kind === 'arrange' && choice.toTop && choice.toBottom && !choice.toAnywhere;
 
   return (
     // Escape can't dismiss: Forge is waiting for an answer.
@@ -48,8 +50,9 @@ export function ChoiceDialog({ choice, answer, onHover, cards }: Props) {
           ))}
         </div>
       )}
-      {(choice.kind === 'choose' || choice.kind === 'order') && <Pick choice={presented} answer={answer} hover={hover} />}
-      {choice.kind === 'arrange' && <Arrange choice={presented} answer={answer} hover={hover} />}
+      {libraryChoice && <LibraryChoice choice={presented} answer={answer} hover={hover} />}
+      {!libraryChoice && (choice.kind === 'choose' || choice.kind === 'order') && <Pick choice={presented} answer={answer} hover={hover} />}
+      {!libraryChoice && choice.kind === 'arrange' && <Arrange choice={presented} answer={answer} hover={hover} />}
       {choice.kind === 'amounts' && <Amounts choice={presented} answer={answer} hover={hover} />}
       {choice.kind === 'text' && <TextInput choice={choice} answer={answer} />}
       {choice.kind === 'sideboard' && <Sideboard choice={choice} answer={answer} />}

@@ -1,0 +1,12 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Island;Island;Island;Island;Island;Forest;Forest;Forest;Forest
+p1battlefield=Forest
+p0hand=Preordain;Discovery // Dispersal;Consider;Merfolk Branchwalker
+p1hand=
+p0library=Sol Ring;Llanowar Elves;Divination;Forest;Island;Mountain;Swamp;Plains
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

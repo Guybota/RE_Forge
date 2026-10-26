@@ -104,6 +104,8 @@ async function adventureImages(base, images) {
 try {
   let peer = await boot();
   let info = await peer.request({ type: 'hello' }, 'engineInfo');
+  assert.equal(info.version, JSON.parse(readFileSync(path.join(root, 'desktop/package.json'), 'utf8')).version,
+    'shipped engine version matches the desktop installer');
   assert.ok(info.cards > 20000 && info.editions > 100);
   assert.ok(!info.language && !info.skin, 'clean data starts with first-run choices');
   await peer.request({ type: 'setLanguage', language: 'pt-BR' }, 'engineInfo');

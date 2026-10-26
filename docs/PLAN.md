@@ -23,7 +23,25 @@ Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN
 Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,
 definições partilhadas, contraste, estados das cartas, instruções/confirmações da mesa, texto até 200%,
 inspeção universal e orientação em Adventure. Build e sete testes UI passam; testes visuais em landscape.
-Faltam hierarquia do início, seleção visual de decks e arte nos seletores. Ver progresso e limites nesse plano.
+O início passou a biblioteca lateral com os modos mais jogados, no ramo `feat/library-home`.
+Faltam seleção visual de decks e arte nos seletores. Ver progresso e limites nesse plano.
+
+Trabalho atual (26/10/2026, entrega 0.1.5 no ramo `feat/library-home`):
+- Biblioteca lateral: seis modos, Decks/Online/Definições estáveis, destaque e até três modos mais jogados.
+  Histórico local conta partidas/sessões confirmadas pelo motor; navegar, falhar ou repetir snapshots não conta.
+- Moeda inicial ligada ao evento real do Forge, antes de mulligans e turno 1; modal e bloqueio síncrono de ações/respostas.
+- Topo da biblioteca visível e jogável quando o Forge permite, incluindo custo em vida da Citadel. Cartas desconhecidas
+  não atravessam a ponte. Verificados Future Sight, Oracle, Courser, Mystic Forge, Vizier e Reality Chip com/sem ligação.
+- Scry, Surveil (uma/várias cartas), Explore e ordenação do topo usam o mesmo componente com destinos explícitos.
+  Mantêm os contratos nativos: permutação completa no Scry, subconjunto ordenado no Surveil e OK/Cancelar no Explore.
+- Arranque Electron com barra de progresso ligada à leitura real de cartas e ligação da UI com indicador de carregamento.
+- Build UI/motor e testes `ui:smoke-home`, `ui:smoke-animations`, `ui:smoke-library-choice`,
+  `desktop:smoke-startup`, `engine:smoke-library` (11 cenários) e `engine:smoke-look` (pt/en) passaram.
+  Todos os testes usam perfis temporários. Não há alterações ao Forge upstream.
+- Distribuição Windows 0.1.5 pedida pelo utilizador, com commit e push do ramo autorizados.
+  Recursos finais passaram `package:smoke`: Java incluído, 33.591 cartas, 180 pré-construídos, catálogo,
+  importação, persistência de decks/definições/campanhas e início de partida. A barra de arranque está no ASAR
+  e a versão do motor coincide com o desktop. Esta entrega não recompila os DMG de macOS.
 
 | Commit | O quê |
 |---|---|

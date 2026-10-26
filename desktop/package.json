@@ -4,7 +4,7 @@
   "description": "A new interface for the Forge Magic: The Gathering rules engine",
   "author": "RE:Forge",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "main": "main.cjs",
   "config": { "relayUrl": "https://reforge-relay.tempo-portugal.workers.dev" },
   "scripts": {
@@ -19,7 +19,7 @@
     "productName": "RE-Forge",
     "electronVersion": "45.0.0",
     "directories": { "output": "../dist-app" },
-    "files": ["main.cjs", "engine-assets.cjs", "package.json", "icon.ico"],
+    "files": ["main.cjs", "engine-assets.cjs", "startup.cjs", "package.json", "icon.ico"],
     "extraResources": [
       { "from": "../ui/dist", "to": "ui" },
       { "from": "../engine/target/re-forge-engine.jar", "to": "engine/re-forge-engine.jar" },

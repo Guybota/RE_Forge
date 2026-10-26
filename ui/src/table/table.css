@@ -140,6 +140,19 @@
   gap: 8px;
   min-height: 40px;
 }
+.field__permanents { min-width: 0; width: 100%; display: flex; flex-direction: inherit; flex-wrap: inherit; align-items: inherit; justify-content: inherit; gap: inherit; }
+.library-choice { display: flex; flex-direction: column; gap: 20px; }
+.library-choice h3 { margin: 0 0 8px; font-size: 1rem; }
+.library-choice h3 span { font-weight: 400; color: var(--panel-ink-muted); }
+.library-choice__cards { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-height: 44px; border-top: 1px solid var(--panel-line); }
+.library-choice__card { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--panel-line); }
+.library-choice__card > img { width: 64px; height: 48px; object-fit: cover; border-radius: var(--card-radius); }
+.library-choice__card > span { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.library-choice__actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.field.field--with-library { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+.library-top { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-left: 1px solid var(--table-line); }
+.library-top > span { max-width: 12ch; text-align: center; font-size: 0.8rem; color: var(--on-table-muted); }
+.player--compact .library-top { gap: 4px; padding-left: 8px; }
 
 /* ---------- cards */
 
@@ -693,6 +706,9 @@
 /* Short windows (laptops): the hand rises less, every board flows in one row and opponents' cards shrink. */
 @media (max-height: 820px) {
   .hand { flex-basis: 120px; padding-top: 8px; }
+  .library-top { gap: 3px; padding-block: 0; }
+  .library-top > span { font-size: 0.7rem; }
+  .library-top .card--field { width: 54px; height: 75px; padding: 3px; }
   .field { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-end; gap: 8px 6px; }
   .field__row { display: contents; }
   .player--compact .card--field { width: 54px; height: 75px; }
@@ -837,15 +853,19 @@
 .anim-ghost { position: absolute; left: 0; top: 0; aspect-ratio: 5 / 7; border-radius: var(--card-radius); overflow: hidden; background: var(--card-bg); box-shadow: var(--card-shadow-lifted); will-change: transform, opacity; }
 .anim-ghost img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .anim-ghost--back { background: var(--card-back); }
-.coin-flip { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; align-content: center; gap: 28px; perspective: 600px; pointer-events: none; }
-.coin-flip__coin { width: 112px; height: 112px; border-radius: 50%; background: var(--anim-ring); border: 6px solid var(--accent); box-shadow: var(--card-shadow-lifted); animation: coin-spin ease-out both; }
-.coin-flip__text { margin: 0; padding: 10px 20px; border-radius: var(--radius-control); background: var(--panel); color: var(--panel-ink); font-family: var(--font-display); font-weight: var(--display-weight); font-size: 26px; box-shadow: var(--card-shadow-lifted); animation: coin-text 300ms ease-out both; }
+.coin-flip { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 24px); margin: auto; padding: 28px; border: 1px solid var(--panel-line); border-radius: var(--panel-radius); background: var(--panel); color: var(--panel-ink); perspective: 600px; --focus: var(--focus-panel); }
+.coin-flip[open] { display: grid; place-items: center; gap: 24px; }
+.coin-flip::backdrop { background: color-mix(in srgb, var(--table) 85%, transparent); }
+.coin-flip__title { margin: 0; font: var(--display-weight) 1.4rem/1.2 var(--font-display); text-align: center; }
+.coin-flip__coin { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); border: 6px solid var(--panel-ink); box-shadow: var(--card-shadow-lifted); animation: coin-spin ease-out both; }
+.coin-flip__coin svg { width: 56px; height: 56px; }
+.coin-flip__text { margin: 0; min-height: 2.8em; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.6rem; line-height: 1.4; text-align: center; overflow-wrap: anywhere; }
 @keyframes coin-spin {
   0% { transform: translateY(0) rotateX(0); }
-  45% { transform: translateY(-120px) rotateX(1080deg); }
-  100% { transform: translateY(0) rotateX(1980deg); }
+  45% { transform: translateY(-20px) rotateX(1080deg); }
+  100% { transform: translateY(0) rotateX(2160deg); }
 }
-@keyframes coin-text { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (max-height: 440px) { .coin-flip[open] { gap: 12px; padding: 20px; } .coin-flip__coin { width: 80px; height: 80px; } .coin-flip__coin svg { width: 40px; height: 40px; } }
 
 /* ---------- whose move it is, the stack and life changes */
 

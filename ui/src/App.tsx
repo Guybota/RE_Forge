@@ -44,7 +44,10 @@ export default function App() {
     screen = (
       <main className="home">
         <h1>RE:Forge</h1>
-        {engine.status === 'connecting' ? <p className="muted">{t('connecting')}</p> : <p className="error">{t(engine.failure ?? 'engineLost')}</p>}
+        {engine.status === 'connecting' ? <div className="app-loading" role="status">
+          <p className="muted">{t('connecting')}</p>
+          <progress aria-label={t('loadingApplication')} />
+        </div> : <p className="error">{t(engine.failure ?? 'engineLost')}</p>}
       </main>
     );
   } else if (engine.game) {

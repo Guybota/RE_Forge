@@ -50,14 +50,27 @@ As caixas assinalam a implementação concluída. A validação executada e os l
 
 ## Bloco C — escolha de partidas e identidade
 
-- [ ] **2. Hierarquia do início.** Destaque para jogar e continuar, com Decks e Online estáveis; modos continuam diretos.
-  Continuar usa campanha realmente existente e uma escolha lembrada, sem inventar progresso ou executar abertura sem intenção.
-  Aceitação: primeira utilização, campanha removida e ausência de dados têm alternativas funcionais.
+- [x] **2. Hierarquia do início.** Biblioteca lateral escolhida pelo utilizador: destaque para o modo mais jogado,
+  até três atalhos de modos e Decks/Online/Definições estáveis. Abrir um modo exige intenção e não conta como jogar.
+  Aceitação: primeira utilização, ausência de histórico, armazenamento indisponível e sessões repetidas verificados.
 - [ ] **9. Escolha visual de decks.** Pesquisa, favoritos e recentes, comandante e identidade de cor.
   Reutilizar detalhe/previews do catálogo; distinguir decks próprios de pré-construídos; pedidos antigos não substituem seleção atual.
   Aceitação: catálogo grande, deck removido/renomeado, aleatório e carregamento/erro de imagens.
 - [ ] **12. Arte nos pontos de escolha.** Retratos e recortes das cartas nos seletores de decks e campanhas.
   Aceitação: imagens existentes com fallback legível, sem downloads de arte decorativa nem competição com a mesa.
+
+### Biblioteca lateral — 26/10/2026
+
+O utilizador escolheu a direção Biblioteca e substituiu os pré-construídos pelos modos mais jogados.
+Implementada em `feat/library-home`: seis modos na barra lateral, Decks/Online/Definições no cabeçalho,
+destaque e até três atalhos ordenados por sessões reais. Sem histórico, mostra uma mensagem e Commander como entrada;
+arte só de cartas já vistas em jogo, com ícone como alternativa. O histórico começa nesta versão e fica no dispositivo.
+Esta entrega cobre a hierarquia do início com a escolha atual do utilizador; não acrescenta um botão Continuar campanhas.
+Os pontos 9 e 12 continuam pendentes. A antiga proposta de manter a grelha foi substituída por esta escolha.
+
+Validação: build, testes do histórico (sete modos, erros, persistência, duplicados) e browser em 1280×720 e
+844×390, quatro skins e texto a 200% sem overflow horizontal (scroll vertical para alcançar o conteúdo).
+Moeda inicial modal e topo da biblioteca foram igualmente revistos na mesa com o motor real e perfis descartáveis.
 
 ## Bloco D — orientação em Adventure
 

@@ -4,6 +4,10 @@ import type { LobbyState, ChatMessage, CampaignList, CampaignState } from './eng
 import { setImageBase } from './images';
 import { gameSounds } from './audio/gameSounds';
 import { playSound } from './audio/sounds';
+import { createModeUsageTracker } from './modeUsage';
+import { createOpeningCoinGate } from './table/openingCoin';
+import { animationOn } from './table/animationPrefs';
+import type { OpeningCoin } from './engine';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type DeckText, type ModesData, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
@@ -21,6 +25,8 @@ export type Engine = {
   cardResults: CardResults | null;
   printings: Printings | null;
   game: GameState | null;
+  openingCoin: OpeningCoin | null;
+  finishOpeningCoin: (gameId: number) => void;
   choice: Choice | null;
   notice: (Notice & { at: number }) | null;
   error: string | null;
@@ -50,6 +56,11 @@ export function useEngine(): Engine {
   const [cardResults, setCardResults] = useState<CardResults | null>(null);
   const [printings, setPrintings] = useState<Printings | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
+  const [openingCoin, setOpeningCoin] = useState<OpeningCoin | null>(null);
+  const coinGate = useRef(createOpeningCoinGate());
+  const finishOpeningCoin = useCallback((gameId: number) => {
+    if (coinGate.current.finish(gameId)) setOpeningCoin(null);
+  }, []);
   const [choice, setChoice] = useState<Choice | null>(null);
   const [notice, setNotice] = useState<Engine['notice']>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,10 +74,16 @@ export function useEngine(): Engine {
   // After leaving a match its last states and questions may still arrive; they must not reopen the table.
   const left = useRef(false);
   const previousSoundState = useRef<GameState | null>(null);
+  const usage = useRef(createModeUsageTracker());
 
   useEffect(() => {
     if (!port) return;
     const c = connectEngine(port, {
+      onOpeningCoin: (toss) => {
+        if (left.current) return;
+        const coin = coinGate.current.receive(toss, animationOn('coin'), !document.hidden);
+        if (coin) setOpeningCoin(coin);
+      },
       onInfo: (i) => {
         setImageBase(i.imageBase, i.language);
         setInfo(i);
@@ -79,7 +96,9 @@ export function useEngine(): Engine {
       onCardResults: setCardResults,
       onPrintings: setPrintings,
       onState: (g) => {
-        if (left.current) return;
+        if (left.current || !coinGate.current.acceptsState(g.gameId)) return;
+        if (g.gameOver) { coinGate.current.clear(); setOpeningCoin(null); }
+        usage.current.state(g);
         gameSounds(previousSoundState.current, g).forEach(playSound);
         previousSoundState.current = g;
         setGame(g);
@@ -87,17 +106,20 @@ export function useEngine(): Engine {
       onChoice: (q) => { if (!left.current) setChoice(q); },
       onNotice: (n) => setNotice({ ...n, at: Date.now() }),
       onLobby: (l) => {
+        usage.current.lobby(l);
         left.current = !l;
         setLobby(l);
-        if (!l) { setReconnecting(false); previousSoundState.current = null; setGame(null); setChoice(null); setChat([]); }
+        if (!l) { coinGate.current.clear(); setOpeningCoin(null); setReconnecting(false); previousSoundState.current = null; setGame(null); setChoice(null); setChat([]); }
       },
       onChat: (m) => setChat((messages) => [...messages.slice(-199), m]),
       onCampaigns: setCampaigns,
-      onModes: (update) => setModes((current) => ({ ...current, ...update })),
+      onModes: (update) => { usage.current.modes(update); setModes((current) => ({ ...current, ...update })); },
       onConnection: setReconnecting,
-      onCampaign: setCampaign,
-      onError: setError,
+      onCampaign: (campaign) => { usage.current.campaign(campaign); setCampaign(campaign); },
+      onError: (error) => { usage.current.failed(); setError(error); },
       onClosed: () => {
+        coinGate.current.clear(); setOpeningCoin(null);
+        usage.current.leave();
         setStatus('failed');
         setFailure('engineLost');
       },
@@ -107,7 +129,9 @@ export function useEngine(): Engine {
   }, [port]);
 
   const send = useCallback((m: ClientMessage) => {
+    if (coinGate.current.blocks(m)) return;
     setError(null);
+    usage.current.requested(m);
     if (m.type === 'startMatch' || m.type === 'startOnlineMatch' || m.type === 'startPuzzle' || m.type === 'campaign' && m.action === 'duel' || m.type === 'limited' && m.action === 'play') {
       left.current = false;
       previousSoundState.current = null;
@@ -117,6 +141,7 @@ export function useEngine(): Engine {
 
   const answer = useCallback<Engine['answer']>(
     (a) => {
+      if (coinGate.current.blocks({ type: 'answer', id: choice?.id ?? -1 })) return;
       if (choice) send({ type: 'answer', id: choice.id, ...a });
       setChoice(null);
     },
@@ -124,11 +149,13 @@ export function useEngine(): Engine {
   );
 
   const leaveGame = useCallback(() => {
+    coinGate.current.clear(); setOpeningCoin(null);
+    usage.current.leave();
     left.current = true;
     previousSoundState.current = null;
     setGame(null);
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckPreview, deckText, deckDetail, cardResults, printings, game, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
+  return { status, failure, info, decks, deckPreview, deckText, deckDetail, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
 }

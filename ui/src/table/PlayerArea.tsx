@@ -22,7 +22,7 @@ export type TableContext = {
   onCard: (id: number) => void;
   onPlayer: (id: number) => void;
   onHover: (card: CardState | null) => void;
-  onZone: (playerId: number, zone: 'graveyard' | 'exile') => void;
+  onZone: (playerId: number, zone: 'graveyard' | 'exile' | 'library') => void;
   /** Opponents only: widen this player's board (or back to equal widths). */
   onFocus?: (playerId: number) => void;
   /** Opponents only: show this board alone over the whole table (or back). */
@@ -123,7 +123,10 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
         {attackedBy > 0 && <span className="chip chip--danger">{t('attacked', { n: attackedBy })}</span>}
         <span className="player__stats">
           <span className="player__minor" data-zone="hand" data-zone-of={player.id}>{t('handCount', { n: player.handSize })}</span>
-          <span className="player__minor" title={t('library')} data-zone="library" data-zone-of={player.id}>{t('libraryShort', { n: player.librarySize })}</span>
+          {player.libraryTop ? <button type="button" className={`player__zone ${player.libraryTop.actionable || ctx.selectableCards.has(player.libraryTop.id) ? 'is-selectable' : ''}`}
+            aria-label={t('viewLibraryTop', { name: player.name })} title={t('libraryTop')} data-zone="library" data-zone-of={player.id}
+            aria-haspopup="dialog" onClick={() => ctx.onZone(player.id, 'library')}>{t('libraryShort', { n: player.librarySize })}</button>
+            : <span className="player__minor" title={t('library')} data-zone="library" data-zone-of={player.id}>{t('libraryShort', { n: player.librarySize })}</span>}
           {(['graveyard', 'exile'] as const).map((zone) => {
             const n = player.zones[zone].length;
             if (zone === 'exile' && n === 0) return null;
@@ -142,7 +145,8 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
         </span>
         {!compact && command}
       </header>
-      {!collapsed && <div className="field">
+      {!collapsed && <div className={`field ${player.libraryTop ? 'field--with-library' : ''}`}>
+        <div className="field__permanents">
         {/* In a narrow column the commander joins the board instead of making the header two lines tall. */}
         {compact && command}
         <div className="field__row">
@@ -151,6 +155,11 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
         <div className="field__row field__row--lands">
           {lands.map((g) => place(g, 'land'))}
         </div>
+        </div>
+        {player.libraryTop && <aside className="library-top" aria-label={t('libraryTop')}>
+          <span>{t('libraryTop')}</span>
+          <Card size="field" {...cardProps(player.libraryTop)} />
+        </aside>}
       </div>}
     </section>
   );

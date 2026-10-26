@@ -15,11 +15,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.common.eventbus.Subscribe;
 
 import forge.LobbyPlayer;
 import forge.deck.CardPool;
 import forge.game.GameEntityView;
 import forge.game.GameView;
+import forge.game.Game;
+import forge.game.event.GameEvent;
+import forge.game.event.GameEventFlipCoin;
 import forge.game.card.CardView;
 import forge.game.phase.PhaseType;
 import forge.game.player.DelayedReveal;
@@ -70,6 +74,11 @@ final class WebGuiGame extends NetworkGuiGame {
 
     private volatile GameSnapshot.Prompt prompt = GameSnapshot.Prompt.NONE;
     private volatile GameSnapshot lastSnapshot;
+    private volatile CardView promptCard;
+    CardView promptCard() { return promptCard; }
+    void clearPromptCard() { promptCard = null; }
+    private Game coinGame;
+    private int openingCoinGameId = -1;
 
     WebGuiGame(Session session, Settings settings) {
         this.session = session;
@@ -167,7 +176,34 @@ final class WebGuiGame extends NetworkGuiGame {
 
     @Override protected void afterDeltaApplied() { markDirty(); }
 
-    @Override public void setGameView(GameView gameView) { super.setGameView(gameView); markDirty(); }
+    @Override public void setGameView(GameView gameView) {
+        super.setGameView(gameView);
+        // Local games deliver the actual toss through their EventBus, before play/draw and mulligans.
+        Game game = gameView == null ? null : gameView.getGame();
+        if (game != null && game != coinGame) { coinGame = game; game.subscribeToEvents(this); }
+        markDirty();
+    }
+
+    @Subscribe
+    public synchronized void openingCoin(GameEventFlipCoin event) {
+        GameView game = getGameView();
+        if (disposed || game == null || !event.startingToss() || openingCoinGameId == game.getId()) return;
+        openingCoinGameId = game.getId();
+        JsonObject toss = new JsonObject();
+        toss.addProperty("type", "openingCoin");
+        toss.addProperty("gameId", game.getId());
+        toss.addProperty("winnerId", event.flipper().getId());
+        toss.addProperty("winnerName", event.flipper().getName());
+        session.send(toss);
+        // Mount the table even when the event precedes its first debounced snapshot.
+        pushStateNow();
+    }
+
+    @Override public void handleGameEvent(GameEvent event) {
+        // Guests receive the same native event from Forge's netplay stream, not a local EventBus.
+        if (event instanceof GameEventFlipCoin toss) openingCoin(toss);
+        super.handleGameEvent(event);
+    }
     @Override protected void updateCurrentPlayer(PlayerView player) { markDirty(); }
     @Override public void openView(TrackableCollection<PlayerView> myPlayers) {
         seedYieldStateOnHost();
@@ -189,6 +225,7 @@ final class WebGuiGame extends NetworkGuiGame {
 
     @Override
     public void showPromptMessage(PlayerView playerView, String message, CardView card) {
+        promptCard = card;
         GameSnapshot.Prompt p = prompt;
         prompt = new GameSnapshot.Prompt(withoutStatusLines(message), p.ok(), p.cancel(), p.okEnabled(), p.cancelEnabled(), p.selection());
         markDirty();
@@ -378,6 +415,10 @@ final class WebGuiGame extends NetworkGuiGame {
         q.addProperty("min", min);
         q.addProperty("max", max);
         q.add("options", options(items, display, min < 0));
+        Localizer labels = Localizer.getInstance();
+        if (title.equals(labels.getMessage("lblSelectCardsToBePutIntoTheGraveyard"))) q.addProperty("placement", "graveyard");
+        else if (title.equals(labels.getMessage("lblSelectCardsToBeOutOnTheBottomOfYourLibrary"))) q.addProperty("placement", "bottom");
+        else if (title.equals(labels.getMessage("lblArrangeCardsToBePutOnTopOfYourLibrary"))) q.addProperty("placement", "top");
         if (preselected != null) {
             JsonArray pre = new JsonArray();
             Set<Integer> indices = new LinkedHashSet<>();

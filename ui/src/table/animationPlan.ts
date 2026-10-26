@@ -23,12 +23,12 @@ export type Location = { card: CardState; zone: Zone | 'battlefield' | 'stack'; 
  */
 export function rememberLocations(memory: Map<number, Location>, state: GameState) {
   for (const p of state.players) for (const zone of ZONES) for (const c of p.zones[zone]) memory.set(c.id, { card: c, zone, playerId: p.id });
+  for (const p of state.players) if (p.libraryTop) memory.set(p.libraryTop.id, { card: p.libraryTop, zone: 'library', playerId: p.id });
   for (const s of state.stack) if (s.sourceCardId !== null && s.isSpell) {
     const was = memory.get(s.sourceCardId);
     memory.set(s.sourceCardId, { card: s.card ?? was?.card ?? { id: s.sourceCardId }, zone: 'stack', playerId: s.controllerId ?? was?.playerId ?? -1 });
   }
 }
-
 /** Compare engine snapshots only (never prompts or translated text), like the sound cues. */
 export function planAnimations(previous: GameState | null, next: GameState, memory = new Map<number, Location>()): AnimationPlan[] {
   if (!previous || previous.gameOver || next.gameOver) return [];
@@ -64,15 +64,9 @@ export function planAnimations(previous: GameState | null, next: GameState, memo
   return plans;
 }
 
-/** Your turn begins (not turn 1, which the coin flip already announces). */
+/** Your turn begins. The opening turn follows the native toss and mulligan flow instead. */
 export function yourTurn(previous: GameState | null, next: GameState): boolean {
   const me = next.players.find(p => p.isLocal);
   return !!previous && !next.gameOver && next.turn > 1 && !!me && !me.hasLost &&
     next.activePlayerId === me.id && (previous.activePlayerId !== me.id || previous.turn !== next.turn);
-}
-
-/** Who plays first, once per match: when turn 1 starts (turn 0 is still the play-or-draw question). */
-export function firstPlayer(previous: GameState | null, next: GameState): number | null {
-  if (next.gameOver || next.turn !== 1 || next.activePlayerId === null) return null;
-  return !previous || previous.turn < 1 || previous.activePlayerId === null ? next.activePlayerId : null;
 }

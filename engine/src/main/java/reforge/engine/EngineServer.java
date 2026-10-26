@@ -414,8 +414,8 @@ public final class EngineServer extends WebSocketServer {
                 }
                 gui.setFastForward(msg.get("enabled").getAsBoolean());
             }
-            case "ok" -> controller.selectButtonOk();
-            case "cancel" -> controller.selectButtonCancel();
+            case "ok" -> { gui.clearPromptCard(); controller.selectButtonOk(); }
+            case "cancel" -> { gui.clearPromptCard(); controller.selectButtonCancel(); }
             case "card" -> {
                 CardView card = gui.cardById(id);
                 if (card == null || !controller.selectCard(card, null, null)) gui.flashIncorrectAction();

@@ -13,7 +13,7 @@ import forge.model.FModel;
  * Prints "READY <port>" on stdout once the UI can connect (the Electron shell waits for it).
  */
 public final class Main {
-    public static final String VERSION = "0.1.4";
+    public static final String VERSION = "0.1.5";
 
     public static void main(String[] args) throws Exception {
         launch(args, MatchStarter::startCommander);
@@ -42,13 +42,18 @@ public final class Main {
         GuiBase.setInterface(new HeadlessGui(assets));
         Settings settings = new Settings(new File(data));
         LangPortuguese.register();
-        FModel.initialize(null, settings::applyTo);
+        StartupProgress progress = new StartupProgress();
+        progress.stage(5);
+        FModel.initialize(progress, settings::applyTo);
+        progress.stage(90);
         LangPortuguese.fixMessages();
 
         int imagePort = new ImageServer().start();
         EngineServer server = new EngineServer(new InetSocketAddress("127.0.0.1", port), "http://127.0.0.1:" + imagePort + "/card", settings, matches);
         server.start();
-        System.out.println("READY " + server.awaitPort());
+        int readyPort = server.awaitPort();
+        progress.stage(95);
+        System.out.println("READY " + readyPort);
         System.out.flush();
     }
 

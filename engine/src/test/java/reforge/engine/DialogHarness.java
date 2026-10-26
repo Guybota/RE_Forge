@@ -31,7 +31,7 @@ public final class DialogHarness {
             else engineArgs.add(args[i]);
         }
         String selected = scenario;
-        Main.launch(engineArgs.toArray(String[]::new), (gui, deck, opponents, profiles) -> start(gui, selected));
+        Main.launch(engineArgs.toArray(String[]::new), (gui, deck, opponents, profiles) -> start(gui, selected.equals("library") ? "library:" + (deck == null ? "citadel" : deck) : selected));
     }
 
     private static HostedMatch start(WebGuiGame gui, String scenario) {
@@ -55,10 +55,49 @@ public final class DialogHarness {
         match.setStartGameHook(() -> {
             try {
                 GameState state = new GameState();
-                state.parse(Files.readAllLines(Path.of(List.of("images", "zones", "table", "sounds", "animations", "autopass", "attachments", "tutor", "blocks", "fastforward", "fastcombat").contains(scenario)
-                        ? "scripts/fixtures/" + scenario.replace("images", "image").replace("sounds", "sound") + "-cards.txt" : "scripts/fixtures/dialog-combat.txt")));
+                String fixture = scenario.startsWith("library:") ? "library" : scenario;
+                List<String> lines = Files.readAllLines(Path.of(List.of("images", "zones", "table", "sounds", "animations", "autopass", "attachments", "tutor", "blocks", "fastforward", "fastcombat", "library", "look").contains(fixture)
+                        ? "scripts/fixtures/" + fixture.replace("images", "image").replace("sounds", "sound") + "-cards.txt" : "scripts/fixtures/dialog-combat.txt"));
+                if (scenario.startsWith("library:")) {
+                    String variant = scenario.substring("library:".length());
+                    String effect = switch (variant) {
+                        case "future" -> "Future Sight";
+                        case "oracle" -> "Oracle of Mul Daya";
+                        case "courser" -> "Courser of Kruphix";
+                        case "mystic", "mystic-land" -> "Mystic Forge";
+                        case "vizier", "vizier-spell" -> "Vizier of the Menagerie";
+                        case "chip" -> "The Reality Chip";
+                        case "chip-attached" -> "The Reality Chip";
+                        case "hidden" -> "Ornithopter";
+                        default -> "Bolas's Citadel";
+                    };
+                    String top = switch (variant) {
+                        case "mystic", "chip", "chip-attached" -> "Sol Ring;Forest;Llanowar Elves;Divination;Plains;Mountain";
+                        case "vizier" -> "Llanowar Elves;Forest;Sol Ring;Divination;Plains;Mountain";
+                        case "vizier-spell" -> "Sol Ring;Forest;Llanowar Elves;Divination;Plains;Mountain";
+                        default -> "Forest;Sol Ring;Llanowar Elves;Divination;Plains;Mountain";
+                    };
+                    lines = lines.stream().map(line -> line.replace("Bolas's Citadel", effect).replace("Forest;Sol Ring;Llanowar Elves;Divination;Plains;Mountain", top)).toList();
+                }
+                state.parse(lines);
                 // Applying a native Forge state on the game thread creates real cards/combat.
                 state.applyToGame(match.getGame());
+                // Puzzle attachments have no source ability; Reconfigure needs one for its native type effect.
+                if (scenario.equals("library:chip-attached")) {
+                    var battlefield = match.getGame().getPlayers().get(0).getCardsIn(ZoneType.Battlefield);
+                    var chip = battlefield.stream().filter(c -> c.getName().equals("The Reality Chip")).findFirst().orElseThrow();
+                    var bear = battlefield.stream().filter(c -> c.getName().equals("Grizzly Bears")).findFirst().orElseThrow();
+                    var reconfigure = chip.getSpellAbilities().stream().filter(sa -> sa.getApi() == forge.game.ability.ApiType.Attach).findFirst().orElseThrow();
+                    reconfigure.setActivatingPlayer(chip.getController());
+                    chip.attachToEntity(bear, reconfigure, true);
+                    match.getGame().getAction().checkStaticAbilities();
+                }
+                if (scenario.startsWith("library:")) {
+                    var fixturePlayer = match.getGame().getPlayers().get(0);
+                    var firstCard = fixturePlayer.getCardsIn(ZoneType.Library).get(0);
+                    gui.message("LIBRARY READY " + scenario + " " + firstCard.getName() + " look=" + firstCard.mayPlayerLook(fixturePlayer)
+                            + " visible=" + gui.mayView(firstCard.getView()), "Library smoke");
+                }
                 // "tutor": Forge's own shuffle event proves the library search shuffled.
                 if (scenario.equals("tutor")) match.getGame().subscribeToEvents(new Object() {
                     @com.google.common.eventbus.Subscribe
@@ -66,6 +105,7 @@ public final class DialogHarness {
                 });
                 gui.pushStateNow();
                 if (scenario.equals("suite")) exerciseDialogs(gui, match);
+                if (scenario.equals("look")) exerciseLibraryChoices(gui, match);
             } catch (Exception | AssertionError error) {
                 error.printStackTrace();
                 gui.showErrorDialog(error.toString(), "Dialog smoke failed");
@@ -77,6 +117,28 @@ public final class DialogHarness {
 
     private static void check(boolean valid, String message) {
         if (!valid) throw new AssertionError(message);
+    }
+
+    private static void exerciseLibraryChoices(WebGuiGame gui, HostedMatch match) {
+        var human = match.getGame().getPlayers().get(0);
+        var controller = human.getController();
+        var first = human.getCardsIn(ZoneType.Library).get(0);
+        var second = human.getCardsIn(ZoneType.Library).get(1);
+        var third = human.getCardsIn(ZoneType.Library).get(2);
+        var two = new forge.game.card.CardCollection(List.of(first, second));
+        var scry = controller.arrangeForScry(two);
+        check(scry.getLeft().equals(new forge.game.card.CardCollection(List.of(second))) && scry.getRight().equals(new forge.game.card.CardCollection(List.of(first))), "Scry preserves selected destinations");
+        var surveil = controller.arrangeForSurveil(new forge.game.card.CardCollection(List.of(first, second)));
+        check(surveil.getLeft().contains(second) && surveil.getRight().contains(first), "Surveil moves only the selected card to the graveyard");
+        var single = controller.arrangeForSurveil(new forge.game.card.CardCollection(List.of(first)));
+        check(single.getRight().contains(first), "one-card Surveil uses the native graveyard answer");
+        var ordered = controller.arrangeForSurveil(new forge.game.card.CardCollection(List.of(first, second, third)));
+        check(ordered.getRight().contains(second) && ordered.getLeft().get(0).equals(third) && ordered.getLeft().get(1).equals(first), "remaining Surveil cards retain chosen top order");
+        var source = human.getCardsIn(ZoneType.Battlefield).get(0);
+        var ability = new forge.game.spellability.SpellAbility.EmptySa(forge.game.ability.ApiType.Explore, source);
+        boolean explore = controller.confirmAction(ability, null, forge.util.Localizer.getInstance().getMessage("lblPutThisCardToYourGraveyard", first.getTranslatedName()), first, java.util.Map.of("RevealedCard", first));
+        check(explore, "Explore maps the graveyard destination to native Yes");
+        gui.message("LOOK CHOICES OK", "Look smoke");
     }
 
     private static void exerciseDialogs(WebGuiGame gui, HostedMatch match) {

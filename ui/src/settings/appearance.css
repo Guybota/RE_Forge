@@ -8,12 +8,6 @@ html[data-density='comfortable'] { --reading-target: 52px; }
 .sound-settings legend { font-size: calc((20px) * var(--text-scale, 1)); }
 
 /* campaigns.css */
-.mode-home__brand h1 { font-size: calc((clamp(48px, 7vw, 88px)) * var(--text-scale, 1)); }
-.mode-home__mode { font-size: calc((clamp(28px, 3.7vw, 48px)) * var(--text-scale, 1)); }
-@media (min-width: 761px) and (max-height: 800px) {
-.mode-home__brand h1 { font-size: calc((clamp(48px, 8vh, 64px)) * var(--text-scale, 1)); }
-.mode-home__mode { font-size: calc((clamp(28px, 3.3vw, 40px)) * var(--text-scale, 1)); }
-}
 .campaign__head h1 { font-size: calc((clamp(30px, 4vw, 48px)) * var(--text-scale, 1)); }
 .campaign__mode { font-size: calc((14px) * var(--text-scale, 1)); }
 .campaign h2 { font-size: calc((26px) * var(--text-scale, 1)); }
@@ -131,11 +125,9 @@ html[data-text-scale]:not([data-text-scale='100']) :is(.btn, .input, .segmented 
 html[data-text-scale]:not([data-text-scale='100']) .btn {
   white-space: normal; overflow-wrap: anywhere;
 }
-html[data-text-scale]:not([data-text-scale='100']) :is(.home h1, .mode-home__mode, .mode-home__brand h1, .choice__title) {
+html[data-text-scale]:not([data-text-scale='100']) :is(.home h1, .choice__title) {
   max-width: 100%; min-width: 0; overflow-wrap: anywhere;
 }
-html[data-text-scale]:not([data-text-scale='100']) .mode-home__mode > span { min-width: 0; }
-html[data-text-scale]:not([data-text-scale='100']) .mode-home__mode svg { flex-shrink: 0; }
 html[data-text-scale]:not([data-text-scale='100']) .settings-dialog__head { flex-wrap: wrap; }
 html[data-text-scale]:not([data-text-scale='100']) .settings-dialog__head .choice__title { flex: 1 1 160px; }
 html[data-text-scale]:not([data-text-scale='100']) .settings-dialog__field { grid-template-columns: 1fr; gap: 8px; }

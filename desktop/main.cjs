@@ -3,6 +3,7 @@ const { app, BrowserWindow, dialog } = require('electron');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createStartupParser, splashHtml } = require('./startup.cjs');
 
 const isDev = !app.isPackaged && process.env.RE_FORGE_DEV === '1';
 
@@ -22,10 +23,6 @@ const paths = app.isPackaged
       forgeAssets: path.resolve(__dirname, '..', 'forge', 'forge-gui'),
       ui: path.resolve(__dirname, '..', 'ui', 'dist', 'index.html'),
     };
-
-// Shown while the engine loads the card database; uses the default table's colours.
-const SPLASH = `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html><body style="margin:0;height:100vh;display:grid;place-items:center;background:#1f3b2d;color:#efe7d6;font:600 64px Georgia,serif">
-<div>RE:Forge</div></body></html>`)}`;
 
 // The engine's output for this run (and the previous one), so a failure can be explained after the fact.
 // shortcut: stops writing past 20 MB per run instead of rotating; enough for a long session.
@@ -56,14 +53,16 @@ let engine = null;
 let quitting = false;
 
 // Starts the Java bridge and resolves with the port it printed on its READY line.
-function startEngine() {
+function startEngine(onProgress) {
   return new Promise((resolve, reject) => {
     const forgeAssets = app.isPackaged && process.platform === 'darwin'
       ? require('./engine-assets.cjs').writableEngineAssets(paths.forgeAssets, path.join(app.getPath('userData'), 'engine-assets'))
       : paths.forgeAssets;
     let ready = false;
     let buffer = '';
-    let stdout = '';
+    const parseStartup = createStartupParser(onProgress, port => {
+      ready = true; clearTimeout(timeout); resolve(port);
+    });
     const timeout = setTimeout(() => {
       reject(new Error('Engine startup timed out (120 s)'));
     }, 120_000);
@@ -95,13 +94,7 @@ Engine exited with code ${code} at ${new Date().toISOString()}
       engineLog(d);
       process.stdout.write(`[engine] ${d}`);
       buffer = (buffer + d.toString()).slice(-16000);
-      stdout = (stdout + d.toString()).slice(-1024);
-      const match = stdout.match(/^READY (\d+)\r?\n/m);
-      if (match && !ready) {
-        ready = true;
-        clearTimeout(timeout);
-        resolve(Number(match[1]));
-      }
+      parseStartup(d);
     });
   });
 }
@@ -118,11 +111,15 @@ async function createWindow() {
     icon: process.platform === 'win32' ? path.join(__dirname, 'icon.ico') : undefined,
     webPreferences: { contextIsolation: true, sandbox: true },
   });
-  win.loadURL(SPLASH);
+  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml(app.getLocale()))}`);
 
   let port;
   try {
-    port = await startEngine();
+    port = await startEngine(value => {
+      if (win.isDestroyed()) return;
+      win.setProgressBar(value / 100);
+      win.webContents.executeJavaScript(`document.getElementById('startup-progress').value = ${value}; document.getElementById('startup-value').textContent = '${value}%';`).catch(() => {});
+    });
   } catch (err) {
     if (!quitting) dialog.showErrorBox('RE:Forge', `O motor não arrancou.\n\n${err.message}`);
     app.quit();
@@ -135,6 +132,7 @@ async function createWindow() {
   } else {
     await win.loadFile(paths.ui, { query: { enginePort: String(port) } });
   }
+  if (!win.isDestroyed()) win.setProgressBar(-1);
 }
 
 // A second launch focuses the open window instead of starting another engine.

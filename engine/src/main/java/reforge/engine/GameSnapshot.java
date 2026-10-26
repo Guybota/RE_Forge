@@ -48,6 +48,7 @@ final class GameSnapshot {
     GameSnapshot(GameView game, WebGuiGame gui, Prompt prompt) {
         json = new JsonObject();
         json.addProperty("type", "state");
+        json.addProperty("gameId", game.getId());
         json.addProperty("turn", game.getTurn());
         json.addProperty("phase", game.getPhase() == null ? null : game.getPhase().name());
         json.addProperty("activePlayerId", game.getPlayerTurn() == null ? null : game.getPlayerTurn().getId());
@@ -107,6 +108,10 @@ final class GameSnapshot {
         o.addProperty("hasLost", p.getHasLost());
         o.addProperty("handSize", p.getZoneSize(ZoneType.Hand));
         o.addProperty("librarySize", p.getZoneSize(ZoneType.Library));
+        // CardView owns all look/reveal permissions, including Citadel, Future Sight and shared reveals.
+        // Never send the rest of the library (or even the identity of an unknown top card).
+        CardView top = p.getCards(ZoneType.Library).isEmpty() ? null : p.getCards(ZoneType.Library).get(0);
+        if (top != null && !gui.getLocalPlayers().isEmpty() && gui.mayView(top)) o.add("libraryTop", card(top, gui));
 
         JsonObject zones = new JsonObject();
         zones.add("hand", cards(p.getCards(ZoneType.Hand), gui));
@@ -299,6 +304,26 @@ final class GameSnapshot {
         o.add("ok", button(p.ok(), p.okEnabled()));
         o.add("cancel", button(p.cancel(), p.cancelEnabled()));
         o.addProperty("priority", isPassPriority(p));
+        CardView promptCard = gui.promptCard();
+        if (promptCard != null && gui.mayView(promptCard) && p.okEnabled() && p.cancelEnabled()) {
+            Localizer l = Localizer.getInstance();
+            String name = name(promptCard.getCurrentState());
+            String message = p.message().substring(p.message().lastIndexOf('\n') + 1);
+            String destination = null, moveAction = "cancel";
+            if (p.ok().equals(l.getMessage("lblLibrary")) && p.cancel().equals(l.getMessage("lblGraveyard"))
+                    && message.equals(l.getMessage("lblPutCardsOnTheTopLibraryOrGraveyard", name))) destination = "graveyard";
+            else if (p.ok().equals(l.getMessage("lblTop")) && p.cancel().equals(l.getMessage("lblBottom"))
+                    && message.equals(l.getMessage("lblPutCardOnTopOrBottomLibrary", name))) destination = "bottom";
+            else if (p.ok().equals(l.getMessage("lblYes")) && p.cancel().equals(l.getMessage("lblNo"))
+                    && message.equals(l.getMessage("lblPutThisCardToYourGraveyard", name))) { destination = "graveyard"; moveAction = "ok"; }
+            if (destination != null) {
+                JsonObject placement = new JsonObject();
+                placement.addProperty("destination", destination);
+                placement.addProperty("moveAction", moveAction);
+                placement.add("card", card(promptCard, gui));
+                o.add("placement", placement);
+            }
+        }
         // Card, player and stack ids are separate number spaces in Forge, so keep them in separate lists.
         JsonObject selectable = ids(p.selection().targets());
         p.selection().cards().forEach(c -> selectable.getAsJsonArray("cards").add(c.getId()));
