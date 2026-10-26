@@ -1,0 +1,13 @@
+# Two AI attackers and two possible blockers (switch blocks before confirming), plus burn in hand for the stack.
+activeplayer=p1
+activephase=COMBAT_DECLARE_BLOCKERS
+turn=4
+p0life=20
+p1life=20
+p0battlefield=Grizzly Bears;Hill Giant;Mountain;Mountain;Mountain
+p0hand=Lightning Bolt;Shock
+p1hand=Lightning Bolt
+p1battlefield=Craw Wurm|Attacking;Gray Ogre|Attacking;Mountain;Mountain
+p0library=Forest;Island;Plains;Mountain;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

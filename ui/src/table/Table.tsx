@@ -13,6 +13,7 @@ import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
 import { firstPlayer, planAnimations, rememberLocations, yourTurn, type Location } from './animationPlan';
 import { cardRects, runAnimations } from './animationRunner';
+import { StackRail } from './StackRail';
 import { animationOn, getAnimationSettings } from './animationPrefs';
 import './table.css';
 
@@ -156,7 +157,16 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
       // On whichever board the host is, also when the attachment's controller is someone else.
       attachments: attachmentsByHost(game.players.flatMap((p) => p.zones.battlefield)),
       playerNames: names,
-      onCard: (id) => send({ type: 'action', action: 'card', id }),
+      onCard: (id) => {
+        // Declaring blockers: Forge refuses a creature that already blocks another attacker. Move it to the attacker
+        // being declared for (Forge's "chosen" card), like dragging a blocker in Arena: back to its attacker, click it
+        // off, return to the chosen attacker, click it on. Clicking it while its own attacker is chosen still removes it.
+        const blocked = game.combat.find((a) => a.blockerIds.includes(id));
+        const current = game.combat.find((a) => prompt.chosen.cards.includes(a.attackerId));
+        const clicks = blocked && current && blocked !== current && me.zones.battlefield.some((c) => c.id === id)
+          ? [blocked.attackerId, id, current.attackerId, id] : [id];
+        for (const card of clicks) send({ type: 'action', action: 'card', id: card });
+      },
       onPlayer: (id) => send({ type: 'action', action: 'player', id }),
       onHover: setHovered,
       onZone: (playerId, z) => setZone({ playerId, zone: z }),
@@ -261,27 +271,15 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     return () => clearTimeout(timer);
   }, [leaving, engine.choice, me.hasLost, game.gameOver]);
 
-  // Only while something is waiting to resolve. The top item resolves next; its source shows on hover.
   const allCards = game.players.flatMap((p) => Object.values(p.zones).flat());
-  const stack = game.stack.length > 0 && (
-    <section aria-live="polite">
-      <h2>{t('stack')}</h2>
-      <ol className="side__stack" data-zone="stack">
-        {game.stack.map((s, i) => {
-          const card = s.card ?? allCards.find((c) => c.id === s.sourceCardId);
-          const owner = s.controllerId !== null ? ctx.playerNames.get(s.controllerId) : undefined;
-          return (
-            <li key={s.id} data-stack-id={s.id} className={i === 0 ? 'is-next' : undefined} aria-current={i === 0 || undefined}
-              title={i === 0 ? t('resolvesNext') : undefined}
-              onMouseEnter={card ? () => setHovered(card) : undefined} onMouseLeave={card ? () => setHovered(null) : undefined}>
-              {owner && game.players.length > 2 && <span className="side__stack-owner">{owner}</span>}
-              {s.text}
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
+  // A card that leaves under the mouse (a spell resolving, a creature dying) never gets mouseleave, and it may still
+  // exist elsewhere (the graveyard): keep its floating preview only while the pointer is really over it.
+  useEffect(() => {
+    if (!hovered) return;
+    const id = String(hovered.id);
+    const over = [...document.querySelectorAll(':hover')].some((el) => el.getAttribute('data-card-id') === id || el.getAttribute('data-hover-card') === id);
+    if (!over) setHovered(null);
+  }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div ref={tableRoot} className={`table ${sideOpen && !narrow ? '' : 'table--wide'} ${narrow ? 'table--narrow' : ''}`}>
@@ -312,6 +310,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
             ))}
           </ol>
           <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
+          <StackRail game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
           <span className="bar__buttons">
             {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
             {promptButtons}
@@ -341,7 +340,6 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
         </div>
       </div>
 
-      {!sideOpen && game.stack.length > 0 && <div className="float-stack">{stack}</div>}
       {!sideOpen && !narrow && hovered && !hovered.hidden && <FloatPreview key={hovered.id} card={hovered} />}
 
       {sideOpen && narrow && <button type="button" className="side-scrim" aria-label={t('hidePanel')} onClick={toggleSide} />}
@@ -358,7 +356,6 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           {game.puzzle.turns && ` · ${t('turnsLimit', { n: game.puzzle.turns })}`}
         </section>}
         {lastSeen && <section className="side__preview" aria-live="polite"><Preview key={lastSeen.id} card={lastSeen} /></section>}
-        {stack}
         <section className="side__log">
           <h2>{t('log')}</h2>
           <ol>

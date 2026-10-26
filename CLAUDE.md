@@ -77,8 +77,13 @@ docs/       PLAN.md (roadmap).
   opponent's name enlarges that board and collapses the others (not during combat). Short windows (≤ 820 px) flow every board. The icon next to an opponent's life maximizes that board with large cards;
   your board shrinks to its header and your hand stays, so spells can target it (Escape or the same icon returns; not
   during combat). The side panel can be hidden (remembered in `localStorage`); then Menu and the panel toggle sit in the
-  bar, the hovered card floats beside it (`FloatPreview`) and the stack floats bottom-left. The stack only shows while it
-  has items; the panel keeps the last card looked at. Phones (≤ 760 px): the panel is a drawer, opponents are header rows
+  bar and the hovered card floats beside it (`FloatPreview`); a preview whose card left under the pointer closes (`:hover`
+  check after each state). The stack is drawn once (`table/StackRail.tsx`, like Arena): a "Stack n" button in the phase
+  bar (casts fly to it, it folds the stack, a new item reopens it) and the cards hanging below the bar's right end, next to
+  resolve first and larger, abilities as source art + text. The panel keeps the last card looked at. A narrow table
+  column shows only the current phase in the bar (container query).
+  Declaring blockers: clicking a creature that blocks another attacker moves it to the attacker Forge marks as chosen
+  (four ordinary clicks in `Table` → `onCard`), as Forge alone refuses the second block. Phones (≤ 760 px): the panel is a drawer, opponents are header rows
   (maximize to see a board), the bar wraps. Compact headers keep one line: hand/library move to the name's tooltip.
   Commander tax shows as a badge on the command-zone card (`commanderCasts` in the state).
   Equipment, auras and fortifications are drawn behind their host (`attachmentsByHost` in `cards.ts`, `ctx.attachments`),
@@ -103,9 +108,10 @@ docs/       PLAN.md (roadmap).
 - `table/ChoiceDialog.tsx` — card previews, searchable picks, explicit ordering, top/bottom library arrangement, bounded numbers and constrained amount assignment. Invalid answers are asked again with a fresh id.
 
 `engine/src/test/java/reforge/engine/DialogHarness.java` is a test-only launcher using a native Forge `GameState`
-fixture (`--scenario suite|combat|images|zones|table|sounds|animations|autopass|attachments|tutor`, `table` = busy four-player board, `sounds` = known spells and attacker,
+fixture (`--scenario suite|combat|images|zones|table|sounds|animations|autopass|attachments|tutor|blocks`, `table` = busy four-player board, `sounds` = known spells and attacker,
 `animations` = legendary mythic, equipment, counters, mill and discard,
 `autopass` = AI turn with nothing to play, `attachments` = equipment/auras on both boards with counters and keywords,
+`blocks` = two AI attackers, your two possible blockers and burn in hand (switch blocks, stack),
 `tutor` = Wishclaw Talisman library search,
 fixtures in `scripts/fixtures`). It exercises choices and real multi-block combat through the same WebSocket/UI; it is not packaged in the engine jar.
 

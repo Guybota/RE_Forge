@@ -375,6 +375,11 @@
   text-align: right;
 }
 .bar__buttons { display: flex; gap: 10px; }
+/* A narrow table column (side panel open on a small window) keeps only the current phase, so the buttons fit. */
+.table__main { container-type: inline-size; }
+@container (max-width: 980px) {
+  .bar__phases li:not(.is-current) { display: none; }
+}
 
 /* ---------- hand */
 
@@ -427,7 +432,6 @@
 .side__cost, .side__type { color: var(--panel-ink-muted); }
 .side__text { white-space: pre-line; }
 .side__pt { font-weight: 700; text-align: right; }
-.side__stack { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
 .side__log { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .side__log ol {
   flex: 1;
@@ -728,22 +732,6 @@
   pointer-events: none;
 }
 .float-preview:has(.side__image) { padding: 0; background: none; border: 0; box-shadow: none; }
-.float-stack {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  z-index: 5;
-  width: 280px;
-  max-height: 40vh;
-  overflow-y: auto;
-  padding: 12px 16px;
-  border-radius: var(--panel-radius);
-  background: var(--panel);
-  color: var(--panel-ink);
-  border: var(--panel-edge);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-}
-.float-stack h2 { margin: 0 0 8px; font-family: var(--font-display); font-size: 18px; font-weight: var(--display-weight); }
 .float-preview h2 { margin: 0 0 6px; font-family: var(--font-display); font-size: 18px; }
 .float-preview p { margin: 4px 0 0; font-size: 13px; }
 
@@ -853,9 +841,6 @@
 .btn--primary.is-attention { animation: attention 1.4s ease-in-out infinite; }
 @keyframes attention { 0%, 100% { box-shadow: 0 0 0 0 var(--select); } 50% { box-shadow: 0 0 0 5px var(--select); } }
 .life.is-target { outline: 2px dashed var(--on-table); outline-offset: 4px; }
-.side__stack li { padding: 4px 6px; border-radius: 4px; }
-.side__stack li.is-next { outline: 2px solid var(--select); font-weight: 600; }
-.side__stack-owner { display: block; font-size: 11px; font-weight: 600; color: var(--panel-ink-muted); }
 .combat-arrows__line--target { stroke: var(--anim-ring); stroke-width: 2.5; }
 .combat-arrows__head--target { fill: var(--anim-ring); }
 .turn-banner {
@@ -880,3 +865,22 @@
 /* A puzzle's goal and limits at the top of the side panel; the situation is in the tooltip. */
 .puzzle-goal { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--panel-line); border-radius: var(--panel-radius); font-size: 14px; cursor: help; }
 .puzzle-goal strong { display: block; }
+
+/* ---------- stack: one column of cards at the right of the battlefield, like Arena */
+/* The button lives in the phase bar; the cards hang below the bar's right end, over the player's own board. */
+.bar { position: relative; }
+.stack-rail { display: contents; }
+.stack-rail__toggle { flex: none; }
+.stack-rail__count { display: inline-block; min-width: 1.6em; margin-left: 4px; padding: 0 6px; border-radius: var(--radius-control); background: var(--select); color: var(--select-ink); text-align: center; }
+.stack-rail__items { position: absolute; top: calc(100% + 8px); right: 8px; z-index: 6; list-style: none; margin: 0; padding: 4px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.stack-rail__item { position: relative; width: 104px; border-radius: var(--card-radius); box-shadow: var(--card-shadow); transition: transform 0.12s ease; cursor: help; }
+.stack-rail__item.is-next { width: 156px; outline: 3px solid var(--select); outline-offset: 2px; box-shadow: var(--card-shadow-lifted); }
+.stack-rail__item:hover { transform: translateX(-6px); }
+.stack-rail__item > img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: var(--card-radius); }
+.stack-rail__ability { overflow: hidden; border-radius: var(--card-radius); background: var(--panel); color: var(--panel-ink); border: var(--panel-edge); }
+.stack-rail__ability img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.stack-rail__ability p { margin: 0; padding: 6px 8px; font-size: 12px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.stack-rail__owner { position: absolute; left: 6px; top: 6px; max-width: calc(100% - 12px); padding: 1px 6px; border-radius: var(--radius-control); background: var(--panel); color: var(--panel-ink); font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table--narrow .stack-rail__item { width: 72px; }
+.table--narrow .stack-rail__item.is-next { width: 104px; }
+@media (prefers-reduced-motion: reduce) { .stack-rail__item { transition: none; } }
