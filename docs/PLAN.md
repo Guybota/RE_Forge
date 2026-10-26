@@ -252,7 +252,8 @@ cartas jogáveis e interrompe quando o jogador é atacado. Bloqueios e escolhas 
 cancelar e não altera preferências guardadas. Sobrescritas de interrupções vivem só no controlador e são repostas no fim.
 UI e motor compilam; `engine:smoke-fastforward`, `engine:smoke-autopass` e `ui:smoke-design` passaram.
 Zoom e inspeção da stack e ativação do botão até ao regresso ao turno próprio verificados no browser em landscape.
-Inclusão na mesma versão 0.1.4 solicitada pelo utilizador; reempacotamento e atualização da release em curso.
+Incluído na atualização da mesma versão 0.1.4 solicitada pelo utilizador. O pacote Windows final passou
+`package:smoke`; o Java/JAR distribuído passou também `engine:smoke-fastforward`.
 
 Feedback da mesa ao estilo Arena (`feat/table-feedback`, levantamento em [TABLE_FEEDBACK.md](TABLE_FEEDBACK.md)): quem tem
 a prioridade ("Decides tu" / "A pensar"), "À espera de {nome}" com segundos, botão Resolver/Passar que pulsa quando
@@ -357,6 +358,9 @@ macOS solicitado pelo utilizador (26/10/2026): empacotamento nativo em DMG para 
 Java 21 da mesma arquitetura, pelo workflow `package-macos.yml`. Assinatura ad-hoc de teste, sem notarização Apple.
 O perfil gravável do Forge fica fora do `.app`, com um link para os recursos incluídos; mover a app atualiza esse link.
 O workflow verifica e monta cada DMG em modo de leitura e executa os testes do pacote e avanço rápido no Java incluído.
+Apple Silicon e Intel passaram build, verificação do DMG, testes do pacote e de avanço rápido na execução
+[40367894938](https://github.com/Guybota/RE_Forge/actions/runs/40367894938). Os testes usam dados temporários.
+Não houve verificação visual manual do `.app` num Mac físico; os pacotes continuam versões de teste sem notarização.
 
 ## Passo 7 — Modos (fases 3–4)
 

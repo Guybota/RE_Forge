@@ -147,7 +147,7 @@ npm run ui:smoke-import       # decklist files (.dek, .dck, text) and suggestion
 npm run ui:smoke-sounds       # deterministic cue routing, waveform bounds, mute/volume, autoplay and audio failures
 npm run ui:smoke-animations   # deterministic animation plans: cast, enter/ring, counters, equip, discard, mill, coin
 npm run engine:smoke-quests   # Adventure side quests (an offer in every town of 3 worlds, each driven to its reward), town maps and shop stock
-npm run package               # Windows x64 installer with bundled Java → dist-app
+npm run package               # native Windows x64 installer or macOS DMG with bundled Java → dist-app
 npm run package:smoke         # shipped JRE/assets, import, persistence and match startup; temporary data
 npm run dev                   # Vite + Electron; Electron starts the engine
 npm run engine:smoke          # engine loads the card DB (~15 s)

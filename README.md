@@ -61,7 +61,7 @@ This checks the shipped Java, card database, precons, catalog, import, settings/
 persistence across a restart, Quest starters, Adventure creation/maps/images and campaign
 persistence, and local match startup, using temporary data and an isolated Forge profile. It does not
 open the desktop UI.
-The installed resource folder must be writable: Forge writes its data-directory profile
+On Windows, the installed resource folder must be writable: Forge writes its data-directory profile
 next to `res/` at startup. The per-user installation provides that access.
 Set `SMOKE_PACKAGE_IMAGES=1` to also download a real Scryfall image and verify the cache
 after restart; this optional check needs Internet access.
