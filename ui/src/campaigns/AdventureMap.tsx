@@ -41,9 +41,14 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
   const direction = useRef<[number, number] | null>(null);
   const frame = useRef<() => void>(() => {});
   const current = useRef(state);
-  const move = (dx: number, dy: number) => send({ type: 'campaign', action: 'move', dx, dy });
+  // One step in flight at a time: queued steps kept walking after the key was released.
+  const sentAt = useRef(0);
+  const move = (dx: number, dy: number) => { sentAt.current = performance.now(); send({ type: 'campaign', action: 'move', dx, dy }); };
   useEffect(() => {
-    const timer = setInterval(() => { if (direction.current) send({ type: 'campaign', action: 'move', dx: direction.current[0], dy: direction.current[1] }); }, 125);
+    const timer = setInterval(() => {
+      // An unanswered step (a rejected move answers with an error, not a state) stops blocking after a second.
+      if (direction.current && performance.now() - sentAt.current > 1000) move(direction.current[0], direction.current[1]);
+    }, 125);
     const clear = () => { direction.current = null; };
     window.addEventListener('keyup', clear); window.addEventListener('blur', clear); document.addEventListener('visibilitychange', clear);
     return () => { clearInterval(timer); clear(); window.removeEventListener('keyup', clear); window.removeEventListener('blur', clear); document.removeEventListener('visibilitychange', clear); };
@@ -190,7 +195,7 @@ export function AdventureMap({ state, send }: { state: AdventureState; send: (re
     const animation = setInterval(draw, 150);
     return () => { active = false; resize.disconnect(); clearInterval(animation); };
   }, [state.id, state.region, state.assetBase]);
-  useEffect(() => { current.current = state; frame.current(); }, [state]);
+  useEffect(() => { current.current = state; sentAt.current = 0; frame.current(); }, [state]);
   const directions: Record<string, [number, number]> = { ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1], ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] };
   const x = state.x ?? 0, y = state.y ?? 0;
   const nearby = (state.objects ?? []).filter(o => o.kind !== 'entry').filter(o => state.map ? Math.hypot(o.x - x, o.y - y) <= 30 : Math.max(Math.abs(o.x - x), Math.abs(o.y - y)) <= (state.world?.tiles ?? 1));

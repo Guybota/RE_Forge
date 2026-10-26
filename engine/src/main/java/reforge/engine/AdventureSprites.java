@@ -8,25 +8,33 @@ import com.google.gson.*;
 /** Forge's libGDX texture atlases read as plain text: an animation is every frame that shares a region name. */
 final class AdventureSprites {
     private final Path root;
-    private final Map<Path, Map<String, JsonObject>> atlases = new HashMap<>();
+    /** Parsed atlases by the name callers use; a missing or unreadable atlas is cached as having no regions. */
+    private final Map<String, Atlas> atlases = new HashMap<>();
+    private record Atlas(String key, Map<String, JsonObject> regions) { }
 
     AdventureSprites(Path root) throws IOException { this.root = root.toRealPath(); }
 
     /** Key into {@link #used} for the first of {@code names} the atlas has, or "" when there is none. */
     String key(String atlas, Map<String, JsonObject> used, String... names) {
         if (atlas == null || atlas.isBlank()) return "";
+        // The world state asks for hundreds of sprites per move: touch the disk once per atlas, not per call.
+        Atlas cached = atlases.computeIfAbsent(atlas, this::load);
+        for (String name : names) if (cached.regions().containsKey(name)) {
+            String key = cached.key() + "#" + name;
+            used.put(key, cached.regions().get(name));
+            return key;
+        }
+        return "";
+    }
+
+    private Atlas load(String atlas) {
         try {
             Path path = root.resolve(atlas).normalize();
-            if (!Files.isRegularFile(path) || !path.toRealPath().startsWith(root)) return "";
-            Map<String, JsonObject> regions = atlases.get(path);
-            if (regions == null) { regions = parse(path); atlases.put(path, regions); }
-            for (String name : names) if (regions.containsKey(name)) {
-                String key = root.relativize(path).toString().replace('\\', '/') + "#" + name;
-                used.put(key, regions.get(name));
-                return key;
+            if (Files.isRegularFile(path) && path.toRealPath().startsWith(root)) {
+                return new Atlas(root.relativize(path).toString().replace('\\', '/'), parse(path));
             }
         } catch (IOException | RuntimeException e) { System.err.println("Unreadable Adventure atlas " + atlas + ": " + e); }
-        return "";
+        return new Atlas("", Map.of());
     }
 
     private Map<String, JsonObject> parse(Path atlas) throws IOException {
