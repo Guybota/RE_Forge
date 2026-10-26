@@ -150,6 +150,29 @@ final class Settings {
         return skin != null && skin.matches("[a-z]{1,20}") ? skin : null;
     }
 
+    /** Forge's AI thinking time choices (seconds per decision), as in its own settings. */
+    static final List<Integer> AI_TIMEOUTS = List.of(5, 10, 60, 120, 240, 300, 600);
+
+    /** The AI profile for matches that don't pick one per opponent; "" picks one at random each match. */
+    String aiProfile() { return props.getProperty("aiProfile", "Default"); }
+
+    int aiTimeout() {
+        try {
+            int value = Integer.parseInt(props.getProperty("aiTimeout", "5"));
+            return AI_TIMEOUTS.contains(value) ? value : 5;
+        } catch (NumberFormatException e) { return 5; }
+    }
+
+    synchronized void changeAi(String profile, int timeout, List<String> profiles) throws IOException {
+        if (profile == null || !profile.isEmpty() && !profiles.contains(profile)) throw new IllegalArgumentException("Unknown AI profile: " + profile);
+        if (!AI_TIMEOUTS.contains(timeout)) throw new IllegalArgumentException("Invalid AI time: " + timeout);
+        Properties before = (Properties) props.clone();
+        props.setProperty("aiProfile", profile);
+        props.setProperty("aiTimeout", String.valueOf(timeout));
+        try { save(); }
+        catch (IOException e) { props.clear(); props.putAll(before); throw e; }
+    }
+
     synchronized void changeSkin(String id) throws IOException {
         if (id == null || !id.matches("[a-z]{1,20}")) {
             throw new IllegalArgumentException("Invalid skin: " + id);

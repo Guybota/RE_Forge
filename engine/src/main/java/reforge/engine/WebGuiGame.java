@@ -611,10 +611,40 @@ final class WebGuiGame extends NetworkGuiGame {
                 && answer.get("skip").getAsJsonPrimitive().isBoolean() && answer.get("skip").getAsBoolean();
     }
 
+    /**
+     * Between games of a match: every printing with its copies in the deck and in the sideboard; the answer's
+     * "amounts" say how many of each go in the deck. Forge checks the deck size and asks again if it's wrong.
+     */
     @Override
     public List<PaperCard> sideboard(CardPool sideboard, CardPool main, String message) {
-        // shortcut: no sideboarding between games yet; keeps the main deck as it was.
-        return main.toFlatList();
+        Map<PaperCard, int[]> counts = new LinkedHashMap<>();
+        for (Map.Entry<PaperCard, Integer> e : main) counts.computeIfAbsent(e.getKey(), k -> new int[2])[0] += e.getValue();
+        for (Map.Entry<PaperCard, Integer> e : sideboard) counts.computeIfAbsent(e.getKey(), k -> new int[2])[1] += e.getValue();
+        List<PaperCard> cards = new ArrayList<>(counts.keySet());
+        JsonArray entries = new JsonArray();
+        for (PaperCard card : cards) {
+            JsonObject entry = CardCatalog.card(card);
+            entry.addProperty("main", counts.get(card)[0]);
+            entry.addProperty("side", counts.get(card)[1]);
+            entries.add(entry);
+        }
+        JsonObject q = new JsonObject();
+        q.add("cards", entries);
+        q.addProperty("deckSize", main.countAll());
+        JsonObject answer = askValidated("sideboard", message == null ? "" : message, q, a -> {
+            int[] amounts = integers(a, "amounts", cards.size());
+            if (amounts == null) return false;
+            for (int i = 0; i < amounts.length; i++) {
+                int[] c = counts.get(cards.get(i));
+                if (amounts[i] < 0 || amounts[i] > c[0] + c[1]) return false;
+            }
+            return true;
+        });
+        if (answer == null) return main.toFlatList();
+        int[] amounts = integers(answer, "amounts", cards.size());
+        List<PaperCard> deck = new ArrayList<>();
+        for (int i = 0; i < cards.size(); i++) for (int n = 0; n < amounts[i]; n++) deck.add(cards.get(i));
+        return deck;
     }
 
     // ---------------------------------------------------------------- things this UI doesn't use

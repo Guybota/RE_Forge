@@ -55,6 +55,34 @@ final class GameSnapshot {
                 .map(PlayerView::getId).findFirst().orElse(null));
         json.addProperty("gameOver", game.isGameOver());
         json.addProperty("winner", game.isGameOver() ? game.getWinningPlayerName() : null);
+        // Matches of several games: how far along and who won each (the match object exists only where it's hosted).
+        if (game.getNumGamesInMatch() > 1) {
+            // The "game over" snapshot goes out before Forge files that game's outcome in the match: count it here.
+            int games = game.getNumGamesInMatch(), played = 0;
+            java.util.Map<String, Integer> won = new java.util.HashMap<>();
+            boolean counted = false;
+            if (game.getMatch() != null) {
+                for (forge.game.GameOutcome outcome : game.getMatch().getOutcomes()) {
+                    played++;
+                    if (outcome == game.getOutcome()) counted = true;
+                    if (outcome.getWinningLobbyPlayer() != null) won.merge(outcome.getWinningLobbyPlayer().getName(), 1, Integer::sum);
+                }
+            } else played = game.getNumPlayedGamesInMatch();
+            if (game.isGameOver() && !counted && game.getMatch() != null) {
+                played++;
+                if (game.getWinningPlayerName() != null) won.merge(game.getWinningPlayerName(), 1, Integer::sum);
+            }
+            // Like Forge's Match: a majority of the games, or every game played.
+            boolean over = game.isMatchOver() || played >= games || won.values().stream().anyMatch(n -> n > games / 2);
+            JsonObject match = new JsonObject();
+            match.addProperty("games", games);
+            match.addProperty("played", played);
+            match.addProperty("over", over);
+            JsonObject wins = new JsonObject();
+            won.forEach(wins::addProperty);
+            match.add("wins", wins);
+            json.add("match", match);
+        }
 
         JsonArray ps = new JsonArray();
         for (PlayerView p : game.getPlayers()) {

@@ -3,6 +3,7 @@ import type { PhaseStops } from '../engine';
 import type { Engine } from '../useEngine';
 import { useT } from '../i18n';
 import { phaseKey } from '../table/cards';
+import { KNOWN_AI, RANDOM } from '../QuickMatch';
 
 export function GameplaySettings({ engine }: { engine: Engine }) {
   const t = useT();
@@ -37,5 +38,28 @@ export function GameplaySettings({ engine }: { engine: Engine }) {
       <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => save(null)}>{t('resetPhaseStops')}</button>
       <span role="status">{busy ? t('saving') : ''}</span>
     </div>
+    <AiSettings engine={engine} />
   </div>;
+}
+
+/** The AI for matches that don't choose one per opponent, and how long it may think; both apply from the next game. */
+function AiSettings({ engine }: { engine: Engine }) {
+  const t = useT();
+  const ai = engine.info?.ai;
+  if (!ai) return null;
+  const name = (p: string) => ((KNOWN_AI as readonly string[]).includes(p) ? t(`ai${p as (typeof KNOWN_AI)[number]}`) : p);
+  return <>
+    <h3 className="game-menu__section">{t('aiOptions')}</h3>
+    <label className="settings-dialog__field" title={t('aiProfileHint')}><span>{t('aiProfileDefault')}</span>
+      <select className="input" value={ai.profile} onChange={e => engine.send({ type: 'setAiOptions', profile: e.target.value })}>
+        <option value={RANDOM}>{t('random')}</option>
+        {engine.info?.aiProfiles.map(p => <option key={p} value={p}>{name(p)}</option>)}
+      </select>
+    </label>
+    <label className="settings-dialog__field" title={t('aiTimeoutHint')}><span>{t('aiTimeout')}</span>
+      <select className="input" value={ai.timeout} onChange={e => engine.send({ type: 'setAiOptions', timeout: Number(e.target.value) })}>
+        {ai.timeouts.map(s => <option key={s} value={s}>{t('seconds', { n: s })}</option>)}
+      </select>
+    </label>
+  </>;
 }

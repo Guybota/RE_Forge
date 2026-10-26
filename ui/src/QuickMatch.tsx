@@ -3,8 +3,8 @@ import { useT } from './i18n';
 import { SKINS } from './skins';
 import type { Engine } from './useEngine';
 
-const RANDOM = '';
-const KNOWN_AI = ['Default', 'Cautious', 'Reckless', 'Hard', 'Hardest', 'Experimental'] as const;
+export const RANDOM = '';
+export const KNOWN_AI = ['Default', 'Cautious', 'Reckless', 'Hard', 'Hardest', 'Experimental'] as const;
 const AI_STORAGE = 'reforge.aiProfiles';
 
 function savedAi(): string[] {

@@ -69,7 +69,10 @@ async function concede(peer) {
     if (over) return over;
     const choice = fresh.filter((m) => m.type === 'choice').pop();
     if (choice && !choice.answered) { choice.answered = true; peer.send({ type: 'answer', id: choice.id, picked: [0] }); }
-    if (!conceded && fresh.some((m) => m.type === 'state')) { conceded = true; peer.send({ type: 'action', action: 'concede' }); }
+    const state = peer.messages.filter((m) => m.type === 'state').pop();
+    // A concession waits for priority: keep the opening hand first (its OK is the bar's button).
+    if (state && !state.gameOver && state.prompt.ok.enabled && !state.prompt.priority && !state.pressed) { state.pressed = true; peer.send({ type: 'action', action: 'ok' }); }
+    else if (state?.prompt.priority && !conceded) { conceded = true; peer.send({ type: 'action', action: 'concede' }); }
     await new Promise((r) => setTimeout(r, 50));
   }
   if (process.env.SMOKE_DEBUG) console.log(JSON.stringify(peer.messages.slice(since).filter((m) => m.type !== 'state').slice(-6)).slice(0, 2500), JSON.stringify(peer.messages.filter((m) => m.type === 'state').pop()?.prompt));
@@ -93,7 +96,8 @@ const puzzleState = await (async () => {
   const end = Date.now() + 60_000;
   while (Date.now() < end) {
     const s = peer.messages.filter((m) => m.type === 'state').pop();
-    if (s?.players?.some((p) => p.isLocal && p.zones.hand.length === 3)) return s;
+    // The puzzle is applied piece by piece: wait for the whole state (hand and both life totals).
+    if (s?.players?.some((p) => p.isLocal && p.zones.hand.length === 3) && s.players.some((p) => !p.isLocal && p.life === 4)) return s;
     await new Promise((r) => setTimeout(r, 50));
   }
   fail('puzzle state never arrived');
@@ -142,6 +146,66 @@ const after = await (async () => {
 assert.equal(after.opponents[0].result, 'lost');
 console.log(`sealed ${code}: pool ${poolCount}, deck 40, lost to opponent 1 (recorded)`);
 
+// AI options: saved, offered in engineInfo, validated.
+const info = await peer.ask({ type: 'setAiOptions', profile: 'Cautious', timeout: 10 }, 'engineInfo');
+assert.deepEqual([info.ai.profile, info.ai.timeout], ['Cautious', 10], 'AI options saved');
+assert.ok(info.ai.timeouts.includes(600), 'Forge thinking-time choices offered');
+assert.equal((await peer.ask({ type: 'setAiOptions', timeout: 7 }, 'engineInfo', true)).type, 'error', 'unknown thinking time refused');
+
+// Best of three: lose game 1, sideboard (swap a card with the pool), lose game 2: the match is lost 0–2.
+peer.send(lim('play', { id: event.id, opponent: 1, bestOf: 3 }));
+const first = await concede(peer);
+assert.deepEqual([first.match?.games, first.match?.played, first.match?.over], [3, 1, false], 'game 1 of 3 over, match goes on');
+let since = peer.messages.length;
+peer.send({ type: 'action', action: 'nextGame' });
+const sideboarding = await (async () => {
+  const end = Date.now() + 60_000;
+  while (Date.now() < end) {
+    const c = peer.messages.slice(since).find((m) => m.type === 'choice' && m.kind === 'sideboard');
+    if (c) return c;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  fail('no sideboarding question before game 2');
+})();
+const inDeck = sideboarding.cards.reduce((n, c) => n + c.main, 0);
+assert.equal(inDeck, 40, 'the saved deck is the starting point');
+assert.ok(sideboarding.cards.some((c) => c.side > 0), 'the rest of the pool is the sideboard');
+// Swap one nonland deck card for one sideboard card.
+const amounts = sideboarding.cards.map((c) => c.main);
+const out = sideboarding.cards.findIndex((c) => c.main > 0 && c.group !== 'land');
+const inn = sideboarding.cards.findIndex((c, i) => i !== out && c.side > 0 && c.group !== 'land');
+amounts[out]--; amounts[inn]++;
+since = peer.messages.length;
+peer.send({ type: 'answer', id: sideboarding.id, amounts });
+const second = await (async () => {
+  const end = Date.now() + 60_000;
+  while (Date.now() < end) {
+    // The loser chooses play or draw, then keeps a hand: first options.
+    for (const c of peer.messages.slice(since).filter((m) => m.type === 'choice' && !m.answered)) { c.answered = true; peer.send({ type: 'answer', id: c.id, picked: [0] }); }
+    const s = peer.messages.slice(since).filter((m) => m.type === 'state' && !m.gameOver).pop();
+    if (s?.players.some((p) => p.isLocal && p.zones.hand.length)) return s;
+    // Play or draw, keep the hand: these come as the bar's OK button.
+    if (s?.prompt.ok.enabled && !s.pressed) { s.pressed = true; peer.send({ type: 'action', action: 'ok' }); }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  if (process.env.SMOKE_DEBUG) console.error(JSON.stringify(peer.messages.slice(since).map((m) => m.type + (m.kind ? ':' + m.kind : '') + (m.title ? ':' + m.title.slice(0, 40) : '')).slice(-12)));
+  fail('game 2 did not start');
+})();
+assert.equal(second.match?.played, 1, 'game 2 started');
+const last = await concede(peer);
+assert.equal(last.match?.over, true, 'two losses end the match');
+const bo3 = await (async () => {
+  const end = Date.now() + 30_000;
+  while (Date.now() < end) {
+    const e = peer.messages.filter((m) => m.type === 'limitedEvent').pop();
+    if (e?.opponents[1].result) return e;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  fail('best-of-three result not recorded');
+})();
+assert.equal(bo3.opponents[1].result, 'lost');
+console.log('AI options saved; best of three lost 0-2 with sideboarding between games');
+
 // Draft: every pick until Forge's AI drafters build their decks.
 let state = await peer.ask(lim('newDraft', { set: code }), 'draft');
 assert.ok(state.pack.length >= 10, 'first pack');
@@ -171,13 +235,13 @@ await new Promise((r) => setTimeout(r, 1000));
 peer = await connect(await start());
 const events = (await peer.ask(lim('events'), 'limitedEvents')).events;
 const sealed = events.find((e) => e.mode === 'sealed');
-assert.ok(sealed?.built && sealed.losses === 1, 'sealed event, deck and result saved');
+assert.ok(sealed?.built && sealed.losses === 2, 'sealed event, deck and both results saved');
 assert.ok(events.some((e) => e.mode === 'draft'), 'draft event saved');
 const left = (await peer.ask(lim('delete', { id: sealed.id }), 'limitedEvents')).events;
 assert.ok(!left.some((e) => e.id === sealed.id), 'deleted');
 
 clearTimeout(timeout);
-console.log('OK: puzzles, sealed (pool, deck rules, game, result), draft (picks, AI decks) and saved events');
+console.log('OK: puzzles, sealed (pool, deck rules, game, result), AI options, best of three with sideboarding, draft (picks, AI decks) and saved events');
 peer.ws.close();
 engine.kill();
 process.exit(0);

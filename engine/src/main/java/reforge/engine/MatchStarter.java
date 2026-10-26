@@ -37,8 +37,22 @@ final class MatchStarter {
         return names;
     }
 
+    /** The engine's AI settings: default profile ("" = random) and seconds per decision. Set from {@link Settings}. */
+    static volatile String aiProfile = "Default";
+    static volatile int aiTimeout = 5;
+
+    /** The profile for an AI opponent whose match doesn't choose one. */
+    static String defaultAiProfile() {
+        return aiProfile.isEmpty() || !aiProfiles().contains(aiProfile) ? AiProfileUtil.getRandomProfile() : aiProfile;
+    }
+
     /** The Forge preferences every local match relies on; returns the player's name. */
     static String preparePreferences() {
+        // Read by HostedMatch when each game starts.
+        FModel.getPreferences().setPref(FPref.MATCH_AI_TIMEOUT, String.valueOf(aiTimeout));
+        // Between games of a match the AI sideboards its own deck; Forge's default would ask the human to do it.
+        FModel.getPreferences().setPref(FPref.MATCH_AI_SIDEBOARDING_MODE, "AI");
+        AiProfileUtil.setAiSideboardingMode(AiProfileUtil.AISideboardingMode.AI);
         // Forge asks for a name when this preference is blank; we have no dialog for that.
         String name = playerName();
         FModel.getPreferences().setPref(FPref.PLAYER_NAME, name);

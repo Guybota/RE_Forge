@@ -386,17 +386,28 @@ ${game.puzzle.description}`}>
         </div>
       )}
 
-      {(game.gameOver || me.hasLost) && (
-        <div className="overlay">
-          <div className="overlay__box">
-            <h2>{game.gameOver && game.winner === me.name ? t('victory') : t('defeat')}</h2>
-            {game.winner && game.winner !== me.name && <p>{game.winner}</p>}
-            <button type="button" className="btn btn--primary" onClick={leave}>
-              {t('continue')}
-            </button>
+      {(game.gameOver || me.hasLost) && (() => {
+        // A match of several games: between games the next one waits for "Next game" (sideboarding comes first).
+        const match = game.match;
+        const between = !!match && game.gameOver && !match.over;
+        const wins = (name: string) => match?.wins[name] ?? 0;
+        const wonMatch = !!match?.over && game.players.every((p) => p.id === me.id || wins(me.name) > wins(p.name));
+        return (
+          <div className="overlay">
+            <div className="overlay__box">
+              <h2>{match?.over ? t(wonMatch ? 'matchWon' : 'matchLost') : game.gameOver && game.winner === me.name ? t('victory') : t('defeat')}</h2>
+              {!match && game.winner && game.winner !== me.name && <p>{game.winner}</p>}
+              {match && <p>{t('matchGame', { played: match.played, games: match.games })} · {game.players.map((p) => `${p.name} ${wins(p.name)}`).join(' · ')}</p>}
+              <div className="overlay__buttons">
+                {between && <button type="button" className="btn btn--primary" onClick={() => send({ type: 'action', action: 'nextGame' })}>{t('nextGame')}</button>}
+                <button type="button" className={`btn ${between ? 'btn--ghost' : 'btn--primary'}`} onClick={leave}>
+                  {t(between ? 'leaveGame' : 'continue')}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

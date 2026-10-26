@@ -74,7 +74,7 @@ final class Puzzles {
         // Puzzles bring their own cards: both players start with empty decks and hands.
         RegisteredPlayer human = new RegisteredPlayer(new Deck()).setPlayer(GamePlayerUtil.getGuiPlayer(MatchStarter.playerName(), 0, 0, true));
         human.setStartingHand(0);
-        RegisteredPlayer ai = new RegisteredPlayer(new Deck()).setPlayer(GamePlayerUtil.createAiPlayer());
+        RegisteredPlayer ai = new RegisteredPlayer(new Deck()).setPlayer(GamePlayerUtil.createAiPlayer("AI", 1, MatchStarter.defaultAiProfile()));
         ai.setStartingHand(0);
         GameRules rules = new GameRules(GameType.Puzzle);
         rules.setGamesPerMatch(1);

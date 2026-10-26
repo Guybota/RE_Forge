@@ -70,6 +70,8 @@ export type EngineInfo = {
   phaseOptions: string[];
   /** Forge's AI profiles, easiest first. */
   aiProfiles: string[];
+  /** The AI profile for matches that don't choose one ("" = random) and its seconds per decision. */
+  ai?: { profile: string; timeout: number; timeouts: number[] };
 };
 
 export type CardState = {
@@ -149,12 +151,14 @@ export type ModesData = {
   puzzles?: PuzzleInfo[];
 };
 export type LimitedRequest = { type: 'limited'; action: 'sets' | 'events' | 'open' | 'delete' | 'saveDeck' | 'newSealed' | 'newDraft' | 'draft' | 'pick' | 'play';
-  id?: string; set?: string; index?: number; opponent?: number; main?: { nameEn: string; set: string; number: string; qty: number }[] };
+  id?: string; set?: string; index?: number; opponent?: number; bestOf?: 1 | 3; main?: { nameEn: string; set: string; number: string; qty: number }[] };
 
 export type GameState = {
   type: 'state';
   /** Set while playing a puzzle: its goal and limits (Forge's goal card never reaches the views). */
   puzzle?: PuzzleInfo;
+  /** Matches of several games (best of three): games played, whether it's over, and wins by player name. */
+  match?: { games: number; played: number; over: boolean; wins: Record<string, number> };
   turn: number;
   phase: string | null;
   activePlayerId: number | null;
@@ -184,7 +188,7 @@ export type ChoiceOption = { label: string; cardId?: number; playerId?: number; 
 export type Choice = {
   type: 'choice';
   id: number;
-  kind: 'choose' | 'reveal' | 'confirm' | 'order' | 'arrange' | 'amounts' | 'text';
+  kind: 'choose' | 'reveal' | 'confirm' | 'order' | 'arrange' | 'amounts' | 'text' | 'sideboard';
   title: string;
   min?: number;
   max?: number;
@@ -207,6 +211,9 @@ export type Choice = {
   toBottom?: boolean;
   toAnywhere?: boolean;
   options?: ChoiceOption[];
+  /** Sideboarding between games: each printing with its copies in the deck (`main`) and sideboard (`side`); answer with `amounts` in the deck. */
+  cards?: (CatalogCard & { main: number; side: number })[];
+  deckSize?: number;
   preselected?: number[];
 };
 
@@ -292,7 +299,7 @@ type EngineMessage =
   | Printings
   | { type: 'error'; message: string; code?: string };
 
-export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave';
+export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave' | 'nextGame';
 
 export type ClientMessage =
   | CampaignRequest
@@ -304,6 +311,7 @@ export type ClientMessage =
   | { type: 'setLanguage'; language: string }
   | { type: 'setSkin'; skin: string }
   | { type: 'setPhaseStops'; stops: PhaseStops | null }
+  | { type: 'setAiOptions'; profile?: string; timeout?: number }
   | { type: 'previewDeck'; text: string; name?: string }
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'chooseCommander'; text: string; name: string }

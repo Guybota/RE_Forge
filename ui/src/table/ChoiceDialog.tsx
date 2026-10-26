@@ -52,6 +52,7 @@ export function ChoiceDialog({ choice, answer, onHover, cards }: Props) {
       {choice.kind === 'arrange' && <Arrange choice={presented} answer={answer} hover={hover} />}
       {choice.kind === 'amounts' && <Amounts choice={presented} answer={answer} hover={hover} />}
       {choice.kind === 'text' && <TextInput choice={choice} answer={answer} />}
+      {choice.kind === 'sideboard' && <Sideboard choice={choice} answer={answer} />}
       </div>
       {hasCards && <aside className="choice__preview">{preview && !preview.hidden && <ChoicePreview key={preview.id} card={preview} />}</aside>}
       </div>
@@ -182,6 +183,40 @@ function Arrange({ choice, answer, hover }: { choice: Choice; answer: Engine['an
     </ol>
     <div className="choice__buttons"><button type="button" className="btn btn--primary" onClick={() => answer({ picked: order })}>{t('confirmOrderCount', { n: order.length })}</button></div>
   </>;
+}
+
+/**
+ * Between games of a match: click a card in the deck to move one copy to the sideboard, or the other way round.
+ * Answers how many copies of each printing go in the deck; Forge asks again if the deck size is wrong.
+ */
+function Sideboard({ choice, answer }: { choice: Choice; answer: Engine['answer'] }) {
+  const t = useT();
+  const cards = choice.cards ?? [];
+  const [deck, setDeck] = useState(() => cards.map((c) => c.main));
+  const move = (i: number, delta: number) => setDeck((d) => d.map((n, j) => (j === i ? n + delta : n)));
+  const order = cards.map((_, i) => i).sort((a, b) => cards[a].cmc - cards[b].cmc || cards[a].name.localeCompare(cards[b].name));
+  const inDeck = deck.reduce((n, q) => n + q, 0);
+  const inSide = cards.reduce((n, c, i) => n + c.main + c.side - deck[i], 0);
+  const line = (i: number, qty: number, toDeck: boolean) => (
+    <li key={i} className="modes__line">
+      <button type="button" aria-label={t(toDeck ? 'moveToDeck' : 'moveToSide', { name: cards[i].name })} onClick={() => move(i, toDeck ? 1 : -1)}>
+        <span className="import__qty">{qty}</span><span className="modes__line-name">{cards[i].name}</span>
+      </button>
+    </li>
+  );
+  return (
+    <div className="choice__sideboard">
+      <section>
+        <h3>{t('sideboardDeck', { n: inDeck, target: choice.deckSize ?? inDeck })}</h3>
+        <ul className="modes__lines">{order.filter((i) => deck[i] > 0).map((i) => line(i, deck[i], false))}</ul>
+      </section>
+      <section>
+        <h3>{t('sideboardSide', { n: inSide })}</h3>
+        <ul className="modes__lines">{order.filter((i) => cards[i].main + cards[i].side - deck[i] > 0).map((i) => line(i, cards[i].main + cards[i].side - deck[i], true))}</ul>
+      </section>
+      <button type="button" className="btn btn--primary" onClick={() => answer({ amounts: deck })}>{t('confirmDeck')}</button>
+    </div>
+  );
 }
 
 function Amounts({ choice, answer, hover }: { choice: Choice; answer: Engine['answer']; hover: (i: number) => void }) {

@@ -66,6 +66,8 @@ public final class EngineServer extends WebSocketServer {
         super(address);
         this.imageBase = imageBase;
         this.settings = settings;
+        MatchStarter.aiProfile = settings.aiProfile();
+        MatchStarter.aiTimeout = settings.aiTimeout();
         this.matches = matches;
         this.campaigns = new Campaigns(imageBase);
         setReuseAddr(true);
@@ -175,6 +177,7 @@ public final class EngineServer extends WebSocketServer {
             case "setLanguage" -> c.actions.execute(() -> setLanguage(c, msg));
             case "setSkin" -> setSkin(c, msg);
             case "setPhaseStops" -> c.actions.execute(() -> setPhaseStops(c, msg));
+            case "setAiOptions" -> c.actions.execute(() -> setAiOptions(c, msg));
             case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "campaign" -> c.actions.execute(() -> campaignAction(c, msg));
             case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
@@ -276,7 +279,8 @@ public final class EngineServer extends WebSocketServer {
                 case "pick" -> c.limited.pick(msg.get("index").getAsInt());
                 case "play" -> {
                     int opponent = msg.get("opponent").getAsInt();
-                    WebGuiGame gui = startLocal(c, g -> Limited.start(g, id, opponent));
+                    int bestOf = msg.has("bestOf") ? msg.get("bestOf").getAsInt() : 1;
+                    WebGuiGame gui = startLocal(c, g -> Limited.start(g, id, opponent, bestOf));
                     if (gui != null) gui.onFinished(view -> {
                         try {
                             c.actions.execute(() -> {
@@ -362,6 +366,20 @@ public final class EngineServer extends WebSocketServer {
         }
     }
 
+    /** The default AI profile and its thinking time; they apply from the next game on. */
+    private void setAiOptions(Connection c, JsonObject msg) {
+        try {
+            int timeout = msg.has("timeout") ? msg.get("timeout").getAsInt() : settings.aiTimeout();
+            String profile = msg.has("profile") ? string(msg, "profile") : settings.aiProfile();
+            settings.changeAi(profile, timeout, MatchStarter.aiProfiles());
+            MatchStarter.aiProfile = profile;
+            MatchStarter.aiTimeout = timeout;
+            c.session.send(engineInfo());
+        } catch (IllegalArgumentException | java.io.IOException e) {
+            c.session.send(error(e.getMessage()));
+        }
+    }
+
     private void setPhaseStops(Connection c, JsonObject msg) {
         try {
             if (!msg.has("stops") || !msg.get("stops").isJsonNull() && !msg.get("stops").isJsonObject()) {
@@ -400,6 +418,8 @@ public final class EngineServer extends WebSocketServer {
                 if (player != null) controller.selectPlayer(player, null);
             }
             case "undo" -> controller.undoLastAction();
+            // Between games of a match: ready for the next one (Forge starts it once every human is).
+            case "nextGame" -> controller.nextGameDecision(forge.gamemodes.match.NextGameDecision.CONTINUE);
             case "attackAll" -> controller.alphaStrike();
             // Forge's own flow: the first call asks and concedes; once the player is out, the next one
             // ends the game for the AIs left playing each other.
@@ -433,6 +453,13 @@ public final class EngineServer extends WebSocketServer {
         JsonArray aiProfiles = new JsonArray();
         MatchStarter.aiProfiles().forEach(aiProfiles::add);
         o.add("aiProfiles", aiProfiles);
+        JsonObject ai = new JsonObject();
+        ai.addProperty("profile", settings.aiProfile());
+        ai.addProperty("timeout", settings.aiTimeout());
+        JsonArray timeouts = new JsonArray();
+        Settings.AI_TIMEOUTS.forEach(timeouts::add);
+        ai.add("timeouts", timeouts);
+        o.add("ai", ai);
         JsonArray languages = new JsonArray();
         Settings.LANGUAGES.forEach((code, name) -> {
             JsonObject l = new JsonObject();

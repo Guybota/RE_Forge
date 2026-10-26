@@ -307,7 +307,9 @@ final class Limited {
 
     // --- Playing ---
 
-    static HostedMatch start(WebGuiGame gui, String id, int opponent) {
+    /** {@code bestOf} 1 or 3; between games of a best of three the player may sideboard (the pool is the sideboard). */
+    static HostedMatch start(WebGuiGame gui, String id, int opponent, int bestOf) {
+        if (bestOf != 1 && bestOf != 3) throw new IllegalArgumentException("Best of 1 or 3");
         DeckGroup group = event(id);
         Deck human = group.getHumanDeck();
         String problem = DeckFormat.Limited.getDeckConformanceProblem(human);
@@ -316,11 +318,11 @@ final class Limited {
         if (opponent < 0 || opponent >= ai.size()) throw new IllegalArgumentException("Unknown opponent");
         String name = MatchStarter.preparePreferences();
         GameRules rules = new GameRules(mode(id).equals("draft") ? GameType.Draft : GameType.Sealed);
-        rules.setGamesPerMatch(1);
+        rules.setGamesPerMatch(bestOf);
         rules.setWarnAboutAICards(false);
         RegisteredPlayer me = new RegisteredPlayer(human).setPlayer(GamePlayerUtil.getGuiPlayer(name, 0, 0, true));
         Deck theirs = ai.get(opponent);
-        RegisteredPlayer them = new RegisteredPlayer(theirs).setPlayer(GamePlayerUtil.createAiPlayer(theirs.getName(), opponent + 1));
+        RegisteredPlayer them = new RegisteredPlayer(theirs).setPlayer(GamePlayerUtil.createAiPlayer(theirs.getName(), opponent + 1, MatchStarter.defaultAiProfile()));
         HostedMatch match = new HostedMatch();
         match.startMatch(rules, null, List.of(me, them), me, gui);
         return match;

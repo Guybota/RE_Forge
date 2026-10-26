@@ -9,6 +9,7 @@ import type { Engine } from '../useEngine';
 import './modes.css';
 
 const COLOR_ORDER = [1, 2, 4, 8, 16];
+const BEST_OF = 'reforge.limitedBestOf';
 const PIPS = ['W', 'U', 'B', 'R', 'G'];
 const key = (c: { nameEn: string; set: string; number: string }) => `${c.nameEn}|${c.set}|${c.number}`;
 /** White, blue, black, red, green, then multicolour, then colourless; cheaper first. */
@@ -154,6 +155,8 @@ function EventView({ engine, event }: { engine: Engine; event: LimitedEvent }) {
   const save = () => engine.send({ type: 'limited', action: 'saveDeck', id: event.id,
     main: main.map((c) => ({ nameEn: c.nameEn, set: c.set, number: c.number, qty: c.qty })) });
   const playable = !dirty && total >= 40 && !event.problem;
+  const [bestOf, setBestOf] = useState<1 | 3>(() => { try { return localStorage.getItem(BEST_OF) === '3' ? 3 : 1; } catch { return 1; } });
+  const chooseBestOf = (value: 1 | 3) => { setBestOf(value); try { localStorage.setItem(BEST_OF, String(value)); } catch { /* this session only */ } };
 
   return (
     <div className="modes__split">
@@ -183,6 +186,10 @@ function EventView({ engine, event }: { engine: Engine; event: LimitedEvent }) {
           </li>)}
         </ul>
         <h3 title={t('opponentsHint')}>{t('opponents')}</h3>
+        <label className="game-menu__toggle" title={t('bestOfThreeHint')}>
+          <input type="checkbox" checked={bestOf === 3} onChange={(e) => chooseBestOf(e.target.checked ? 3 : 1)} />
+          <span>{t('bestOfThree')}</span>
+        </label>
         {!playable && <p className="muted">{t('buildFirst')}</p>}
         <ul className="modes__opponents">
           {event.opponents.map((o) => <li key={o.index}>
@@ -190,7 +197,7 @@ function EventView({ engine, event }: { engine: Engine; event: LimitedEvent }) {
             <span className="builder__cost" aria-hidden="true">{COLOR_ORDER.map((bit, i) => o.colors & bit ? <span key={bit} className={`pip pip--${PIPS[i]}`} /> : null)}</span>
             {o.result && <span className={o.result === 'won' ? 'modes__won' : 'modes__lost'}>{t(o.result === 'won' ? 'resultWon' : 'resultLost')}</span>}
             <button type="button" className="btn btn--ghost" disabled={!playable} aria-label={t('playOpponentNamed', { n: o.index + 1 })}
-              onClick={() => engine.send({ type: 'limited', action: 'play', id: event.id, opponent: o.index })}>{t('playOpponent')}</button>
+              onClick={() => engine.send({ type: 'limited', action: 'play', id: event.id, opponent: o.index, bestOf })}>{t('playOpponent')}</button>
           </li>)}
         </ul>
       </aside>

@@ -636,6 +636,7 @@
 }
 .overlay__box h2 { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 40px; }
 .overlay__box p { margin: 0; }
+.overlay__buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .overlay .btn--primary { background: var(--panel-ink); color: var(--panel); box-shadow: none; }
 
 /* ---------- combat arrows (drawn over the table, not clickable) */
@@ -902,3 +903,9 @@
 .table--narrow .stack-col__title { font-size: 14px; }
 /* A puzzle's goal in the phase bar; its name and situation are in the tooltip. */
 .bar__goal { flex: none; max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px; border: 1px solid var(--table-line); border-radius: var(--radius-control); font-size: 13px; cursor: help; }
+/* Sideboarding between games: deck and sideboard side by side; one click moves one copy. */
+.choice__sideboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; max-height: 60vh; }
+.choice__sideboard section { min-height: 0; overflow-y: auto; }
+.choice__sideboard h3 { margin: 0 0 6px; font-size: 15px; }
+.choice__sideboard > .btn { grid-column: 1 / -1; justify-self: end; }
+@media (max-width: 520px) { .choice__sideboard { grid-template-columns: 1fr; } }
