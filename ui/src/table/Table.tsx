@@ -13,7 +13,7 @@ import { useT } from '../i18n';
 import { PlayerArea, type TableContext } from './PlayerArea';
 import { firstPlayer, planAnimations, rememberLocations, yourTurn, type Location } from './animationPlan';
 import { cardRects, runAnimations } from './animationRunner';
-import { StackRail } from './StackRail';
+import { StackColumn } from './StackColumn';
 import { animationOn, getAnimationSettings } from './animationPrefs';
 import './table.css';
 
@@ -75,7 +75,6 @@ function FloatPreview({ card }: { card: CardState }) {
   );
 }
 
-const SIDE_STORAGE = 'reforge.sidePanel';
 const NARROW = '(max-width: 760px)';
 
 /** True while the window matches the media query. */
@@ -101,15 +100,9 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   const [zone, setZone] = useState<OpenZone | null>(null);
   const [focus, setFocus] = useState<number | null>(null);
   const [maximize, setMaximize] = useState<number | null>(null);
-  // On a phone the panel is a drawer over the table, closed until asked for; the choice is not remembered there.
-  const [sideOpen, setSideOpen] = useState(() => {
-    if (window.matchMedia(NARROW).matches) return false;
-    try { return localStorage.getItem(SIDE_STORAGE) !== 'closed'; } catch { return true; }
-  });
-  const toggleSide = () => setSideOpen((open) => {
-    if (!narrow) try { localStorage.setItem(SIDE_STORAGE, open ? 'closed' : 'open'); } catch { /* remembered for this session only */ }
-    return !open;
-  });
+  // The panel (log, last card looked at) is a drawer over the table, closed until asked for: the boards keep the room.
+  const [sideOpen, setSideOpen] = useState(false);
+  const toggleSide = () => setSideOpen((open) => !open);
   const { send } = engine;
   const t = useT();
 
@@ -207,6 +200,10 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // Space = OK, Escape = cancel, unless a dialog or text field has focus.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Escape' && sideOpen && !menuOpen && !zone && !engine.choice) {
+        setSideOpen(false);
+        return;
+      }
       if (e.code === 'Escape' && maximized && !menuOpen && !zone && !engine.choice) {
         setMaximize(null);
         return;
@@ -223,7 +220,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [menuOpen, zone, maximized, engine.choice, prompt, send]);
+  }, [menuOpen, zone, maximized, sideOpen, engine.choice, prompt, send]);
 
   // The engine already dropped the status lines the table shows itself.
   const promptText = waitingFor
@@ -282,7 +279,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div ref={tableRoot} className={`table ${sideOpen && !narrow ? '' : 'table--wide'} ${narrow ? 'table--narrow' : ''}`}>
+    <div ref={tableRoot} className={`table ${narrow ? 'table--narrow' : ''}`}>
       <div ref={animationLayer} className="anim-layer" aria-hidden="true" />
       {turnBanner > 0 && <TurnBanner key={turnBanner} onDone={() => setTurnBanner(0)} />}
       {coin !== null && <CoinFlip name={game.players.find((p) => p.id === coin)?.name ?? ''} onDone={() => setCoin(null)} />}
@@ -311,16 +308,19 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           </ol>
           <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
           <div className="bar__buttons">
-            <StackRail game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
+            {game.puzzle && <span className="bar__goal" title={`${game.puzzle.name}
+
+${game.puzzle.description}`}>
+            {t('puzzleGoal')}: {game.puzzle.goal.toLowerCase() === 'win' ? t('goalWin') : game.puzzle.goal.toLowerCase() === 'survive' ? t('goalSurvive') : game.puzzle.goal}
+            {game.puzzle.turns && ` · ${t('turnsLimit', { n: game.puzzle.turns })}`}
+          </span>}
             {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
             {promptButtons}
             {!sideOpen && !game.gameOver && !me.hasLost && (
               <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>
             )}
             {!sideOpen && (
-              <button type="button" className="btn btn--ghost bar__icon" aria-label={t('showPanel')} title={t('showPanel')} onClick={toggleSide}>
-                <PanelIcon />
-              </button>
+              <button type="button" className="btn btn--ghost" aria-expanded={false} onClick={toggleSide}>{t('log')}</button>
             )}
           </div>
         </div>
@@ -340,9 +340,11 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
         </div>
       </div>
 
+      <StackColumn game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
+
       {!sideOpen && !narrow && hovered && !hovered.hidden && <FloatPreview key={hovered.id} card={hovered} />}
 
-      {sideOpen && narrow && <button type="button" className="side-scrim" aria-label={t('hidePanel')} onClick={toggleSide} />}
+      {sideOpen && <button type="button" className="side-scrim" aria-label={t('hidePanel')} onClick={toggleSide} />}
       {sideOpen && <aside className="side">
         <div className="side__tools">
           <button type="button" className="side__menu side__icon" aria-label={t('hidePanel')} title={t('hidePanel')} onClick={toggleSide}>
@@ -350,11 +352,6 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           </button>
           {!game.gameOver && !me.hasLost && <button type="button" className="side__menu" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>}
         </div>
-        {game.puzzle && <section className="puzzle-goal" title={game.puzzle.description}>
-          <strong>{game.puzzle.name}</strong>
-          {t('puzzleGoal')}: {game.puzzle.goal.toLowerCase() === 'win' ? t('goalWin') : game.puzzle.goal.toLowerCase() === 'survive' ? t('goalSurvive') : game.puzzle.goal}
-          {game.puzzle.turns && ` · ${t('turnsLimit', { n: game.puzzle.turns })}`}
-        </section>}
         {lastSeen && <section className="side__preview" aria-live="polite"><Preview key={lastSeen.id} card={lastSeen} /></section>}
         <section className="side__log">
           <h2>{t('log')}</h2>

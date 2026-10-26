@@ -84,14 +84,15 @@ docs/       PLAN.md (roadmap).
   targeted or with attachments stay apart). With 2–3 opponents their boards are compact and flow in one row; clicking an
   opponent's name enlarges that board and collapses the others (not during combat). Short windows (≤ 820 px) flow every board. The icon next to an opponent's life maximizes that board with large cards;
   your board shrinks to its header and your hand stays, so spells can target it (Escape or the same icon returns; not
-  during combat). The side panel can be hidden (remembered in `localStorage`); then Menu and the panel toggle sit in the
-  bar and the hovered card floats beside it (`FloatPreview`); a preview whose card left under the pointer closes (`:hover`
-  check after each state). The stack is drawn once (`table/StackRail.tsx`, like Arena): a "Stack n" button in the phase
-  bar (casts fly to it, it folds the stack, a new item reopens it) and the cards hanging below the bar's right end, next to
-  resolve first and larger, abilities as source art + text. The panel keeps the last card looked at. A narrow table
-  column shows only the current phase in the bar (container query).
+  during combat). The side panel (log, last card looked at) is a drawer over the table, closed at the start of every game:
+  "Registo" in the bar opens it, Escape or a click outside closes it. With it closed the hovered card floats beside it
+  (`FloatPreview`); a preview whose card left under the pointer closes (`:hover` check after each state). A puzzle's goal
+  sits in the bar. The stack has its own column (`table/StackColumn.tsx`, `.table` grid `1fr auto`): zero wide while
+  empty, it opens pushing the boards aside, next item first and larger, abilities as source art + text; casts fly to
+  it. The "stack" animation kind slides the column and its items in and out (a resolved item stays ~280 ms to leave).
+  A narrow table column shows only the current phase in the bar (container query).
   Declaring blockers: clicking a creature that blocks another attacker moves it to the attacker Forge marks as chosen
-  (four ordinary clicks in `Table` → `onCard`), as Forge alone refuses the second block. Phones (≤ 760 px): the panel is a drawer, opponents are header rows
+  (four ordinary clicks in `Table` → `onCard`), as Forge alone refuses the second block. Phones (≤ 760 px): opponents are header rows
   (maximize to see a board), the bar wraps. Compact headers keep one line: hand/library move to the name's tooltip.
   Commander tax shows as a badge on the command-zone card (`commanderCasts` in the state).
   Equipment, auras and fortifications are drawn behind their host (`attachmentsByHost` in `cards.ts`, `ctx.attachments`),
