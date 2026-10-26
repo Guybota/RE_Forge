@@ -326,6 +326,14 @@ O recurso `forge-gui` tem de ser gravável porque o motor escreve lá `forge.pro
 
 Draft e Sealed (`forge-gui/.../gamemodes/limited`), torneio, puzzles, Quest, Adventure. Cada modo reaproveita a mesa.
 
+Draft, Sealed e Puzzles (`feat/limited-puzzles`): menu principal com seis modos. Sealed abre 6 pacotes da edição
+escolhida (195 edições com boosters) e gera 3 adversários com pools próprias; Draft com 7 IA do Forge (3 pacotes).
+Construção do deck a partir da pool com terrenos básicos grátis, mínimo de 40 (`DeckFormat.Limited`), eventos
+guardados no armazenamento draft/sealed do Forge e resultado por adversário. Puzzles: os 376 do Forge, por
+dificuldade, com objetivo e limite de turnos na mesa; resolvidos marcados. `engine:smoke-limited` cobre tudo;
+verificado no browser (incluindo 375 px). Fora: melhor de três, torneio/gauntlet com progressão, draft guardado a
+meio (fecha com a ligação), cubos/edições personalizadas, sideboard entre jogos e descrições dos puzzles traduzidas.
+
 Adventure e Quest têm uma primeira integração na interface RE:Forge: campanhas guardadas, coleção/deck e duelos;
 Quest usa os controladores nativos de economia/loja e Adventure permite explorar três cavernas dos recursos originais.
 O utilizador testou o ciclo básico e indicou que parece funcionar (25/10/2026). Quer aprofundar funcionalidades e melhorar

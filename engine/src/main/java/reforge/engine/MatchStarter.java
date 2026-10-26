@@ -20,7 +20,7 @@ final class MatchStarter {
     private MatchStarter() { }
 
     /** "You" in Forge's current language ("Você", "Vous", …), capitalised to read as a name. */
-    private static String playerName() {
+    static String playerName() {
         String you = Localizer.getInstance().getMessage("lblYou");
         return you.isEmpty() ? "You" : you.substring(0, 1).toUpperCase() + you.substring(1);
     }
@@ -35,6 +35,18 @@ final class MatchStarter {
         List<String> names = new ArrayList<>(FModel.getDecks().getCommanderPrecons().getItemNames());
         Collections.sort(names);
         return names;
+    }
+
+    /** The Forge preferences every local match relies on; returns the player's name. */
+    static String preparePreferences() {
+        // Forge asks for a name when this preference is blank; we have no dialog for that.
+        String name = playerName();
+        FModel.getPreferences().setPref(FPref.PLAYER_NAME, name);
+        // Replay recording serialises the whole game on every event; there is no replay viewer here yet.
+        FModel.getPreferences().setPref(FPref.UI_RECORD_REPLAYS, false);
+        // Tell the UI which cards can be used right now (playable, can attack, can block).
+        FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
+        return name;
     }
 
     /** Forge's AI profiles (res/ai), easiest first; ones we don't know go last. */
@@ -70,13 +82,7 @@ final class MatchStarter {
         }
         precons.remove(mine);
 
-        // Forge asks for a name when this preference is blank; we have no dialog for that.
-        String name = playerName();
-        FModel.getPreferences().setPref(FPref.PLAYER_NAME, name);
-        // Replay recording serialises the whole game on every event; there is no replay viewer here yet.
-        FModel.getPreferences().setPref(FPref.UI_RECORD_REPLAYS, false);
-        // Tell the UI which cards can be used right now (playable, can attack, can block).
-        FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
+        String name = preparePreferences();
 
         GameRules rules = new GameRules(GameType.Commander);
         rules.setGamesPerMatch(1);

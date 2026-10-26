@@ -126,8 +126,35 @@ export type PlayerState = {
 
 export type Ids = { cards: number[]; players: number[]; stack: number[] };
 
+/** A Forge puzzle: fixed board, goal and turn limit (`solved` = Forge's completion marker). */
+export type PuzzleInfo = { id: string; name: string; difficulty: string; goal: string; turns: string; description: string; solved: boolean };
+export type LimitedMode = 'draft' | 'sealed';
+/** A pool or deck card: the catalog card plus its count (pack cards carry their `index` instead). */
+export type PoolCard = CatalogCard & { qty: number; index?: number };
+export type LimitedEventSummary = { id: string; mode: LimitedMode; name: string; built: boolean; wins: number; losses: number };
+export type LimitedEvent = {
+  type: 'limitedEvent'; id: string; mode: LimitedMode; name: string;
+  pool: PoolCard[]; main: PoolCard[]; lands: CatalogCard[];
+  /** AI opponents by strength; `colors` W1 U2 B4 R8 G16; the last result against each. */
+  opponents: { index: number; colors: number; result?: 'won' | 'lost' }[];
+  problem?: string;
+};
+export type DraftState = { type: 'draft'; set: string; round: number; rounds: number; picks: number; pack: PoolCard[]; picked: PoolCard[] };
+/** Latest replies of the Draft, Sealed and Puzzles screens. */
+export type ModesData = {
+  sets?: { code: string; name: string; year: string }[];
+  events?: LimitedEventSummary[];
+  event?: LimitedEvent;
+  draft?: DraftState | null;
+  puzzles?: PuzzleInfo[];
+};
+export type LimitedRequest = { type: 'limited'; action: 'sets' | 'events' | 'open' | 'delete' | 'saveDeck' | 'newSealed' | 'newDraft' | 'draft' | 'pick' | 'play';
+  id?: string; set?: string; index?: number; opponent?: number; main?: { nameEn: string; set: string; number: string; qty: number }[] };
+
 export type GameState = {
   type: 'state';
+  /** Set while playing a puzzle: its goal and limits (Forge's goal card never reaches the views). */
+  puzzle?: PuzzleInfo;
   turn: number;
   phase: string | null;
   activePlayerId: number | null;
@@ -247,6 +274,8 @@ export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'messa
 
 type EngineMessage =
   | CampaignList | CampaignState | { type: 'campaignClosed' }
+  | { type: 'limitedSets'; sets: NonNullable<ModesData['sets']> } | { type: 'limitedEvents'; events: LimitedEventSummary[] }
+  | LimitedEvent | DraftState | { type: 'draftClosed' } | { type: 'puzzles'; puzzles: PuzzleInfo[] }
   | EngineInfo
   | GameState
   | Choice
@@ -266,6 +295,9 @@ export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' 
 
 export type ClientMessage =
   | CampaignRequest
+  | LimitedRequest
+  | { type: 'puzzles' }
+  | { type: 'startPuzzle'; id: string }
   | { type: 'hello' }
   | { type: 'listDecks' }
   | { type: 'setLanguage'; language: string }
@@ -310,6 +342,7 @@ export type EngineHandlers = {
   onClosed: () => void;
   onCampaigns: (campaigns: CampaignList) => void;
   onCampaign: (campaign: CampaignState | null) => void;
+  onModes: (update: ModesData) => void;
 };
 
 export function enginePort(): number | null {
@@ -341,6 +374,12 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
     }
     switch (msg.type) {
       case 'campaigns': h.onCampaigns(msg); break;
+      case 'limitedSets': h.onModes({ sets: msg.sets }); break;
+      case 'limitedEvents': h.onModes({ events: msg.events }); break;
+      case 'limitedEvent': h.onModes({ event: msg, draft: null }); break;
+      case 'draft': h.onModes({ draft: msg }); break;
+      case 'draftClosed': h.onModes({ draft: null }); break;
+      case 'puzzles': h.onModes({ puzzles: msg.puzzles }); break;
       case 'campaign': h.onCampaign(msg); break;
       case 'campaignClosed': h.onCampaign(null); break;
       case 'engineInfo': h.onInfo(msg); break;

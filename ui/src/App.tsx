@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Home } from './Home';
 import { QuickMatch } from './QuickMatch';
 import { CampaignScreen } from './campaigns/CampaignScreen';
+import { LimitedScreen } from './modes/LimitedScreen';
+import { PuzzleScreen } from './modes/PuzzleScreen';
 import { Lobby } from './Lobby';
 import { ImportDeck } from './ImportDeck';
 import { Decks } from './Decks';
@@ -20,7 +22,7 @@ import { installClickSounds } from './audio/sounds';
 export default function App() {
   useEffect(installClickSounds, []);
   const engine = useEngine();
-  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | null>(null);
+  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
   const [building, setBuilding] = useState<DeckDetail | undefined>();
@@ -53,6 +55,10 @@ export default function App() {
     screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} onBack={() => setPicking('language')} />;
   } else if (picking === 'quest' || picking === 'adventure') {
     screen = <CampaignScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
+  } else if (picking === 'draft' || picking === 'sealed') {
+    screen = <LimitedScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
+  } else if (picking === 'puzzles') {
+    screen = <PuzzleScreen engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'commander') {
     screen = <QuickMatch key={lastDeck} engine={engine} onPick={setPicking} initialDeck={lastDeck} onBack={() => setPicking(null)} />;
   } else if (picking === 'import' || picking === 'builder') {

@@ -1,8 +1,10 @@
 .mode-home { min-height: 100vh; max-width: 1180px; margin: auto; padding: clamp(24px, 5vw, 72px); display: flex; flex-direction: column; justify-content: center; gap: 56px; }
 .mode-home__brand h1 { font-family: var(--font-display); font-weight: var(--display-weight); font-size: clamp(48px, 7vw, 88px); margin: 0; line-height: 1; }
 .mode-home__modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--table-line); border-bottom: 1px solid var(--table-line); }
-.mode-home__mode { min-width: 0; min-height: 240px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 36px; padding: 28px; border: 0; border-right: 1px solid var(--table-line); background: transparent; color: var(--on-table); cursor: pointer; text-align: left; font-family: var(--font-display); font-weight: var(--display-weight); font-size: clamp(28px, 3.7vw, 48px); }
-.mode-home__mode:last-child { border-right: 0; }
+.mode-home__mode { min-width: 0; min-height: 190px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 36px; padding: 28px; border: 0; border-right: 1px solid var(--table-line); background: transparent; color: var(--on-table); cursor: pointer; text-align: left; font-family: var(--font-display); font-weight: var(--display-weight); font-size: clamp(28px, 3.7vw, 48px); }
+/* Two rows of three: no right edge at the end of a row, a line between the rows. */
+.mode-home__mode:nth-child(3n) { border-right: 0; }
+.mode-home__mode:nth-child(n+4) { border-top: 1px solid var(--table-line); }
 .mode-home__mode:hover { background: var(--panel); color: var(--panel-ink); }
 .mode-home__mode svg { align-self: flex-end; width: 80px; height: 64px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .mode-home__footer, .mode-home__footer nav { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -50,6 +52,7 @@
   .mode-home { gap: 32px; }
   .mode-home__modes { grid-template-columns: 1fr; }
   .mode-home__mode { min-height: 100px; flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--table-line); padding: 20px 8px; }
+  .mode-home__mode:nth-child(n+4) { border-top: 0; }
   .mode-home__mode:last-child { border-bottom: 0; }
   .mode-home__mode svg { width: 60px; height: 48px; align-self: auto; }
   .campaign { padding: 20px 16px; }

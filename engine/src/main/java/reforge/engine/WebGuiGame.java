@@ -104,6 +104,7 @@ final class WebGuiGame extends NetworkGuiGame {
         syncAutoPass();
         try {
             GameSnapshot snapshot = new GameSnapshot(game, this, prompt);
+            if (puzzle != null) snapshot.json.add("puzzle", puzzle);
             lastSnapshot = snapshot;
             session.send(snapshot.json);
         } catch (RuntimeException e) {
@@ -126,6 +127,10 @@ final class WebGuiGame extends NetworkGuiGame {
         GameView game = getGameView();
         return game == null || game.isGameOver() || getLocalPlayers().stream().allMatch(PlayerView::getHasLost);
     }
+
+    /** A puzzle's name, goal and limits, shown with the table (its goal card never reaches the views). */
+    private volatile JsonObject puzzle;
+    void setPuzzle(JsonObject info) { puzzle = info; }
 
     private volatile Runnable connectionLost;
 

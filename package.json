@@ -31,6 +31,7 @@
     "engine:smoke-autopass": "node scripts/smoke-autopass.mjs",
     "engine:smoke-dialogs": "node scripts/smoke-dialogs.mjs",
     "engine:smoke-tutor": "node scripts/smoke-tutor.mjs",
+    "engine:smoke-limited": "node scripts/smoke-limited.mjs",
     "engine:smoke-images": "node scripts/smoke-images.mjs",
     "engine:smoke-builder": "node scripts/smoke-builder.mjs",
     "engine:smoke-import-fixes": "node scripts/smoke-import-fixes.mjs",

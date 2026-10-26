@@ -876,3 +876,7 @@
   .thinking-dots::after, .btn--primary.is-attention { animation: none; }
   .btn--primary.is-attention { box-shadow: 0 0 0 3px var(--select); }
 }
+
+/* A puzzle's goal and limits at the top of the side panel; the situation is in the tooltip. */
+.puzzle-goal { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--panel-line); border-radius: var(--panel-radius); font-size: 14px; cursor: help; }
+.puzzle-goal strong { display: block; }

@@ -41,6 +41,8 @@ public final class EngineServer extends WebSocketServer {
         volatile WebGuiGame gui;
         volatile HostedMatch match;
         volatile OnlineLobby online;
+        /** This connection's draft in progress (events themselves are saved by Forge). */
+        final Limited limited = new Limited();
 
         Connection(WebSocket socket) {
             session = new Session(socket);
@@ -153,6 +155,9 @@ public final class EngineServer extends WebSocketServer {
                     c.session.send(failure);
                 }
             });
+            case "limited" -> c.actions.execute(() -> limitedAction(c, msg));
+            case "puzzles" -> c.actions.execute(() -> c.session.send(Puzzles.list()));
+            case "startPuzzle" -> c.actions.execute(() -> startLocal(c, gui -> Puzzles.start(gui, string(msg, "id"))));
             case "searchCards" -> c.actions.execute(() -> c.session.send(CardCatalog.search(msg)));
             case "getPrintings" -> c.actions.execute(() -> c.session.send(CardCatalog.printings(string(msg, "name"))));
             case "getDeck" -> c.actions.execute(() -> {
@@ -253,6 +258,71 @@ public final class EngineServer extends WebSocketServer {
             gui.dispose();
             e.printStackTrace();
             c.session.send(error("Could not start the match: " + e.getMessage()));
+        }
+    }
+
+    private void limitedAction(Connection c, JsonObject msg) {
+        try {
+            String id = string(msg, "id");
+            JsonObject reply = switch (string(msg, "action")) {
+                case "sets" -> Limited.setList();
+                case "events" -> Limited.events();
+                case "open" -> Limited.detail(id);
+                case "delete" -> Limited.delete(id);
+                case "saveDeck" -> Limited.saveDeck(id, msg.getAsJsonArray("main"));
+                case "newSealed" -> Limited.newSealed(string(msg, "set"));
+                case "newDraft" -> c.limited.newDraft(string(msg, "set"));
+                case "draft" -> c.limited.draftState();
+                case "pick" -> c.limited.pick(msg.get("index").getAsInt());
+                case "play" -> {
+                    int opponent = msg.get("opponent").getAsInt();
+                    WebGuiGame gui = startLocal(c, g -> Limited.start(g, id, opponent));
+                    if (gui != null) gui.onFinished(view -> {
+                        try {
+                            c.actions.execute(() -> {
+                                try { c.session.send(Limited.finish(id, opponent, view)); }
+                                catch (RuntimeException e) { e.printStackTrace(); c.session.send(error(e.getMessage())); }
+                            });
+                        } catch (java.util.concurrent.RejectedExecutionException ignored) { /* connection closed */ }
+                    });
+                    yield null;
+                }
+                default -> throw new IllegalArgumentException("Unknown limited action");
+            };
+            if (reply != null) c.session.send(reply);
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            c.session.send(error(e.getMessage()));
+        }
+    }
+
+    /**
+     * Starts a local match against the AI (puzzle, draft, sealed) once nothing else is running. Returns its game
+     * window, or null after sending the error.
+     */
+    private WebGuiGame startLocal(Connection c, java.util.function.Function<WebGuiGame, HostedMatch> starter) {
+        if (HeadlessGui.hasOnline()) {
+            c.session.send(error("Leave the online lobby first"));
+            return null;
+        }
+        if (c.gui != null) {
+            if (!c.gui.isFinishedForLocalPlayer()) {
+                c.session.send(error("A match is already running"));
+                return null;
+            }
+            c.gui.dispose();
+        }
+        WebGuiGame gui = new WebGuiGame(c.session, settings);
+        try {
+            c.gui = gui;
+            c.match = starter.apply(gui);
+            return gui;
+        } catch (RuntimeException e) {
+            c.gui = null;
+            gui.dispose();
+            e.printStackTrace();
+            c.session.send(error(e.getMessage()));
+            return null;
         }
     }
 

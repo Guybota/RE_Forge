@@ -352,6 +352,11 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           </button>
           {!game.gameOver && !me.hasLost && <button type="button" className="side__menu" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>}
         </div>
+        {game.puzzle && <section className="puzzle-goal" title={game.puzzle.description}>
+          <strong>{game.puzzle.name}</strong>
+          {t('puzzleGoal')}: {game.puzzle.goal.toLowerCase() === 'win' ? t('goalWin') : game.puzzle.goal.toLowerCase() === 'survive' ? t('goalSurvive') : game.puzzle.goal}
+          {game.puzzle.turns && ` · ${t('turnsLimit', { n: game.puzzle.turns })}`}
+        </section>}
         {lastSeen && <section className="side__preview" aria-live="polite"><Preview key={lastSeen.id} card={lastSeen} /></section>}
         {stack}
         <section className="side__log">
