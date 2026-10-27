@@ -1,0 +1,14 @@
+---
+description: Commit every change to the RE:Forge central/deck-tools branch as geca3
+alwaysApply: true
+---
+
+# RE:Forge branch
+
+After every change, commit it on `central/deck-tools` and push that branch to the `reforge` remote (`https://github.com/Guybota/RE_Forge.git`).
+
+- Sign the push in as GitHub user **geca3**. Never use **gotosantiago**. For that one command, override the credential helper with `gh auth git-credential`. Do not change git config.
+- Do not commit or push `main` on this repo or on RE:Forge.
+- This checkout stays on local `main` so the app remains at the repo root. The RE:Forge branch keeps the same app under `central/` in the worktree at `/tmp/reforge-central`. If that worktree is missing, add it again from `central/deck-tools`.
+- Copy only the files that changed into `central/` on that worktree, then commit there. Leave `ui/`, `engine/`, `desktop/`, `forge/`, and `relay/` untouched.
+- Do not commit secrets (`.env`, credentials, keys).
