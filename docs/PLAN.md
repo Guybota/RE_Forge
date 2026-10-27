@@ -43,6 +43,9 @@ Trabalho atual (27/10/2026, `feat/deck-picker`):
   Verificados no browser os botões Manter, Cancelar, pagamento automático e Resolver, incluindo stack aberta.
   Mesa de dois/quatro jogadores: distância entre os campos = 0. As setas foram mantidas no referencial da janela
   e acompanham a abertura da stack; erro medido de 0 px na origem e no alvo após o reflow.
+- Entrega Windows 0.1.6 (27/10/2026): versão do desktop e do motor alinhada. Builds passaram e os recursos finais
+  passaram `package:smoke` com Java incluído, 33.591 cartas, 180 pré-construídos, resumos/comandantes do seletor,
+  importação e persistência de decks/definições/campanhas, e início de partida com origem explícita do deck.
 
 Trabalho atual (26/10/2026, entrega 0.1.5 no ramo `feat/library-home`):
 - Biblioteca lateral: seis modos, Decks/Online/Definições estáveis, destaque e até três modos mais jogados.

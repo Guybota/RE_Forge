@@ -112,6 +112,7 @@ try {
   await peer.request({ type: 'setSkin', skin: 'editorial' }, 'engineInfo');
   const decks = await peer.request({ type: 'listDecks' }, 'decks');
   assert.ok(decks.commander.length > 0, 'packaged Commander precons');
+  assert.equal(decks.summaries.length, decks.mine.length + decks.commander.length, 'packaged deck selection summaries');
   const result = await peer.request({ type: 'searchCards', query: 'lightning bolt' }, 'cardResults');
   const bolt = result.cards.find((c) => c.nameEn === 'Lightning Bolt');
   assert.ok(bolt);
@@ -124,6 +125,9 @@ try {
   const name = 'Packaged runtime smoke';
   const saved = await peer.request({ type: 'saveDeck', text, name }, 'decks');
   assert.ok(saved.mine.includes(name), 'save deck using shipped resources');
+  const summary = saved.summaries.find(deck => deck.name === name && deck.source === 'mine');
+  assert.equal(summary.cards, 100, 'packaged summary counts main and commanders');
+  assert.ok(summary.commanders.length > 0 && summary.commanders.every(card => card.imageKey.startsWith('c:')), 'packaged commander artwork');
   const detail = await peer.request({ type: 'getDeck', name }, 'deckDetail');
   assert.equal(detail.cards, 100);
   const campaign = (action, fields = {}) => ({ type: 'campaign', action, ...fields });
@@ -179,7 +183,7 @@ try {
   }
   const profile = readFileSync(path.join(assets, 'forge.profile.properties'), 'utf8');
   assert.ok(profile.includes('reforge-package-'), 'Forge profile points at temporary data');
-  const game = await peer.request({ type: 'startMatch', deck: name, opponents: 1 }, 'state');
+  const game = await peer.request({ type: 'startMatch', deck: name, deckSource: 'mine', opponents: 1 }, 'state');
   assert.equal(game.players.length, 2, 'Commander match starts from the installed deck');
   assert.ok(game.players.some((p) => p.isLocal));
   console.log(`OK: shipped JRE, ${info.cards} cards, ${decks.commander.length} precons, catalog, 100-card import, settings and deck survive restart, local match starts`);
