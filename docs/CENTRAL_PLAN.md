@@ -76,6 +76,11 @@ Cada fase: ramo `feat/deck-tools-<fase>`, compila, testes de fumo, verificado no
   `Rulings`. Cache com validade (preços 24 h), erros de rede distintos de "não existe".
 - Separadores "Preços" e "Combos"; "adicionar combo" grava no deck do Forge.
 - Estender `npm run engine:smoke-decktools` com `SMOKE_OFFLINE=1` para saltar a rede, como `smoke-import-fixes`.
+- **Feito** (27/10/2026, `feat/deck-tools-online`): `DeckServices` no motor, separadores Preços e Combos
+  (`DeckOnline.tsx`). Diferenças: os rulings passam para a fase 5 (só o Sage os usa); o "find-my-combos" do
+  Spellbook não entra (a Central não o usava). Básicos incluídos nas impressões mais baratas (pesquisa própria).
+  Links externos abrem no browser do sistema. Testado com serviços simulados e reais; browser a 1280×720 e 844×390
+  com texto a 200 %. Textos do EDHREC (resultados, explicações) ficam em inglês.
 
 ### 4. Comparar e Melhorar
 - `CompareDecks.tsx`: dois decks do Forge (próprios ou precons), partilhadas/só A/só B, diferenças de quantidade.

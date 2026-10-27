@@ -1,5 +1,5 @@
 // Electron shell: starts the Forge engine bridge (Java) and opens the UI.
-const { app, BrowserWindow, dialog, ipcMain, utilityProcess } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } = require('electron');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -111,6 +111,11 @@ async function createWindow() {
     title: 'RE:Forge',
     icon: process.platform === 'win32' ? path.join(__dirname, 'icon.ico') : undefined,
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
+  });
+  // Links that open a new window (EDHREC combos) go to the system browser; the app never hosts other sites.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
   });
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml(app.getLocale()))}`);
 

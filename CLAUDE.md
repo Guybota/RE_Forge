@@ -43,6 +43,7 @@ docs/       PLAN.md (roadmap).
 | `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
 | `AdventureCampaign` | Adventure character, deck and battles on `AdventureWorld` (seeded Shandalar: biomes, POIs, wandering enemies), `AdventureMap` (Forge's Tiled maps without libGDX), `AdventureSprites` (libGDX atlases as text) and `AdventureQuests` (side quests from `quests.json`: town offers, Defeat/Hunt/Travel/Clear/Leave stages, rewards from the epilogues). Towns are entered like dungeons: inn, quest giver and `AdventureShops` (shops.json, stock from `AdventureCards`, Forge's reward filters). |
 | `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`) with the player's tags, notes and intended bracket (`setMeta`: Forge deck tags and comment, line breaks escaped; `reforge-bracket-N`; other `reforge-` tags stay hidden), `rename` copies then deletes; `save` carries tags/notes over from `from` or the deck it replaces. Without a Commander section, two sideboard partners or 1–2 commanders after the last blank line (MTGO/Moxfield text) lead; `chooseCommander` rewrites the text (a compatible partner joins, others replace). Unknown lines carry `CardCatalog.similar` suggestions (typos, partial and translated names). |
+| `DeckServices` | Deck tools' online lookups (from Central): Cardmarket EUR via Scryfall for exact printings (`/cards/collection`, unknown printing → by name, `exact: false`), cheaper printings Forge also has (searches of 10 names, basics alone), EDHREC commander combo tabs with Commander Spellbook template pieces, and EDHREC combo explanations (`https://edhrec.com/combos/...` only). Runs on its own pool, never the action queue; one-day cache in `<cache>/reforge-services.json`; failures answer `servicesError` (`unavailable`). `RE_FORGE_SERVICES_URL` (loopback only) points all three hosts at a test server. |
 | `DeckLinks` | Public Archidekt/Moxfield deck → decklist text through their JSON APIs; any other host is refused before a request. A printing goes along only if Forge knows that set and number (promos, Secret Lair flavour names otherwise fail). |
 
 ### UI (ui/src)
@@ -52,8 +53,9 @@ docs/       PLAN.md (roadmap).
 - `modes/LimitedScreen.tsx` — Draft/Sealed: saved events, the draft (pack, picks), deck building from the pool with free basic
   lands, AI opponents with the last result. `modes/PuzzleScreen.tsx` — puzzles by difficulty, situation, goal, start.
   Starting a puzzle or a limited game must reset `useEngine`'s "left the match" guard like any new match.
-- `Decks.tsx` — the player's own decks: views List (`DeckCards`, sideboard apart), Analysis and Notes (`DeckInsights.tsx`:
-  Central's bracket, Commander check, card jobs, sample hand plus `DeckStatistics`; tags, notes, intended bracket), rename,
+- `Decks.tsx` — the player's own decks: views List (`DeckCards`, sideboard apart), Analysis, Prices, Combos and Notes (`DeckInsights.tsx`:
+  Central's bracket, Commander check, card jobs, sample hand plus `DeckStatistics`; tags, notes, intended bracket; `DeckOnline.tsx`: prices, cheaper printings, combos, add combo with suggested cuts,
+  edits through `deckText.ts` + `saveDeck.from`; `useEngine.deckServices` keeps the newest reply per kind), rename,
   edit or new (opens `DeckBuilder`), import, export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
 - `ImportDeck.tsx` — paste, open/drop a file (`decklistFiles.ts`: MTGO `.dek` XML, Forge `.dck`, text) or fetch a link;
   `DeckCards` there offers "Commander" on possible commanders and suggested cards on unknown lines.
@@ -103,6 +105,7 @@ docs/       PLAN.md (roadmap).
 - The table's fast-forward button uses a transient native yield marker until the next local upkeep. Opponent spells
   are yielded even with playable responses; an attack against the local player interrupts it. Blocks and choices stay
   manual. Interrupt overrides are controller-local and restored on cancellation, interruption or game end.
+- Desktop: `setWindowOpenHandler` denies every new window; https links (EDHREC) open in the system browser.
 - Packaged macOS uses `desktop/engine-assets.cjs` for a writable profile under Electron's userData, linked to the
   bundled `res`. Never write inside the `.app` or mounted DMG. The engine's own data still defaults to `~/.re-forge`.
 - Multiplayer table: identical permanents fold into a pile with a count (`groupCards` in `table/cards.ts`; cards in combat,
@@ -194,7 +197,8 @@ npm run engine:smoke-dialogs  # deterministic choice validation, native scry/sur
 npm run engine:smoke-limited  # puzzles (list, start), sealed (pool, deck rules, game, result), full draft, events after restart
 npm run engine:smoke-tutor    # Wishclaw Talisman in pt-BR: library search from the table and its prompt, card to hand, shuffle, opponent gains control
 npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
-npm run engine:smoke-decktools # Central's deck tools on real Forge previews: bracket, Commander check, roles, compare, cuts, plans
+npm run engine:smoke-decktools # Central's deck tools on real Forge previews; tags/notes; prices/cheaper/combos against local
+                              # stand-ins, then the real services (SMOKE_OFFLINE=1 skips them)
 npm run engine:smoke-images   # image URLs (cards, tokens), per-language cache, English fallback, retries
 ```
 

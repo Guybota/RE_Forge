@@ -416,7 +416,37 @@
 .deck-notes__field select, .deck-notes__field textarea { font-weight: 400; }
 .deck-notes__field select { max-width: 320px; min-height: 44px; }
 .deck-notes__field textarea { min-height: 160px; resize: vertical; }
+/* Prices and combos (online deck tools). */
+.deck-online { min-height: 0; max-height: calc(100vh - 215px); overflow-y: auto; padding-right: 12px; display: flex; flex-direction: column; gap: 16px; }
+.deck-online__status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.deck-online__scroll { overflow-x: auto; }
+.deck-online__table { width: 100%; border-collapse: collapse; }
+.decks .builder__views { flex-wrap: wrap; }
+.deck-online__table th, .deck-online__table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--table-line); }
+.deck-online__table th { color: var(--on-table-muted); font-weight: 400; font-size: 13px; }
+.deck-online__table td:first-child, .deck-online__table th:first-child, .deck-online__table td:last-child, .deck-online__table th:last-child { text-align: right; white-space: nowrap; }
+.deck-online__offers, .deck-online__combos, .deck-online__cuts { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.deck-online__offers label { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.deck-online__offers img { width: 64px; border-radius: var(--card-radius); }
+.deck-online__offers label > span { display: flex; flex-direction: column; gap: 2px; }
+.deck-online__offers input, .deck-online__cuts input { width: 20px; height: 20px; flex: none; }
+.deck-online__combos > li { padding: 10px 12px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }
+.deck-online__combos > li.is-complete { border-color: var(--accent); }
+.deck-online__combos p { margin: 0 0 6px; }
+.deck-online__combos .deck-analysis__head { margin-top: 8px; }
+.deck-online__combos .deck-analysis__head > span { margin-right: auto; }
+.deck-analysis__name.is-owned { border-color: var(--accent); }
+.deck-online__piece { border-style: dashed; }
+.deck-online__explanation { margin-top: 8px; }
+.deck-online__explanation h3 { margin: 8px 0 4px; font-size: 15px; }
+.deck-online__explanation ul, .deck-online__explanation ol { margin: 0; padding-left: 20px; }
+.deck-online__dialog { width: min(640px, calc(100vw - 32px)); max-width: none; }
+.deck-online__dialog-body { padding: 12px 20px 20px; max-height: 70vh; overflow-y: auto; }
+.deck-online__dialog-body h3 { margin: 12px 0 6px; font-size: 15px; }
+.deck-online__cuts label { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+@media (max-height: 560px) { .deck-online { max-height: none; overflow: visible; } }
 @media (max-width: 800px) {
+  .deck-online { max-height: none; overflow: visible; }
   .decks__body { grid-template-columns: 1fr; }
   .decks__list { max-height: 30vh; }
   .deck-analysis, .deck-notes { max-height: none; overflow: visible; }

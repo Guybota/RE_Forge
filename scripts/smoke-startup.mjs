@@ -28,8 +28,15 @@ const fakeApp = {
   isPackaged: false, getVersion: () => 'test', getPath: () => data, getLocale: () => 'pt-PT',
   requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), on() {}, quit() {}, setAppUserModelId() {},
 };
+let openHandler;
+const opened = [];
 class FakeWindow {
-  constructor() { this.webContents = { executeJavaScript: script => { progressScripts.push(script); return Promise.resolve(); } }; }
+  constructor() {
+    this.webContents = {
+      executeJavaScript: script => { progressScripts.push(script); return Promise.resolve(); },
+      setWindowOpenHandler: handler => { openHandler = handler; },
+    };
+  }
   async loadURL(url) { assert.ok(url.startsWith('data:text/html')); events.push('splash'); }
   async loadFile(file, options) { events.push('ui'); assert.equal(options.query.enginePort, '7777'); loaded(); }
   isDestroyed() { return false; }
@@ -41,7 +48,7 @@ function fakeSpawn() {
   return child;
 }
 vm.runInNewContext(readFileSync(path.join(desktop, 'main.cjs'), 'utf8'), {
-  require: id => id === 'electron' ? { app: fakeApp, BrowserWindow: FakeWindow, dialog: { showErrorBox: (...args) => { throw Error(args.join(' ')); } } }
+  require: id => id === 'electron' ? { app: fakeApp, BrowserWindow: FakeWindow, shell: { openExternal: url => opened.push(url) }, dialog: { showErrorBox: (...args) => { throw Error(args.join(' ')); } } }
     : id === 'node:child_process' ? { spawn: fakeSpawn }
     : id.startsWith('./') ? require(path.join(desktop, id)) : require(id),
   __dirname: desktop, process: { platform: 'win32', env: {}, stdout: { write() {} }, stderr: { write() {} } },
@@ -53,4 +60,9 @@ assert.deepEqual(events, ['splash', 'engine', 'ui'], 'the loading bar is visible
 assert.deepEqual(taskbar, [0.05, 0.4, 0.95, -1], 'the actual window receives progress and clears it after UI load');
 assert.equal(progressScripts.length, 3);
 assert.match(progressScripts[1], /value = 40/);
-console.log('OK: real startup progress parser, split chunks, invalid values, readiness and pt/en splash');
+// New windows never open inside the app: https links go to the system browser, anything else is dropped.
+for (const url of ['https://edhrec.com/combos/eowyn-shieldmaiden', 'http://example.com', 'file:///C:/x', 'javascript:alert(1)']) {
+  assert.equal(openHandler({ url }).action, 'deny');
+}
+assert.deepEqual(opened, ['https://edhrec.com/combos/eowyn-shieldmaiden']);
+console.log('OK: real startup progress parser, split chunks, invalid values, readiness, pt/en splash and external links');

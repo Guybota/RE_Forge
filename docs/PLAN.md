@@ -43,7 +43,8 @@ Integração da Central de decks (27/10/2026, `feat/central-integration`, sobre 
 
 Central dentro do RE:Forge: plano em [CENTRAL_PLAN.md](CENTRAL_PLAN.md) (7 fases). Fase 1 feita no ramo
 `feat/deck-tools-base`: lógica da Central em `ui/src/deckTools`, alimentada pelos decks do Forge. Fase 2 no ramo
-`feat/deck-tools-analysis`: análise, notas e etiquetas no ecrã de Decks.
+`feat/deck-tools-analysis`: análise, notas e etiquetas no ecrã de Decks. Fase 3 no ramo `feat/deck-tools-online`:
+preços (Cardmarket via Scryfall), impressões mais baratas e combos do EDHREC.
 
 Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN_PLAN.md](DESIGN_PLAN.md).
 Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,

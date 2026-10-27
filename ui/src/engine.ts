@@ -299,6 +299,20 @@ export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name:
   /** The player's own tags, notes and intended bracket (0 = none), kept in the Forge deck. */
   tags: string[]; notes: string; bracketIntent: number };
 
+/** Deck tools' online lookups (engine's DeckServices). Prices use Forge's set codes; EUR is Cardmarket via Scryfall. */
+export type PrintingPrice = { set: string; number: string; eur?: number | null; exact: boolean };
+export type PrintingSide = { set: string; number: string; imageKey?: string; eur: number };
+export type CheaperOffer = { nameEn: string; name: string; from: PrintingSide; to: PrintingSide };
+export type EdhrecCombo = { id: string; cardNames: string[]; results: string[]; decks: number; href: string; pieces: string[] };
+export type ComboGroup = { commander: string; total: number; url: string; combos: EdhrecCombo[] };
+export type DeckServicesReply =
+  | { type: 'deckPrices'; requestId: number; name: string; prices: PrintingPrice[] }
+  | { type: 'cheaperProgress'; requestId: number; done: number; total: number }
+  | { type: 'cheaperPrintings'; requestId: number; name: string; offers: CheaperOffer[] }
+  | { type: 'deckCombos'; requestId: number; name: string; groups: ComboGroup[]; missing: string[] }
+  | { type: 'comboDetail'; requestId: number; href: string; prerequisites: string[]; steps: string[] }
+  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail'; unavailable: boolean; message: string };
+
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
 type EngineMessage =
@@ -319,6 +333,7 @@ type EngineMessage =
   | DeckLanguage
   | DeckText
   | DeckDetail
+  | DeckServicesReply
   | CardResults
   | Printings
   | { type: 'error'; message: string; code?: string };
@@ -345,6 +360,8 @@ export type ClientMessage =
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
   | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
+  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos'; requestId: number; name: string }
+  | { type: 'comboDetail'; requestId: number; href: string }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
@@ -371,6 +388,7 @@ export type EngineHandlers = {
   onDeckPreview: (preview: DeckPreview) => void;
   onDeckText: (text: DeckText) => void;
   onDeckDetail: (detail: DeckDetail) => void;
+  onDeckServices: (reply: DeckServicesReply) => void;
   onCardResults: (results: CardResults) => void;
   onPrintings: (printings: Printings) => void;
   onState: (state: GameState) => void;
@@ -431,6 +449,8 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckPreview': h.onDeckPreview(msg); break;
       case 'deckText': h.onDeckText(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;
+      case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
+        h.onDeckServices(msg); break;
       case 'cardResults': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;
       case 'state': h.onState(msg); break;

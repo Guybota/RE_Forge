@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { DeckAnalysis, DeckNotes } from './DeckInsights';
 import { DeckCards } from './DeckCards';
+import { DeckCombos, DeckPrices } from './DeckOnline';
 import type { DeckDetail } from './engine';
 import { useT, type MessageKey } from './i18n';
 import type { Engine } from './useEngine';
 
-const VIEWS: { id: 'list' | 'analysis' | 'notes'; label: MessageKey }[] = [
-  { id: 'list', label: 'deckViewList' }, { id: 'analysis', label: 'deckViewAnalysis' }, { id: 'notes', label: 'deckViewNotes' },
+const VIEWS: { id: 'list' | 'analysis' | 'prices' | 'combos' | 'notes'; label: MessageKey }[] = [
+  { id: 'list', label: 'deckViewList' }, { id: 'analysis', label: 'deckViewAnalysis' }, { id: 'prices', label: 'deckViewPrices' },
+  { id: 'combos', label: 'deckViewCombos' }, { id: 'notes', label: 'deckViewNotes' },
 ];
 
 type Props = {
@@ -102,6 +104,8 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
               </nav>
               {detail && view === 'list' && <DeckCards preview={detail} />}
               {detail && view === 'analysis' && <DeckAnalysis detail={detail} />}
+              {detail && view === 'prices' && <DeckPrices key={detail.name} detail={detail} engine={engine} />}
+              {detail && view === 'combos' && <DeckCombos key={detail.name} detail={detail} engine={engine} />}
               {detail && view === 'notes' && <DeckNotes key={[detail.name, detail.tags.join(','), detail.bracketIntent, detail.notes].join('\n')} detail={detail} engine={engine} />}
             </section>
           )}

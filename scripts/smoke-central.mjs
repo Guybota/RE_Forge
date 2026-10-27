@@ -210,7 +210,7 @@ for (const packaged of [false, true]) {
     constructor(options) {
       window = this;
       this.options = options;
-      this.webContents = { mainFrame: {}, executeJavaScript: () => Promise.resolve() };
+      this.webContents = { mainFrame: {}, executeJavaScript: () => Promise.resolve(), setWindowOpenHandler() {} };
     }
     loadURL() { return Promise.resolve(); }
     loadFile() { finishLoad(); return Promise.resolve(); }

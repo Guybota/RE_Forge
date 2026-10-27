@@ -8,7 +8,7 @@ import { createModeUsageTracker } from './modeUsage';
 import { createOpeningCoinGate } from './table/openingCoin';
 import { animationOn } from './table/animationPrefs';
 import type { OpeningCoin } from './engine';
-import type { DeckLanguage } from './engine';
+import type { DeckLanguage, DeckServicesReply } from './engine';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type DeckText, type ModesData, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
@@ -21,6 +21,8 @@ export type Engine = {
   deckPreview: DeckPreview | null;
   /** The latest fetched link or rewritten list (chooseCommander); a new object each time. */
   deckText: DeckText | null;
+  /** The latest online deck-tools reply of each kind (errors under their service); match requestId before use. */
+  deckServices: Partial<Record<Exclude<DeckServicesReply['type'], 'servicesError'>, DeckServicesReply>>;
   /** The latest reply to getDeck. */
   deckDetail: DeckDetail | null;
   /** The latest replies to searchCards and getPrintings (deck builder). */
@@ -56,6 +58,7 @@ export function useEngine(): Engine {
   const [deckPreview, setDeckPreview] = useState<DeckPreview | null>(null);
   const [deckText, setDeckText] = useState<DeckText | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
+  const [deckServices, setDeckServices] = useState<Engine['deckServices']>({});
   const [cardResults, setCardResults] = useState<CardResults | null>(null);
   const [printings, setPrintings] = useState<Printings | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
@@ -97,6 +100,12 @@ export function useEngine(): Engine {
       onDeckPreview: setDeckPreview,
       onDeckText: setDeckText,
       onDeckDetail: setDeckDetail,
+      // Lookups run in parallel in the engine: an older request's late reply never replaces a newer one.
+      onDeckServices: (reply) => setDeckServices((all) => {
+        const kind = reply.type === 'servicesError' ? reply.service : reply.type;
+        const previous = all[kind];
+        return previous && previous.requestId > reply.requestId ? all : { ...all, [kind]: reply };
+      }),
       onCardResults: setCardResults,
       onPrintings: setPrintings,
       onState: (g) => {
@@ -161,5 +170,5 @@ export function useEngine(): Engine {
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckLanguage, deckPreview, deckText, deckDetail, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
+  return { status, failure, info, decks, deckLanguage, deckPreview, deckText, deckDetail, deckServices, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
 }

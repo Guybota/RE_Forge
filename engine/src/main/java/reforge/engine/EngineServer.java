@@ -13,6 +13,7 @@ import org.java_websocket.server.WebSocketServer;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
@@ -183,6 +184,7 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
+            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail" -> services(c, msg);
             case "setDeckMeta" -> c.actions.execute(() -> {
                 List<String> tags = new ArrayList<>();
                 if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
@@ -528,6 +530,59 @@ public final class EngineServer extends WebSocketServer {
         o.addProperty("text", text);
         if (name != null && !name.isBlank()) o.addProperty("name", name);
         return o;
+    }
+
+    /**
+     * Deck tools' online lookups (prices, cheaper printings, combos), answered with the request's type and
+     * requestId; a failure answers {@code servicesError} so the UI says "unavailable" instead of "none".
+     */
+    private static void services(Connection c, JsonObject msg) {
+        String type = string(msg, "type"), name = string(msg, "name");
+        JsonElement requestId = msg.get("requestId");
+        DeckServices.WORK.execute(() -> {
+            JsonObject reply;
+            try {
+                if (type.equals("comboDetail")) {
+                    reply = DeckServices.comboDetail(string(msg, "href"));
+                    reply.addProperty("href", string(msg, "href"));
+                } else {
+                    forge.deck.Deck deck = DeckImporter.mine().get(name);
+                    if (deck == null) throw new IllegalArgumentException("Unknown deck: " + name);
+                    reply = switch (type) {
+                        case "deckPrices" -> DeckServices.prices(deck);
+                        case "cheaperPrintings" -> {
+                            int[] total = {0};
+                            yield DeckServices.cheaper(deck, n -> total[0] = n, done -> {
+                                JsonObject p = new JsonObject();
+                                p.addProperty("type", "cheaperProgress");
+                                p.add("requestId", requestId);
+                                p.addProperty("done", done);
+                                p.addProperty("total", total[0]);
+                                c.session.send(p);
+                            });
+                        }
+                        default -> {
+                            List<String> commanders = new ArrayList<>();
+                            if (deck.has(forge.deck.DeckSection.Commander)) {
+                                deck.get(forge.deck.DeckSection.Commander).toFlatList().forEach(pc -> commanders.add(pc.getName()));
+                            }
+                            yield DeckServices.combos(commanders);
+                        }
+                    };
+                    reply.addProperty("name", name);
+                }
+                reply.addProperty("type", type);
+            } catch (RuntimeException e) {
+                reply = new JsonObject();
+                reply.addProperty("type", "servicesError");
+                reply.addProperty("service", type);
+                reply.addProperty("unavailable", e instanceof DeckServices.Unavailable);
+                reply.addProperty("message", String.valueOf(e.getMessage()));
+                if (!(e instanceof DeckServices.Unavailable) && !(e instanceof IllegalArgumentException)) e.printStackTrace();
+            }
+            reply.add("requestId", requestId);
+            c.session.send(reply);
+        });
     }
 
     private static JsonObject error(String message) {
