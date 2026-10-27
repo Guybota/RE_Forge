@@ -60,6 +60,8 @@ for (const folder of ['cardsfolder', 'tokenscripts']) {
     '--date=2020-01-01T00:00:00Z', '-C', path.join(root, 'forge', 'forge-gui', 'res', folder), '.']);
 }
 
-run(process.execPath, [path.join(root, 'node_modules', 'electron-builder', 'cli.js'),
-  win ? '--win' : '--mac', `--${process.arch}`, '--projectDir', 'desktop', '--publish', 'never']);
+const builderArgs = [path.join(root, 'node_modules', 'electron-builder', 'cli.js'),
+  win ? '--win' : '--mac', `--${process.arch}`, '--projectDir', 'desktop', '--publish', 'never'];
+if (!win) builderArgs.unshift('--require', path.join(root, 'scripts', 'macos-signing-fs.cjs'));
+run(process.execPath, builderArgs);
 console.log('\nInstaller written to dist-app/');
