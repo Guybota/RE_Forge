@@ -55,7 +55,17 @@ jobs:
           cache: maven
       - run: npm ci --ignore-scripts
       - run: npm run desktop:smoke-assets
-      - run: npm run package
+      - name: Build the installer with enough file descriptors for signing
+        shell: bash
+        run: |
+          signing_limit=65536
+          hard_limit="$(ulimit -Hn)"
+          if [[ "$hard_limit" != "unlimited" && "$hard_limit" -lt "$signing_limit" ]]; then
+            signing_limit="$hard_limit"
+          fi
+          ulimit -Sn "$signing_limit"
+          echo "Signing file descriptor limit: $(ulimit -Sn)"
+          npm run package
       - name: Verify the DMG and test its bundled Java, resources and fast-forward
         shell: bash
         run: |
