@@ -42,11 +42,15 @@ engine.stdout.on('data', (chunk) => {
 async function run(port) {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   const waiting = new Map();
+  const byType = [];
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
+    const i = byType.findIndex((w) => w.type === msg.type);
+    if (i >= 0) { byType.splice(i, 1)[0].resolve(msg); return; }
     if (msg.type === 'error') fail(`engine error: ${msg.message}`);
     if (msg.requestId && waiting.has(msg.requestId)) { waiting.get(msg.requestId)(msg); waiting.delete(msg.requestId); }
   };
+  const ask = (message, type) => new Promise((resolve) => { byType.push({ type, resolve }); ws.send(JSON.stringify(message)); });
   await new Promise((resolve) => { ws.onopen = resolve; });
   let id = 0;
   const preview = (text, name) => new Promise((resolve) => {
@@ -111,15 +115,32 @@ async function run(port) {
   assert.ok(cuts.length > 0 && cuts.every((c) => c.name !== 'Éowyn, Shieldmaiden'), 'cuts never the commander');
 
   // A catalog search result has the same fields as a deck line.
-  const search = await new Promise((resolve) => {
-    waiting.set(-1, resolve);
-    ws.onmessage = (event) => { const msg = JSON.parse(event.data); if (msg.type === 'cardResults') resolve(msg); };
-    ws.send(JSON.stringify({ type: 'searchCards', query: 'rhystic study' }));
-  });
+  const search = await ask({ type: 'searchCards', query: 'rhystic study' }, 'cardResults');
   assert.match(visualFromCatalog(search.cards[0]).oracleText, /Whenever an opponent casts a spell/);
+
+  // Tags, notes and intended bracket live in the Forge deck and survive an edit and a rename.
+  const rohanText = readFileSync(path.join(root, 'scripts/fixtures/riders-of-rohan-arena.txt'), 'utf8');
+  await ask({ type: 'saveDeck', text: rohanText, name: 'Rohan' }, 'decks');
+  const notes = 'Linha 1\nLinha \\ 2, com vírgula';
+  let detail = await ask({ type: 'setDeckMeta', name: 'Rohan', tags: ['Cavalaria', ' Casual ', 'casual'], notes, bracketIntent: 3 }, 'deckDetail');
+  assert.deepEqual(detail.tags, ['Casual', 'Cavalaria'], 'trimmed, case-insensitive, sorted by Forge');
+  assert.equal(detail.notes, notes, 'line breaks and backslashes round-trip');
+  assert.equal(detail.bracketIntent, 3);
+  await ask({ type: 'saveDeck', text: rohanText.replace('1 Arcane Signet', '1 Mind Stone'), name: 'Rohan 2', from: 'Rohan' }, 'decks');
+  detail = await ask({ type: 'getDeck', name: 'Rohan 2' }, 'deckDetail');
+  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [['Casual', 'Cavalaria'], notes, 3], 'edit keeps the metadata');
+  await ask({ type: 'renameDeck', name: 'Rohan 2', to: 'Rohan 3' }, 'decks');
+  detail = await ask({ type: 'getDeck', name: 'Rohan 3' }, 'deckDetail');
+  assert.equal(detail.bracketIntent, 3, 'rename keeps the metadata');
+  const restart = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: ['a,b'], notes: '', bracketIntent: 0 }, 'error');
+  assert.match(restart.message, /Invalid tag/);
+  assert.match((await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: ['reforge-won-1'], notes: '', bracketIntent: 0 }, 'error')).message, /Invalid tag/,
+    'internal tags cannot be set');
+  detail = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: [], notes: '', bracketIntent: 0 }, 'deckDetail');
+  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [[], '', 0], 'cleared');
 
   clearTimeout(timeout);
   engine.kill();
-  console.log('OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans');
+  console.log('OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket');
   process.exit(0);
 }

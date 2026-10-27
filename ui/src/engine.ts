@@ -295,7 +295,9 @@ export type Printings = { type: 'printings'; name: string; printings: { set: str
 /** A decklist to show in the import screen: a fetched link or the list with a newly chosen commander. */
 export type DeckText = { type: 'deckText'; text: string; name?: string };
 
-export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string };
+export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string;
+  /** The player's own tags, notes and intended bracket (0 = none), kept in the Forge deck. */
+  tags: string[]; notes: string; bracketIntent: number };
 
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
@@ -337,11 +339,12 @@ export type ClientMessage =
   | { type: 'setPhaseStops'; stops: PhaseStops | null }
   | { type: 'setAiOptions'; profile?: string; timeout?: number }
   | { type: 'previewDeck'; text: string; name?: string; requestId?: string }
-  | { type: 'saveDeck'; text: string; name: string }
+  | { type: 'saveDeck'; text: string; name: string; /** The deck being edited, whose tags and notes carry over. */ from?: string }
   | { type: 'chooseCommander'; text: string; name: string }
   | { type: 'fetchDeck'; url: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
+  | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }

@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
+import { DeckAnalysis, DeckNotes } from './DeckInsights';
 import { DeckCards } from './DeckCards';
 import type { DeckDetail } from './engine';
-import { useT } from './i18n';
+import { useT, type MessageKey } from './i18n';
 import type { Engine } from './useEngine';
+
+const VIEWS: { id: 'list' | 'analysis' | 'notes'; label: MessageKey }[] = [
+  { id: 'list', label: 'deckViewList' }, { id: 'analysis', label: 'deckViewAnalysis' }, { id: 'notes', label: 'deckViewNotes' },
+];
 
 type Props = {
   engine: Engine;
@@ -23,6 +28,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
   const [name, setName] = useState(selected ?? '');
   const [renaming, setRenaming] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [view, setView] = useState<(typeof VIEWS)[number]['id']>('list');
   const detail = engine.deckDetail?.name === selected ? engine.deckDetail : null;
 
   useEffect(() => {
@@ -91,7 +97,12 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                 }}>{t('deleteDeck')}</button>
               </div>
               {engine.error && <p className="error" role="alert">{engine.error}</p>}
-              {detail && <DeckCards preview={detail} />}
+              <nav className="builder__views" aria-label={t('deckViews')}>
+                {VIEWS.map((v) => <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id} onClick={() => setView(v.id)}>{t(v.label)}</button>)}
+              </nav>
+              {detail && view === 'list' && <DeckCards preview={detail} />}
+              {detail && view === 'analysis' && <DeckAnalysis detail={detail} />}
+              {detail && view === 'notes' && <DeckNotes key={[detail.name, detail.tags.join(','), detail.bracketIntent, detail.notes].join('\n')} detail={detail} engine={engine} />}
             </section>
           )}
         </div>

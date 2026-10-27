@@ -42,7 +42,7 @@ docs/       PLAN.md (roadmap).
 | `Puzzles` | Forge's `res/puzzle/*.pzl`: list (metadata read with `FileSection`, easiest first, solved = Forge's `.complete` marker) and start like the desktop puzzle screen. Uses the real GUI player (`getGuiPlayer(…, true)`) so the goal finds the human. The goal card never reaches the views, so the snapshot carries `puzzle`. |
 | `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
 | `AdventureCampaign` | Adventure character, deck and battles on `AdventureWorld` (seeded Shandalar: biomes, POIs, wandering enemies), `AdventureMap` (Forge's Tiled maps without libGDX), `AdventureSprites` (libGDX atlases as text) and `AdventureQuests` (side quests from `quests.json`: town offers, Defeat/Hunt/Travel/Clear/Leave stages, rewards from the epilogues). Towns are entered like dungeons: inn, quest giver and `AdventureShops` (shops.json, stock from `AdventureCards`, Forge's reward filters). |
-| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`), `rename` copies then deletes. Without a Commander section, two sideboard partners or 1–2 commanders after the last blank line (MTGO/Moxfield text) lead; `chooseCommander` rewrites the text (a compatible partner joins, others replace). Unknown lines carry `CardCatalog.similar` suggestions (typos, partial and translated names). |
+| `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`) with the player's tags, notes and intended bracket (`setMeta`: Forge deck tags and comment, line breaks escaped; `reforge-bracket-N`; other `reforge-` tags stay hidden), `rename` copies then deletes; `save` carries tags/notes over from `from` or the deck it replaces. Without a Commander section, two sideboard partners or 1–2 commanders after the last blank line (MTGO/Moxfield text) lead; `chooseCommander` rewrites the text (a compatible partner joins, others replace). Unknown lines carry `CardCatalog.similar` suggestions (typos, partial and translated names). |
 | `DeckLinks` | Public Archidekt/Moxfield deck → decklist text through their JSON APIs; any other host is refused before a request. A printing goes along only if Forge knows that set and number (promos, Secret Lair flavour names otherwise fail). |
 
 ### UI (ui/src)
@@ -52,8 +52,9 @@ docs/       PLAN.md (roadmap).
 - `modes/LimitedScreen.tsx` — Draft/Sealed: saved events, the draft (pack, picks), deck building from the pool with free basic
   lands, AI opponents with the last result. `modes/PuzzleScreen.tsx` — puzzles by difficulty, situation, goal, start.
   Starting a puzzle or a limited game must reset `useEngine`'s "left the match" guard like any new match.
-- `Decks.tsx` — the player's own decks: grouped list (`DeckCards`), rename, edit or new (opens `DeckBuilder`), import,
-  export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
+- `Decks.tsx` — the player's own decks: views List (`DeckCards`, sideboard apart), Analysis and Notes (`DeckInsights.tsx`:
+  Central's bracket, Commander check, card jobs, sample hand plus `DeckStatistics`; tags, notes, intended bracket), rename,
+  edit or new (opens `DeckBuilder`), import, export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
 - `ImportDeck.tsx` — paste, open/drop a file (`decklistFiles.ts`: MTGO `.dek` XML, Forge `.dck`, text) or fetch a link;
   `DeckCards` there offers "Commander" on possible commanders and suggested cards on unknown lines.
 - `DeckBuilder.tsx` — catalog search (name in any language, colours, type, mana value, commanders only, commander's

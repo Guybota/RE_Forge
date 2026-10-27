@@ -13,11 +13,15 @@ export type BracketTrigger = {
   kind: BracketTriggerKind;
 };
 
+export type BracketRuleId = "cedh" | "gc4" | "mld" | "extra-gc" | "gc3" | "exhibition" | "core-fast" | "core" | "extra-only" | "default";
+
 export type BracketEstimate = {
   bracket: 1 | 2 | 3 | 4 | 5;
   label: string;
   /** Short human rule that decided the bracket. */
   rule: string;
+  /** Which rule decided it, for translated text. */
+  ruleId: BracketRuleId;
   gameChangers: string[];
   fastMana: string[];
   massLandDenial: string[];
@@ -65,37 +69,45 @@ export function estimateBracket(deck: Deck): BracketEstimate {
 
   let bracket: 1 | 2 | 3 | 4 | 5;
   let rule: string;
+  let ruleId: BracketRuleId;
 
   // 5 — very high GC + dense fast mana (“looks like cEDH”)
   if (gc >= 6 && fm >= 6) {
     bracket = 5;
+    ruleId = "cedh";
     rule = `${gc} Game Changers and ${fm} fast-mana pieces — looks like cEDH from the list`;
   }
   // 4 — 4+ GC, or MLD, or extra turns alongside any GC
   else if (gc >= 4 || hasMld || (hasEt && gc >= 1)) {
     bracket = 4;
     if (gc >= 4) {
+      ruleId = "gc4";
       rule = `${gc} Game Changers (≥4) → Optimized`;
     } else if (hasMld) {
+      ruleId = "mld";
       rule = `Mass land denial present (${massLandDenial.slice(0, 3).join(", ")}) → Optimized`;
     } else {
+      ruleId = "extra-gc";
       rule = `Extra-turn spell(s) alongside Game Changers → Optimized`;
     }
   }
   // 3 — 1–3 GC, no MLD
   else if (gc >= 1 && gc <= 3 && !hasMld) {
     bracket = 3;
+    ruleId = "gc3";
     rule = `${gc} Game Changer${gc === 1 ? "" : "s"}, no mass land denial → Upgraded`;
   }
   // 1 — no GC, no MLD, no extra turns, no fast mana
   else if (gc === 0 && !hasMld && !hasEt && fm === 0) {
     bracket = 1;
+    ruleId = "exhibition";
     rule =
       "No Game Changers, no mass land denial, no extra turns, no fast mana → Exhibition (intent can still place a jank list here)";
   }
   // 2 — no GC, no MLD, no extra turns, light/any remaining fast mana
   else if (gc === 0 && !hasMld && !hasEt) {
     bracket = 2;
+    ruleId = fm > 0 ? "core-fast" : "core";
     rule =
       fm > 0
         ? `No Game Changers / MLD / extra turns, ${fm} fast-mana piece${fm === 1 ? "" : "s"} → Core`
@@ -104,10 +116,12 @@ export function estimateBracket(deck: Deck): BracketEstimate {
   // Fallback (e.g. ET without GC): treat as Core–Upgraded edge → Optimized if ET alone is scary
   else if (hasEt && gc === 0 && !hasMld) {
     bracket = 2;
+    ruleId = "extra-only";
     rule =
       "Extra-turn spells without Game Changers — still Core as a list estimate (intent may differ)";
   } else {
     bracket = 2;
+    ruleId = "default";
     rule = "Default Core when no higher rule matched";
   }
 
@@ -156,6 +170,7 @@ export function estimateBracket(deck: Deck): BracketEstimate {
     bracket,
     label: BRACKET_LABELS[bracket],
     rule,
+    ruleId,
     gameChangers,
     fastMana,
     massLandDenial,

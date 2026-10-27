@@ -220,6 +220,27 @@ export function readDeckRoles(
   };
 }
 
+export type WeakSlot =
+  | { code: "lands" | "ramp" | "draw" | "removal"; count: number }
+  | { code: "no-wipe" }
+  | { code: "thin-color"; color: ColorIdentity; pips: number; sources: number };
+
+/** Structured `weakSlotLines` (same thresholds), for translated text. Forge always has the card text. */
+export function weakSlots(roles: DeckRoles): WeakSlot[] {
+  const count = (key: RoleKey) => roles.roles.find((role) => role.key === key)?.count ?? 0;
+  const slots: WeakSlot[] = [];
+  const lands = count("lands");
+  if (lands > 0 && lands < 34) slots.push({ code: "lands", count: lands });
+  if (count("ramp") < 7) slots.push({ code: "ramp", count: count("ramp") });
+  if (count("draw") < 7) slots.push({ code: "draw", count: count("draw") });
+  if (count("removal") < 5) slots.push({ code: "removal", count: count("removal") });
+  if (count("wipes") === 0) slots.push({ code: "no-wipe" });
+  for (const pip of roles.pips) {
+    if (pip.thin) slots.push({ code: "thin-color", color: pip.color, pips: pip.pips, sources: pip.sources });
+  }
+  return slots;
+}
+
 /** Short observations. Empty when the list is in a normal range, or when text has barely loaded. */
 export function weakSlotLines(roles: DeckRoles): string[] {
   if (roles.total > 0 && roles.loaded < roles.total * 0.6) {

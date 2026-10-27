@@ -1,6 +1,8 @@
 package reforge.engine;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -153,7 +155,7 @@ public final class EngineServer extends WebSocketServer {
                 c.session.send(preview);
             });
             case "saveDeck" -> c.actions.execute(() -> {
-                String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"));
+                String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"), string(msg, "from"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
             case "chooseCommander" -> c.actions.execute(() -> c.session.send(
@@ -180,6 +182,14 @@ public final class EngineServer extends WebSocketServer {
             case "renameDeck" -> c.actions.execute(() -> {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
+            });
+            case "setDeckMeta" -> c.actions.execute(() -> {
+                List<String> tags = new ArrayList<>();
+                if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
+                String name = string(msg, "name");
+                String problem = DeckImporter.setMeta(name, tags, string(msg, "notes"),
+                        msg.has("bracketIntent") ? msg.get("bracketIntent").getAsInt() : 0);
+                c.session.send(problem == null ? DeckImporter.detail(name) : error(problem));
             });
             case "deleteDeck" -> c.actions.execute(() -> {
                 DeckImporter.delete(string(msg, "name"));

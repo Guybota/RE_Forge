@@ -66,6 +66,10 @@ Cada fase: ramo `feat/deck-tools-<fase>`, compila, testes de fumo, verificado no
   verificação, funções, pips, slots fracos, mão de exemplo e as estatísticas já existentes (`DeckStatistics`).
 - Etiquetas e notas guardadas no deck do Forge (`saveDeck` estendido; etiquetas `reforge-*` internas escondidas).
 - Ações existentes (jogar, editar, exportar, renomear, apagar) passam também para esta página.
+- **Feito** (27/10/2026, `feat/deck-tools-analysis`): em vez de um ecrã novo, o ecrã de Decks ganhou as vistas
+  Lista / Análise / Notas (`DeckInsights.tsx`); o sideboard aparece à parte na lista. Os módulos portados ganharam
+  códigos (`ruleId`, `code`, `weakSlots`) para os textos virem do `i18n.ts`. Mensagem `setDeckMeta`; `saveDeck.from`
+  mantém etiquetas/notas ao editar. Verificado no browser a 1280×720, 844×390 e texto a 200 %.
 
 ### 3. Serviços online no motor
 - `DeckPrices` (Scryfall: EUR por impressão exata, impressão mais barata), `Combos` (Spellbook + EDHREC),

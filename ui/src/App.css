@@ -378,9 +378,52 @@
 .decks__name { flex: 1 1 260px; min-width: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 22px; }
 .decks__delete { color: var(--danger-text); }
 .decks .import__summary { margin-top: 8px; }
+
+/* Deck analysis (Central's tools) and notes, under the deck's view tabs. */
+.deck-analysis, .deck-notes { min-height: 0; max-height: calc(100vh - 215px); overflow-y: auto; padding-right: 12px; }
+.deck-analysis { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-content: start; }
+.deck-analysis > .deck-stats { grid-column: 1 / -1; overflow: visible; padding-right: 0; }
+.deck-analysis__panel { min-width: 0; padding: 12px 16px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }
+.deck-analysis__panel h2 { margin: 0 0 8px; font-size: 20px; font-family: var(--font-display); font-weight: var(--display-weight); }
+.deck-analysis__panel h2[title], .deck-analysis__panel h3[title] { cursor: help; }
+.deck-analysis__panel h3 { margin: 12px 0 4px; font-size: 15px; }
+.deck-analysis__panel p { margin: 4px 0; }
+.deck-analysis__hand { grid-column: 1 / -1; }
+.deck-analysis__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.deck-analysis__head h2 { margin: 0 auto 0 0; }
+.deck-analysis__bracket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; }
+.deck-analysis__bracket strong { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 44px; line-height: 1; }
+.deck-analysis__bracket span:first-of-type { font-size: 20px; }
+.deck-analysis__warn { color: var(--danger-text); }
+.deck-analysis__ok { color: var(--on-table); font-weight: 700; }
+.deck-analysis__names { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.deck-analysis__name { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 10px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }
+.deck-analysis__issues { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.deck-analysis__roles { margin: 0 0 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.deck-analysis__roles div { padding: 6px 8px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }
+.deck-analysis__roles dt { color: var(--on-table-muted); font-size: 13px; }
+.deck-analysis__roles dd { margin: 0; font-size: 24px; font-weight: 700; }
+.deck-analysis__cards { margin: 12px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.deck-analysis__cards img { display: block; width: 100%; border-radius: var(--card-radius); }
+.deck-notes { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 720px; }
+.deck-notes__tags { width: 100%; margin: 0; padding: 0; border: 0; }
+.deck-notes__tags legend { margin-bottom: 6px; font-weight: 700; }
+.deck-notes__tags ul { margin: 0 0 8px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.deck-notes__tags li { display: inline-flex; align-items: center; gap: 2px; padding-left: 10px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }
+.deck-notes__remove { min-width: 44px; min-height: 44px; padding: 0; border-color: transparent; }
+.deck-notes__add { display: flex; flex-wrap: wrap; gap: 8px; }
+.deck-notes__field { width: 100%; display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+.deck-notes__field select, .deck-notes__field textarea { font-weight: 400; }
+.deck-notes__field select { max-width: 320px; min-height: 44px; }
+.deck-notes__field textarea { min-height: 160px; resize: vertical; }
 @media (max-width: 800px) {
   .decks__body { grid-template-columns: 1fr; }
   .decks__list { max-height: 30vh; }
+  .deck-analysis, .deck-notes { max-height: none; overflow: visible; }
+}
+/* Short landscape windows: one page scroll instead of a cramped inner one. */
+@media (max-height: 560px) {
+  .deck-analysis, .deck-notes { max-height: none; overflow: visible; }
 }
 
 /* Deck builder: catalog (filters + picture grid) on the left, the deck on the right. */

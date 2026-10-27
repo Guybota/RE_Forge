@@ -18,8 +18,14 @@ export type CommanderIssueKind =
   | "command-zone"
   | "companion";
 
+/** Which command-zone rule failed, for translated text. */
+export type CommandZoneCode =
+  | "none" | "too-many" | "background-alone" | "cannot-lead" | "pair-partner-with" | "pair-two-backgrounds"
+  | "pair-needs-background" | "pair-doctor" | "pair-partner" | "pair-friends" | "pair";
+
 export type CommanderIssue = {
   kind: CommanderIssueKind;
+  code?: CommandZoneCode;
   message: string;
   names: string[];
 };
@@ -70,7 +76,7 @@ function identityAllows(
 function pairProblem(
   left: { name: string; flags: CommanderFlags },
   right: { name: string; flags: CommanderFlags },
-): string | null {
+): { code: CommandZoneCode; message: string } | null {
   const a = left.flags;
   const b = right.flags;
   if (a.partner && b.partner) return null;
@@ -83,24 +89,24 @@ function pairProblem(
 
   if ((a.partnerWith || b.partnerWith) && !(namesPartnerWith(a, right.name) && namesPartnerWith(b, left.name))) {
     const named = a.partnerWith ?? b.partnerWith;
-    return `${left.name} and ${right.name} are not the Partner with pair. The text names ${named}.`;
+    return { code: "pair-partner-with", message: `${left.name} and ${right.name} are not the Partner with pair. The text names ${named}.` };
   }
   if (a.background && b.background) {
-    return "Two Backgrounds cannot share the command zone. One card needs to say Choose a Background.";
+    return { code: "pair-two-backgrounds", message: "Two Backgrounds cannot share the command zone. One card needs to say Choose a Background." };
   }
   if ((a.chooseBackground && !b.background) || (b.chooseBackground && !a.background)) {
-    return "Choose a Background needs a Background enchantment as the second commander.";
+    return { code: "pair-needs-background", message: "Choose a Background needs a Background enchantment as the second commander." };
   }
   if ((a.doctor && !b.doctorsCompanion) || (b.doctor && !a.doctorsCompanion)) {
-    return "A Doctor in the command zone needs a card with Doctor's companion, or another legal partner ability.";
+    return { code: "pair-doctor", message: "A Doctor in the command zone needs a card with Doctor's companion, or another legal partner ability." };
   }
   if ((a.partner && !b.partner) || (b.partner && !a.partner)) {
-    return "Partner only shares the command zone with another card that says Partner.";
+    return { code: "pair-partner", message: "Partner only shares the command zone with another card that says Partner." };
   }
   if ((a.friendsForever && !b.friendsForever) || (b.friendsForever && !a.friendsForever)) {
-    return "Friends forever only shares the command zone with another Friends forever card.";
+    return { code: "pair-friends", message: "Friends forever only shares the command zone with another Friends forever card." };
   }
-  return `${left.name} and ${right.name} are not a legal commander pair.`;
+  return { code: "pair", message: `${left.name} and ${right.name} are not a legal commander pair.` };
 }
 
 function commandZoneIssue(
@@ -114,11 +120,12 @@ function commandZoneIssue(
   });
 
   if (rows.length === 0) {
-    return { kind: "command-zone", message: "This list has no commander.", names: [] };
+    return { kind: "command-zone", code: "none", message: "This list has no commander.", names: [] };
   }
   if (rows.length > 2) {
     return {
       kind: "command-zone",
+      code: "too-many",
       message: "Commander allows two commanders at most.",
       names: rows.map((row) => row.name),
     };
@@ -135,6 +142,7 @@ function commandZoneIssue(
     if (only.flags.background && !canLeadAlone(only.flags)) {
       return {
         kind: "command-zone",
+        code: "background-alone",
         message: `${only.name} is a Background. It shares the command zone with a commander that says Choose a Background, and it cannot lead a deck alone.`,
         names: [only.name],
       };
@@ -142,6 +150,7 @@ function commandZoneIssue(
     if (!canLeadAlone(only.flags)) {
       return {
         kind: "command-zone",
+        code: "cannot-lead",
         message: `${only.name} cannot be your commander.`,
         names: [only.name],
       };
@@ -153,7 +162,8 @@ function commandZoneIssue(
   if (!problem) return null;
   return {
     kind: "command-zone",
-    message: problem,
+    code: problem.code,
+    message: problem.message,
     names: [rows[0].name, rows[1].name],
   };
 }

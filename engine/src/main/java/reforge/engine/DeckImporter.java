@@ -3,7 +3,9 @@ package reforge.engine;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import com.google.gson.JsonArray;
@@ -225,12 +227,47 @@ final class DeckImporter {
     }
 
     /** Saves under the given name (replacing a deck of the same name). Returns an error message or null. */
-    static String save(String text, String name) {
+    /** Saves a decklist; tags and notes come from {@code from} (the deck being edited) or the deck it replaces. */
+    static String save(String text, String name, String from) {
         String invalid = invalidName(name);
         if (invalid != null) return invalid;
         Preview p = preview(text, name);
         if (p.deck() == null || p.deck().getMain().isEmpty()) return "No cards recognised";
+        Deck old = mine().get(from != null && !from.isBlank() ? from : name.trim());
+        if (old != null) {
+            p.deck().setComment(old.getComment());
+            p.deck().getTags().addAll(old.getTags());
+        }
         mine().add(p.deck());
+        return null;
+    }
+
+    static final String BRACKET_TAG = "reforge-bracket-";
+
+    /**
+     * The player's own tags, notes and intended bracket (1–5, 0 = none). Forge keeps the comment on one line, so
+     * line breaks are stored as a backslash and "n" (backslashes doubled). Our internal "reforge-" tags (Limited results, bracket) are kept apart.
+     * Returns an error message or null.
+     */
+    static String setMeta(String name, List<String> tags, String notes, int bracket) {
+        Deck deck = mine().get(name);
+        if (deck == null) return "Unknown deck: " + name;
+        if (tags.size() > 20) return "Too many tags";
+        if (notes != null && notes.length() > 4000) return "Notes are too long";
+        if (bracket < 0 || bracket > 5) return "Invalid bracket";
+        Set<String> clean = new LinkedHashSet<>();
+        for (String tag : tags) {
+            String t = tag == null ? "" : tag.trim();
+            if (t.isEmpty()) continue;
+            if (t.length() > 40 || t.contains(",") || t.toLowerCase(Locale.ROOT).startsWith("reforge-")) return "Invalid tag: " + t;
+            clean.add(t);
+        }
+        deck.getTags().removeIf(t -> !t.startsWith("reforge-") || t.startsWith(BRACKET_TAG));
+        deck.getTags().addAll(clean);
+        if (bracket > 0) deck.getTags().add(BRACKET_TAG + bracket);
+        String comment = notes == null ? "" : notes.strip().replace("\\", "\\\\").replace("\r", "").replace("\n", "\\n");
+        deck.setComment(comment.isEmpty() ? null : comment);
+        mine().add(deck);
         return null;
     }
 
@@ -262,7 +299,29 @@ final class DeckImporter {
         o.addProperty("type", "deckDetail");
         o.addProperty("name", name);
         o.addProperty("text", text.toString());
+        JsonArray tags = new JsonArray();
+        int bracket = 0;
+        for (String tag : deck.getTags()) {
+            if (tag.matches(BRACKET_TAG + "[1-5]")) bracket = tag.charAt(tag.length() - 1) - '0';
+            else if (!tag.startsWith("reforge-")) tags.add(tag);
+        }
+        o.add("tags", tags);
+        o.addProperty("bracketIntent", bracket);
+        o.addProperty("notes", unescapeNotes(deck.getComment()));
         return o;
+    }
+
+    private static String unescapeNotes(String comment) {
+        if (comment == null) return "";
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < comment.length(); i++) {
+            char ch = comment.charAt(i);
+            if (ch == '\\' && i + 1 < comment.length()) {
+                char next = comment.charAt(++i);
+                out.append(next == 'n' ? '\n' : next);
+            } else out.append(ch);
+        }
+        return out.toString();
     }
 
     /** Returns an error message or null. */

@@ -51,8 +51,8 @@ export function DeckCards({ preview, onCommander, onReplace }: {
       </p>
       <div className="import__groups">
         {loose.length > 0 && <ul className="import__lines">{loose.map(line)}</ul>}
-        {GROUPS.map((g) => {
-          const lines = preview.lines.filter((l) => l.group === g.id);
+        {[...GROUPS, { id: 'sideboard', label: 'groupSideboard' as MessageKey }].map((g) => {
+          const lines = preview.lines.filter((l) => g.id === 'sideboard' ? l.sideboard : l.group === g.id && !l.sideboard);
           if (!lines.length) return null;
           const count = lines.reduce((n, l) => n + (l.qty ?? 0), 0);
           return (

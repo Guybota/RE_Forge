@@ -141,7 +141,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
         <button type="button" className="btn btn--primary" disabled={!name.trim() || !count || saving} onClick={() => {
           decksAtSave.current = engine.decks;
           setSaving(true);
-          send({ type: 'saveDeck', text, name: name.trim() });
+          send({ type: 'saveDeck', text, name: name.trim(), from: initial?.name });
         }}>{t('save')}</button>
       </header>
       {engine.error && <p className="error" role="alert">{engine.error}</p>}
