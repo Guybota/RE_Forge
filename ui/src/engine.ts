@@ -249,7 +249,7 @@ export type DeckPreview = {
   requestId?: string;
   type: 'deckPreview';
   /** Card lines also carry the card as the catalog describes it, its quantity and ("commander" group) its section. */
-  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string;
+  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string; sideboard?: boolean;
     /** Unknown lines: the name as typed and the closest real cards. */
     requested?: string; suggestions?: { nameEn: string; name: string }[] } & Partial<CatalogCard>)[];
   /** The commanders' combined colour identity (bits W 1, U 2, B 4, R 8, G 16). */
@@ -279,6 +279,9 @@ export type CatalogCard = {
   identity: number;
   colors: number;
   typeEn: string;
+  /** English rules text and Commander legality, for the deck tools. */
+  textEn: string;
+  commanderLegal: boolean;
   /** W U B R G C counts from Forge; hybrid symbols contribute to both colours. */
   manaSymbols: number[];
   /** Potential front-face mana production, W1 U2 B4 R8 G16 C32. */

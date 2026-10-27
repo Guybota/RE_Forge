@@ -74,6 +74,7 @@ final class DeckImporter {
                 // "commander" replaces the type group for display; typeGroup keeps it for the builder.
                 l.addProperty("typeGroup", group(card));
                 if (t.getTokenSection() == DeckSection.Commander) l.addProperty("group", "commander");
+                if (t.getTokenSection() == DeckSection.Sideboard) l.addProperty("sideboard", true);
             }
             lines.add(l);
         }

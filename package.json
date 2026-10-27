@@ -57,6 +57,7 @@
     "engine:smoke-limited": "node scripts/smoke-limited.mjs",
     "engine:smoke-images": "node scripts/smoke-images.mjs",
     "engine:smoke-builder": "node scripts/smoke-builder.mjs",
+    "engine:smoke-decktools": "node scripts/smoke-decktools.mjs",
     "engine:smoke-import-fixes": "node scripts/smoke-import-fixes.mjs",
     "ui:smoke-animations": "node scripts/smoke-animations.mjs",
     "engine:smoke-quests": "node scripts/smoke-quests.mjs"
@@ -71,6 +72,8 @@
     "electron@45.0.0": true
   },
   "overrides": {
-    "miniflare": { "undici": "^7.30.1" }
+    "miniflare": {
+      "undici": "^7.30.1"
+    }
   }
 }

@@ -123,6 +123,9 @@ final class CardCatalog {
         o.addProperty("identity", r.getColorIdentity().getColor());
         o.addProperty("colors", r.getColor().getColor());
         o.addProperty("typeEn", r.getType().toString());
+        // English rules text (card scripts write line breaks as "\n") and Commander legality, for the deck tools.
+        o.addProperty("textEn", r.getOracleText().replace("\\n", "\n"));
+        o.addProperty("commanderLegal", DeckFormat.Commander.isLegalCard(pc));
         JsonArray symbols = new JsonArray();
         for (int n : r.getManaCost().getColorShardCounts()) symbols.add(n);
         o.add("manaSymbols", symbols);

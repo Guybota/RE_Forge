@@ -41,6 +41,9 @@ Integração da Central de decks (27/10/2026, `feat/central-integration`, sobre 
   A inspeção do ASAR final encontrou o servidor Central em extraResources; o caminho de arranque foi corrigido
   e o teste de regressão passou a executar o IPC real do main em modo de desenvolvimento e distribuição.
 
+Central dentro do RE:Forge: plano em [CENTRAL_PLAN.md](CENTRAL_PLAN.md) (7 fases). Fase 1 feita no ramo
+`feat/deck-tools-base`: lógica da Central em `ui/src/deckTools`, alimentada pelos decks do Forge.
+
 Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN_PLAN.md](DESIGN_PLAN.md).
 Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,
 definições partilhadas, contraste, estados das cartas, instruções/confirmações da mesa, texto até 200%,

@@ -37,7 +37,7 @@ docs/       PLAN.md (roadmap).
 | `MatchStarter` | Commander vs 1–3 AIs from Forge's precons, each with its chosen Forge AI profile (`res/ai`); sets the Forge prefs we rely on. |
 | `ImageServer` | `http://127.0.0.1:<port>/card?key=&format=crop|full`. Downloads from Scryfall once (Forge's rate limiter), caches under `<data>/cache/reforge-art`. |
 | `Settings` | `<data>/reforge.properties`: chosen `language`, `skin`, separate phase stops for own/opponents' turns and `autoPass` (sent with the stops), and the AI's default profile ("" = random; Limited, Puzzles) and thinking time (Forge's `MATCH_AI_TIMEOUT` choices), applied by `MatchStarter.preparePreferences`, which also makes the AI sideboard itself between games. Atomic writes; missing language/skin = first run. |
-| `CardCatalog` | Deck builder catalog: `search` (Commander-legal, no Arena `A-` or Un-only cards, exact names first, 60 per page) and `printings`. `card()` fields are shared with decklist lines. |
+| `CardCatalog` | Deck builder catalog: `search` (Commander-legal, no Arena `A-` or Un-only cards, exact names first, 60 per page) and `printings`. `card()` fields are shared with decklist lines, including `textEn` (English rules text) and `commanderLegal` for the deck tools. |
 | `Limited` | Best of 1 or 3 (`bestOf`); between games `WebGuiGame.sideboard` asks a `sideboard` choice (copies in deck/sideboard → `amounts`), the snapshot carries `match` (games, played, over, wins — counted by the bridge, since the game-over snapshot precedes Forge's outcome) and the UI's "Next game" sends `nextGame`. Draft and Sealed with Forge's own boosters (`CardBlock.getBooster`, no Forge dialogs), `BoosterDraft` (7 AI drafters) and `SealedDeckBuilder` (3 AI pools). A finished pool is an event: Forge's `DeckGroup` in its draft/sealed storage (player's deck: main + sideboard = pool; basic lands are free; results as `reforge-won/lost-N` deck tags). The draft in progress lives only in the connection. |
 | `Puzzles` | Forge's `res/puzzle/*.pzl`: list (metadata read with `FileSection`, easiest first, solved = Forge's `.complete` marker) and start like the desktop puzzle screen. Uses the real GUI player (`getGuiPlayer(…, true)`) so the goal finds the human. The goal card never reaches the views, so the snapshot carries `puzzle`. |
 | `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
@@ -61,6 +61,10 @@ docs/       PLAN.md (roadmap).
   Singleton enforced on add (basics excepted); searchable art/printing picker; compatible partner search through Forge;
   `DeckStatistics.tsx` + `deckAnalysis.ts` show interactive mana/color/source statistics and draw probabilities.
   A new name replaces the opened deck.
+- `deckTools/` — Central's deck logic, copied as plain TypeScript (bracket, Game Changers, Commander check, partners,
+  roles, card groups, compare, combo cuts, improve plans/adapt/diff, `card-tags.json`). `cardVisual.ts` is the only
+  adapter: Forge deck lines (`deckDetail`/`deckPreview`, sideboard flagged) → the tools' `Deck` and `CardVisual`.
+  Change the heuristics there, not the adapter. Plan: `docs/CENTRAL_PLAN.md`.
 - `table/CardZoom.tsx` — right click (long press on touch) on any card or deck line shows it big, in a modal `<dialog>`
   so it sits above other dialogs, with its counters and keywords (`kw_*`/`kwHelp_*` in `i18n.ts`, else Forge's English
   reminder text); also exports the shared `Preview`.
@@ -189,6 +193,7 @@ npm run engine:smoke-dialogs  # deterministic choice validation, native scry/sur
 npm run engine:smoke-limited  # puzzles (list, start), sealed (pool, deck rules, game, result), full draft, events after restart
 npm run engine:smoke-tutor    # Wishclaw Talisman in pt-BR: library search from the table and its prompt, card to hand, shuffle, opponent gains control
 npm run engine:smoke-builder  # catalog search in two languages, filters, identity, pages, printings
+npm run engine:smoke-decktools # Central's deck tools on real Forge previews: bracket, Commander check, roles, compare, cuts, plans
 npm run engine:smoke-images   # image URLs (cards, tokens), per-language cache, English fallback, retries
 ```
 
