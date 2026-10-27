@@ -135,7 +135,7 @@ async function createWindow() {
       const serverRoot = app.isPackaged ? path.join(process.resourcesPath, 'central', 'central') : path.join(paths.cwd, 'build', 'central', 'central');
       central = require('./central-launcher.cjs').createCentralLauncher({
         serverRoot, enginePort: port,
-        fork: env => utilityProcess.fork(path.join(__dirname, 'central-server.cjs'), [], { cwd: serverRoot, env, stdio: 'pipe', serviceName: 'MTG Central' }),
+        fork: env => utilityProcess.fork(app.isPackaged ? path.join(process.resourcesPath, 'central-server.cjs') : path.join(__dirname, 'central-server.cjs'), [], { cwd: serverRoot, env, stdio: 'pipe', serviceName: 'MTG Central' }),
       });
     }
     return central.open();

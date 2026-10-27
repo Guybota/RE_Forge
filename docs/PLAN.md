@@ -38,6 +38,8 @@ Integração da Central de decks (27/10/2026, `feat/central-integration`, sobre 
   o deck guardado com o mesmo nome manteve a lista original com Ezuri. Todos os dados foram temporários.
   Commit, integração por fast-forward na main e instaladores Windows/macOS 0.1.7 autorizados pelo utilizador.
   Desktop e motor alinhados em 0.1.7; distribuição em validação.
+  A inspeção do ASAR final encontrou o servidor Central em extraResources; o caminho de arranque foi corrigido
+  e o teste de regressão passou a executar o IPC real do main em modo de desenvolvimento e distribuição.
 
 Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN_PLAN.md](DESIGN_PLAN.md).
 Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,

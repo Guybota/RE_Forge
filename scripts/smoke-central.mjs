@@ -199,4 +199,56 @@ for (const invalid of [null, {}, { ...message, type: 'saveDeck' }, { type: 'cent
   { ...message, deck: { ...message.deck, name: '' } }]) {
   assert.equal(parseCentralDeck(invalid), null, 'malformed or excessive deck messages are refused');
 }
-console.log('OK: Central engine singleton, Java paths, external engine reuse, startup retry and bounded trusted deck handoff');
+// Exercise the actual main-process IPC route, including electron-builder's external wrapper layout.
+for (const packaged of [false, true]) {
+  let window, finishLoad, forkedEntry;
+  const handlers = new Map();
+  const loaded = new Promise(resolve => { finishLoad = resolve; });
+  const resources = path.join(root, 'test-resources');
+  const desktop = path.join(root, 'desktop');
+  class FakeWindow {
+    constructor(options) {
+      window = this;
+      this.options = options;
+      this.webContents = { mainFrame: {}, executeJavaScript: () => Promise.resolve() };
+    }
+    loadURL() { return Promise.resolve(); }
+    loadFile() { finishLoad(); return Promise.resolve(); }
+    setProgressBar() {}
+    isDestroyed() { return false; }
+  }
+  const fakeApp = {
+    isPackaged: packaged, getVersion: () => 'test', getPath: () => '/temporary/profile', getLocale: () => 'en-US',
+    requestSingleInstanceLock: () => true, whenReady: () => Promise.resolve(), on() {}, quit() {}, setAppUserModelId() {},
+  };
+  vm.runInNewContext(readFileSync(path.join(desktop, 'main.cjs'), 'utf8'), {
+    require(name) {
+      if (name === 'electron') return {
+        app: fakeApp, BrowserWindow: FakeWindow,
+        dialog: { showErrorBox: (...args) => { throw Error(args.join(' ')); } },
+        ipcMain: { handle: (name, handler) => handlers.set(name, handler) },
+        utilityProcess: { fork: (entry) => { forkedEntry = entry; return {}; } },
+      };
+      if (name === 'node:fs') return { mkdirSync() {}, existsSync: () => false, createWriteStream: () => ({ on() {}, write() {} }) };
+      if (name === 'node:child_process') return { spawn() {
+        const child = new EventEmitter(); child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => {};
+        setImmediate(() => child.stdout.emit('data', Buffer.from('READY 54321\n')));
+        return child;
+      } };
+      if (name === './central-launcher.cjs') return { createCentralLauncher: ({ fork }) => ({ open() { fork({}); return Promise.resolve('http://127.0.0.1:4317/decks'); } }) };
+      if (name.startsWith('./')) return require(path.join(desktop, name));
+      return require(name);
+    },
+    __dirname: desktop, module: { exports: {} },
+    process: { platform: 'win32', resourcesPath: resources, env: {}, stdout: { write() {} }, stderr: { write() {} } },
+    setTimeout, clearTimeout, setImmediate, console,
+  });
+  await loaded;
+  const open = handlers.get('reforge:open-central');
+  assert.ok(open);
+  await assert.rejects(() => open({ sender: {}, senderFrame: {} }), /Invalid Central caller/);
+  await open({ sender: window.webContents, senderFrame: window.webContents.mainFrame });
+  assert.equal(forkedEntry, path.join(packaged ? resources : desktop, 'central-server.cjs'), 'packaged wrapper lives in extraResources, outside ASAR');
+  assert.equal(window.options.webPreferences.preload, path.join(desktop, 'preload.cjs'));
+}
+console.log('OK: Central engine singleton, Java paths, external engine reuse, startup retry, bounded trusted deck handoff and packaged IPC entry');
