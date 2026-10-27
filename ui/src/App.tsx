@@ -20,11 +20,32 @@ import './App.css';
 import { installClickSounds } from './audio/sounds';
 import { installAppearanceSettings } from './settings/appearancePrefs';
 import './settings/appearance.css';
+import { acceptsCentralMessage, type CentralDeck } from './centralBridge';
+import { CentralDeckScreen } from './CentralDeckScreen';
 
 export default function App() {
   useEffect(installClickSounds, []);
   useEffect(installAppearanceSettings, []);
   const engine = useEngine();
+  const [centralDeck, setCentralDeck] = useState<CentralDeck | null>(null);
+  const centralGameActive = !!engine.game;
+  const centralBridge = window.parent !== window && new URLSearchParams(window.location.search).get('centralBridge') === '1';
+  useEffect(() => {
+    if (!centralBridge) return;
+    const receive = (event: MessageEvent) => {
+      if (engine.game || engine.lobby) return;
+      const deck = acceptsCentralMessage(event, window.parent, window.location.origin);
+      if (deck) setCentralDeck(previous => previous?.id === deck.id && previous.name === deck.name && previous.text === deck.text ? previous : deck);
+    };
+    window.addEventListener('message', receive);
+    return () => window.removeEventListener('message', receive);
+  }, [centralBridge, engine.game, engine.lobby]);
+  useEffect(() => {
+    if (centralBridge && engine.status === 'ready') window.parent.postMessage({ type: 'central:ready', language: engine.info?.language }, window.location.origin);
+  }, [centralBridge, engine.status, engine.info?.language]);
+  useEffect(() => {
+    if (centralBridge) window.parent.postMessage({ type: 'central:game', active: centralGameActive }, window.location.origin);
+  }, [centralBridge, centralGameActive]);
   const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
@@ -59,6 +80,8 @@ export default function App() {
     screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
   } else if (!engine.info?.skin || picking === 'skin') {
     screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} onBack={() => setPicking('language')} />;
+  } else if (centralDeck) {
+    screen = <CentralDeckScreen engine={engine} deck={centralDeck} onBack={() => setCentralDeck(null)} />;
   } else if (picking === 'quest' || picking === 'adventure') {
     screen = <CampaignScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'draft' || picking === 'sealed') {

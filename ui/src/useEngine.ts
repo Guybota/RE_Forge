@@ -136,7 +136,7 @@ export function useEngine(): Engine {
     if (coinGate.current.blocks(m)) return;
     if (m.type !== 'deckLanguage' && m.type !== 'cancelDeckLanguage') setError(null);
     usage.current.requested(m);
-    if (m.type === 'startMatch' || m.type === 'startOnlineMatch' || m.type === 'startPuzzle' || m.type === 'campaign' && m.action === 'duel' || m.type === 'limited' && m.action === 'play') {
+    if (m.type === 'startMatch' || m.type === 'startDeckMatch' || m.type === 'startOnlineMatch' || m.type === 'startPuzzle' || m.type === 'campaign' && m.action === 'duel' || m.type === 'limited' && m.action === 'play') {
       left.current = false;
       previousSoundState.current = null;
     }

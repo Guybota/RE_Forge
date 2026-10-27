@@ -33,6 +33,36 @@ npm run dev
 Starts Vite and Electron; Electron launches the engine and passes its port to the UI.
 For a production-style run: `npm run build` then `npm start`.
 
+## Deck Central
+
+`central/` is the deck library, comparison, improvements, card search and Sage application.
+It is an npm workspace: install dependencies from the repository root. `npm run build` builds
+both interfaces and stages the Central production server in `build/central`.
+
+After that build, **Deck Central** in the Electron home menu opens it using the engine already
+running in Electron. The game runs in the current RE:Forge interface, including its settings,
+skins, dialogs and game modes. Starting a Central list plays it in memory: it never saves over
+an existing Forge deck, including one with an identical name. Forge checks the complete list
+before play; unrecognized cards block starting until the list is corrected.
+
+For browser development, run `npm run build:ui` and `npm run central:dev`, then open
+`http://127.0.0.1:4317`. The desktop uses that same fixed loopback port so its browser deck
+library keeps the same origin across restarts. If the port is occupied, startup fails explicitly.
+`RE_FORGE_CENTRAL_PORT` overrides the desktop port; changing it changes the browser storage origin.
+`RE_FORGE_ROOT`, `JAVA_HOME` and optionally `RE_FORGE_DATA` configure a browser-launched engine;
+Electron supplies its existing engine directly. Test profiles must always be temporary.
+
+```bash
+npm run central:smoke         # process reuse, startup failure/retry and trusted deck handoff
+npm run engine:smoke-central  # native games with same-name lists; saved decks stay unchanged
+npm run central:smoke-package # staged production server, current game UI and engine reuse
+npm run desktop:smoke-central # real Electron utility process from ASAR, with a temporary profile
+npm run central:test          # library, search, import/compare and game integration in Chromium
+```
+
+Windows and macOS packaging include the staged Central server and the shared game interface.
+The Central integration workflow checks builds, browser behavior and native deck isolation.
+
 ## Windows and macOS installers
 
 On Windows x64, with JDK 21 (`JAVA_HOME`), Node and Maven available:
@@ -43,7 +73,7 @@ npm run package
 ```
 
 This builds the UI and engine, creates a Java runtime with `jlink`, and writes
-`dist-app/RE-Forge-Setup-0.1.6.exe`. The installer runs per user; players do not need
+`dist-app/RE-Forge-Setup-0.1.7.exe`. The installer runs per user; players do not need
 Java, Node or Maven installed. `dist-app/win-unpacked/` contains the same application
 before installation. Includes Adventure's shared maps, decks, world data and sprites plus
 Shandalar's world data. Other Adventure worlds and music are excluded. Card and token
@@ -167,6 +197,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
 | UI → engine | `setPhaseStops` | `stops: {mine: [phase names], opponents: [phase names]}`, or `stops: null` to restore defaults. Both rows are validated before saving; applies live |
 | UI → engine | `startMatch` | `deck` (name or null for random), optional `deckSource` (`mine` / `precon`, omitted keeps own-deck-first compatibility), `opponents` 1–3, `aiProfiles` (one Forge AI profile per opponent; `""` = random, missing = `Default`) |
+| UI → engine | `startDeckMatch` | External `text` and display `name`, `opponents` 1–3, optional `aiProfiles`. Resolves the full list with Forge and plays it without writing a saved deck; unknown cards, missing commander and empty main decks are rejected. |
 | UI → engine | `hostGame` / `joinGame` | Player `name`; direct host: `port` (1024–65535), optional `upnp`; direct join: `address` (`host:port`). Room host: `transport: "relay"`; room join: `transport: "relay"`, `code` (8 characters). Relay origin is engine configuration, never a UI-supplied URL |
 | UI → engine | `setSlot` | `index`, optional `slotType` (`ai` or `open`, host only), optional `deck` (own/AI slot only) |
 | UI → engine | `setReady`, `addSlot`, `removeSlot`, `kickPlayer`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove/kick: `index` (kick: host only, slots with `kickable`). Host controls seats/start; one online session per engine. A closed lobby sends `lobbyClosed`, with an `error` `code` `kicked`, `hostDisconnected` or `relayDisconnected` when it wasn't the player's choice |

@@ -2,178 +2,131 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Home } from "@/components/reforge/Home";
-import { ImportDeck } from "@/components/reforge/ImportDeck";
-import { I18n, translator } from "@/components/reforge/i18n";
-import { LanguagePicker } from "@/components/reforge/LanguagePicker";
-import { Lobby } from "@/components/reforge/Lobby";
-import { DEFAULT_SKIN } from "@/components/reforge/skins";
-import { SkinPicker } from "@/components/reforge/SkinPicker";
-import { Table } from "@/components/reforge/table/Table";
-import { useEngine } from "@/components/reforge/useEngine";
 import { useDeckLibrary } from "@/hooks/use-deck-library";
 import { exportDecklistText } from "@/lib/import-formats";
-import "@/components/reforge/reforge.css";
+import { playTranslator, type PlayMessageKey } from "@/lib/i18n";
 
-const FORGE_NAME_UNSAFE = /[\\/:*?"<>|]/g;
-
-function forgeDeckName(name: string): string {
-  const cleaned = name.replace(FORGE_NAME_UNSAFE, " ").replace(/\s+/g, " ").trim();
-  return cleaned || "My deck";
-}
-
+/** Hosts the same UI shipped in Electron; gameplay never has a second implementation here. */
 export function PlayView({ initialDeckId = "" }: { initialDeckId?: string }) {
   const params = useSearchParams();
-  const queryDeck = params.get("deck") ?? "";
-  const deckId = queryDeck || initialDeckId;
+  const deckId = params.get("deck") ?? initialDeckId;
+  const { decks, state } = useDeckLibrary();
+  const selected = decks.find((deck) => deck.id === deckId);
   const [port, setPort] = useState<number | null>(null);
-  const [bootError, setBootError] = useState<string | null>(null);
+  const [error, setError] = useState<PlayMessageKey | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [language, setLanguage] = useState("en-US");
+  const [ready, setReady] = useState(false);
+  const [gameActive, setGameActive] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const sent = useRef<string | null>(null);
+  const t = playTranslator(language);
+  const libraryError: PlayMessageKey | null = deckId && state.status === "error"
+    ? "libraryFailed"
+    : deckId && state.status === "ready" && !selected ? "deckMissing" : null;
+  const canOpen = !deckId || state.status === "ready" && Boolean(selected);
+  const request = useMemo(() => selected ? {
+    id: selected.id,
+    name: selected.name,
+    text: exportDecklistText(selected.commanders, selected.cards, "arena", selected.sideboard ?? []),
+  } : null, [selected]);
+
+  useEffect(() => { setLanguage(navigator.language); }, []);
 
   useEffect(() => {
+    if (!canOpen) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 130_000);
     let cancelled = false;
+    setPort(null);
+    setError(null);
+    setReady(false);
+    setGameActive(false);
+    sent.current = null;
     void (async () => {
       try {
-        const res = await fetch("/api/play/engine", { method: "POST" });
-        const raw = await res.text();
-        const body = JSON.parse(raw) as { port?: number; error?: string };
+        const res = await fetch("/api/play/engine", { method: "POST", signal: controller.signal });
+        const body = await res.json() as { port?: unknown };
         if (cancelled) return;
-        if (!res.ok || typeof body.port !== "number") {
-          setBootError(body.error || "The table did not start.");
+        if (!res.ok || typeof body.port !== "number" || !Number.isInteger(body.port) || body.port < 1 || body.port > 65535) {
+          setError("engineFailed");
           return;
         }
         setPort(body.port);
       } catch {
-        if (!cancelled) setBootError("The table did not start.");
+        if (!cancelled) setError("engineFailed");
+      } finally {
+        clearTimeout(timeout);
       }
     })();
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
+  }, [canOpen, attempt]);
+
+  useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
+      const message: unknown = event.data;
+      if (!message || typeof message !== "object" || !("type" in message)) return;
+      if (message.type === "central:ready") {
+        setReady(true);
+        setError(null);
+        if ("language" in message && typeof message.language === "string") setLanguage(message.language);
+      } else if (message.type === "central:game" && "active" in message && typeof message.active === "boolean") {
+        setGameActive(message.active);
+      }
+    };
+    window.addEventListener("message", receive);
+    return () => window.removeEventListener("message", receive);
   }, []);
 
-  if (!port) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground sm:px-6">
-        {bootError ?? "Opening the table…"}
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!ready || !request || gameActive || !frame.current?.contentWindow) return;
+    const signature = JSON.stringify(request);
+    if (sent.current === signature) return;
+    frame.current.contentWindow.postMessage({ type: "central:deck", deck: request }, window.location.origin);
+    sent.current = signature;
+  }, [ready, request, gameActive]);
 
-  return <ForgeScreen port={port} initialDeckId={deckId} />;
-}
+  // A missing static build or a failed socket must produce a recoverable state, not a blank frame.
+  useEffect(() => {
+    if (!port || ready) return;
+    const timeout = setTimeout(() => setError("frameFailed"), 30_000);
+    return () => clearTimeout(timeout);
+  }, [port, ready, attempt]);
 
-function ForgeScreen({ port, initialDeckId }: { port: number; initialDeckId: string }) {
-  const engine = useEngine(port);
-  const { decks } = useDeckLibrary();
-  const { status, info, game, send, decks: engineDecks, decksVersion, deckPreview } = engine;
-  const [picking, setPicking] = useState<"language" | "skin" | "import" | "online" | null>(null);
-  const [lastImported, setLastImported] = useState<string | undefined>();
-  const [libraryRequest, setLibraryRequest] = useState<{ id: string; opponents: number; nonce: number } | null>(null);
-  const [statusNote, setStatusNote] = useState<string | null>(null);
-  const step = useRef<"idle" | "preview" | "save" | "start">("idle");
-  const savedAt = useRef(0);
-  const language = info?.language ?? "en-US";
-  const skin = info?.skin ?? DEFAULT_SKIN;
-  const libraryDecks = useMemo(
-    () => [...decks].sort((a, b) => a.name.localeCompare(b.name)).map((deck) => ({ id: deck.id, name: deck.name })),
-    [decks],
+  const problem = libraryError ?? error;
+  if (problem) return (
+    <div className="mx-auto max-w-3xl px-4 py-10 text-sm sm:px-6">
+      <p role="alert">{t(problem)}</p>
+      {problem !== "deckMissing" && <button type="button" className="mt-4 rounded-md border border-border px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2" onClick={() => {
+        if (problem === "libraryFailed") window.location.reload();
+        else setAttempt((value) => value + 1);
+      }}>{t("retry")}</button>}
+    </div>
   );
-  const requested = decks.find((deck) => deck.id === libraryRequest?.id);
-  const listText = useMemo(
-    () => (requested ? exportDecklistText(requested.commanders, requested.cards, "arena", requested.sideboard ?? []) : ""),
-    [requested],
-  );
-  const listName = requested ? forgeDeckName(requested.name) : "";
-  const initialDeck = libraryDecks.some((deck) => deck.id === initialDeckId) ? `library:${initialDeckId}` : lastImported;
 
-  useEffect(() => {
-    step.current = "idle";
-    savedAt.current = 0;
-    setStatusNote(null);
-  }, [libraryRequest?.nonce]);
+  if (!port || !canOpen) return <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground sm:px-6" role="status">{t("opening")}</div>;
 
-  useEffect(() => {
-    if (!libraryRequest || !requested || status !== "ready") return;
-    if (step.current === "idle") {
-      step.current = "preview";
-      send({ type: "previewDeck", text: listText, name: listName });
-      return;
-    }
-    if (step.current === "preview" && deckPreview) {
-      const bits: string[] = [];
-      if (deckPreview.unknown > 0) {
-        const cards = deckPreview.unknown === 1 ? "card was" : "cards were";
-        bits.push(`${deckPreview.unknown} ${cards} not recognized. The match can still start.`);
-      }
-      if (deckPreview.problem) bits.push(deckPreview.problem);
-      setStatusNote(bits.join(" ") || null);
-      step.current = "save";
-      savedAt.current = decksVersion;
-      send({ type: "saveDeck", text: listText, name: listName });
-      return;
-    }
-    if (step.current === "save" && decksVersion > savedAt.current && engineDecks.mine.includes(listName)) {
-      step.current = "start";
-      send({
-        type: "startMatch",
-        deck: listName,
-        deckSource: "mine",
-        opponents: libraryRequest.opponents,
-        aiProfiles: [],
-      });
-    }
-  }, [libraryRequest, requested, status, deckPreview, decksVersion, engineDecks, listText, listName, send]);
-
-  useEffect(() => {
-    if (!game) return;
-    step.current = "idle";
-  }, [game]);
-
-  let screen;
-  if (status !== "ready") {
-    screen = (
-      <main className="home">
-        <h1>RE:Forge</h1>
-        {status === "connecting" ? <p className="muted">Connecting to the engine…</p> : <p className="error">Lost the connection to the engine.</p>}
-      </main>
-    );
-  } else if (game) {
-    screen = <Table engine={engine} game={game} />;
-  } else if (engine.lobby || picking === "online") {
-    screen = <Lobby engine={engine} onBack={() => setPicking(null)} />;
-  } else if (!info?.language || picking === "language") {
-    screen = <LanguagePicker engine={engine} onDone={() => setPicking(null)} />;
-  } else if (!info?.skin || picking === "skin") {
-    screen = <SkinPicker engine={engine} onDone={() => setPicking(null)} />;
-  } else if (picking === "import") {
-    screen = (
-      <ImportDeck
-        engine={engine}
-        onDone={(saved) => {
-          if (saved) setLastImported(saved);
-          setPicking(null);
-        }}
-      />
-    );
-  } else {
-    screen = (
-      <Home
-        key={initialDeck || "home"}
-        engine={engine}
-        onPick={setPicking}
-        initialDeck={initialDeck}
-        libraryDecks={libraryDecks}
-        statusNote={statusNote}
-        onPlayLibrary={(id, opponents) => setLibraryRequest({ id, opponents, nonce: Date.now() })}
-      />
-    );
-  }
-
+  const query = new URLSearchParams({
+    enginePort: String(port),
+    centralUrl: window.location.origin + "/decks",
+    centralBridge: "1",
+  });
   return (
-    <I18n.Provider value={translator(language)}>
-      <div className={`reforge-root${game ? " fixed inset-0 z-50" : " play-screen"}`} data-skin={skin}>
-        {screen}
-      </div>
-    </I18n.Provider>
+    <div className={gameActive ? "fixed inset-0 z-50 bg-background" : "w-full"}>
+      {!ready && <p className="px-4 py-3 text-sm text-muted-foreground" role="status">{t("opening")}</p>}
+      <iframe
+        key={port + ":" + attempt}
+        ref={frame}
+        title="RE:Forge"
+        src={"/reforge/index.html?" + query}
+        allow="fullscreen; autoplay; clipboard-write"
+        className={gameActive ? "h-dvh w-full border-0" : "h-[calc(100dvh-7rem)] min-h-[390px] w-full border-0"}
+      />
+    </div>
   );
 }

@@ -1,14 +1,14 @@
 ---
-description: Commit every change to the RE:Forge central/deck-tools branch as geca3
+description: Follow the RE:Forge repository workflow for Central deck tools
 alwaysApply: true
 ---
 
-# RE:Forge branch
+# RE:Forge workflow
 
-After every change, commit it on `central/deck-tools` and push that branch to the `reforge` remote (`https://github.com/Guybota/RE_Forge.git`).
+Read the repository root `CLAUDE.md` and `docs/PLAN.md` before making changes.
 
-- Sign the push in as GitHub user **geca3**. Never use **gotosantiago**. For that one command, override the credential helper with `gh auth git-credential`. Do not change git config.
-- Do not commit or push `main` on this repo or on RE:Forge.
-- This checkout stays on local `main` so the app remains at the repo root. The RE:Forge branch keeps the same app under `central/` in the worktree at `/tmp/reforge-central`. If that worktree is missing, add it again from `central/deck-tools`.
-- Copy only the files that changed into `central/` on that worktree, then commit there. Leave `ui/`, `engine/`, `desktop/`, `forge/`, and `relay/` untouched.
-- Do not commit secrets (`.env`, credentials, keys).
+- Work on a `feat/...` branch. The owner authorizes commits, pushes and merges into `main`.
+- Install dependencies from the repository root; the root lockfile covers the Central workspace.
+- Reuse the current game interface from `ui/` and the native engine from `engine/`.
+- Validate the combined build and Central integration tests before committing.
+- Use the repository's configured credentials. Keep credentials, secrets and local machine paths out of source control.

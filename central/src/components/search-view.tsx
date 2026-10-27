@@ -168,10 +168,13 @@ export function SearchView() {
   const manaRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   const query = useMemo(() => buildCardSearchQuery(filters), [filters]);
   const ready = useMemo(() => hasSearchCriteria(filters), [filters]);
   const selectedIndex = cards.findIndex((card) => card.id === selectedId);
   const selected = selectedIndex >= 0 ? cards[selectedIndex] : null;
+  const dialogOpen = selected !== null;
 
   const showCard = (index: number) => {
     const card = cards[index];
@@ -179,18 +182,22 @@ export function SearchView() {
   };
 
   useEffect(() => {
-    if (!selected) return;
+    if (!dialogOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const target = event.target;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
       event.preventDefault();
-      const card = cards[selectedIndex + (event.key === "ArrowLeft" ? -1 : 1)];
-      if (card) setSelectedId(card.id);
+      const delta = event.key === "ArrowLeft" ? -1 : 1;
+      setSelectedId((current) => {
+        const index = cards.findIndex((card) => card.id === current);
+        return cards[index + delta]?.id ?? current;
+      });
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [cards, selected, selectedIndex]);
+    // Capture before the dialog focus manager handles arrow keys.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [cards, dialogOpen]);
 
   const patch = (partial: Partial<CardSearchFilters>) => {
     setFilters((current) => ({ ...current, ...partial }));
@@ -222,6 +229,7 @@ export function SearchView() {
     if (more) setLoadingMore(true);
     else {
       setLoading(true);
+      setLoadingMore(false);
       setError(null);
       setSearched(true);
       setRanQuery(query);

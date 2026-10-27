@@ -57,8 +57,8 @@ export function createModeUsageTracker(record = recordModePlay) {
   const clear = () => { pending = null; gameCounted = false; };
   return {
     requested(message: ClientMessage) {
-      if (message.type === 'startMatch' || message.type === 'startPuzzle' || message.type === 'startOnlineMatch') {
-        pending = { kind: 'game', mode: message.type === 'startMatch' ? 'commander' : message.type === 'startPuzzle' ? 'puzzles' : 'online' };
+      if (message.type === 'startMatch' || message.type === 'startDeckMatch' || message.type === 'startPuzzle' || message.type === 'startOnlineMatch') {
+        pending = { kind: 'game', mode: message.type === 'startMatch' || message.type === 'startDeckMatch' ? 'commander' : message.type === 'startPuzzle' ? 'puzzles' : 'online' };
         gameCounted = false;
       } else if (message.type === 'campaign') {
         if (message.action === 'open') pending = { kind: 'campaign', id: message.id };

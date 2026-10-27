@@ -40,6 +40,8 @@ type ScryfallCard = {
   type_line?: string;
   oracle_text?: string;
   set?: string;
+  set_name?: string;
+  rarity?: string;
   cmc?: number;
   color_identity?: string[];
   legalities?: { commander?: string };
@@ -63,6 +65,7 @@ type ScryfallCard = {
     };
     mana_cost?: string;
     type_line?: string;
+    oracle_text?: string;
   }>;
 };
 
@@ -128,7 +131,7 @@ function pickCard(card: ScryfallCard): CardVisual {
     large: face?.large,
     manaCost: card.mana_cost ?? card.card_faces?.[0]?.mana_cost,
     typeLine: card.type_line ?? card.card_faces?.[0]?.type_line,
-    oracleText: card.oracle_text,
+    oracleText: card.oracle_text ?? card.card_faces?.map((face) => face.oracle_text).filter(Boolean).join("\n\n"),
     scryfallId: card.id,
     oracleId: card.oracle_id,
     setCode: card.set?.toUpperCase(),
@@ -615,7 +618,7 @@ export async function fetchPrintings(name: string): Promise<PrintingOption[]> {
       `https://api.scryfall.com/cards/search?q=${encodeURIComponent(q)}&order=released&dir=desc`,
     );
     if (!res.ok) return [];
-    const json = (await res.json()) as { data?: ScryfallCard[]; has_more?: boolean; next_page?: string };
+    const json = (await res.json()) as { data?: ScryfallCard[]; has_more?: boolean; next_page?: string; warnings?: string[] };
     const rows: PrintingOption[] = [];
     for (const card of json.data ?? []) {
       const visual = pickCard(card);
@@ -674,4 +677,76 @@ export function applyPrintingVisual(name: string, visual: CardVisual): void {
   storeVisual(name, visual);
   if (visual.scryfallId) memory.set(`id:${visual.scryfallId}`, visual);
   schedulePersist();
+}
+
+export type CardSearchHit = CardVisual & {
+  id: string;
+  setName?: string;
+  rarity?: string;
+  usd?: number | null;
+};
+export type CardSearchPage = {
+  cards: CardSearchHit[];
+  total: number;
+  nextPage: string | null;
+  error?: string;
+};
+/** Pagination stays on the public search endpoint, even if a caller supplies a URL. */
+function searchPageUrl(value: string): URL | null {
+  try {
+    const url = new URL(value);
+    return url.origin === "https://api.scryfall.com" && url.pathname === "/cards/search"
+      && !url.username && !url.password ? url : null;
+  } catch { return null; }
+}
+export async function searchScryfallCards(
+  query: string,
+  options: { pageUrl?: string | null; signal?: AbortSignal } = {},
+): Promise<CardSearchPage> {
+  const empty: CardSearchPage = { cards: [], total: 0, nextPage: null };
+  let url = new URL("https://api.scryfall.com/cards/search");
+  if (options.pageUrl) {
+    const page = searchPageUrl(options.pageUrl);
+    if (!page) return { ...empty, error: "Invalid Scryfall search page." };
+    url = page;
+  } else {
+    if (!query.trim()) return empty;
+    url.searchParams.set("q", query.trim());
+    url.searchParams.set("unique", "cards");
+    url.searchParams.set("order", "name");
+  }
+  if (options.signal?.aborted) return empty;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  const timeout = setTimeout(abort, 30_000);
+  try {
+    const res = await fetch(url.href, { signal: controller.signal, headers: { Accept: "application/json" } });
+    if (res.status === 404) return empty;
+    if (!res.ok) return { ...empty, error: "Scryfall returned HTTP " + res.status + ". Try again later." };
+    const json = await res.json() as { data?: ScryfallCard[]; total_cards?: number; has_more?: boolean; next_page?: string; warnings?: string[] };
+    if (json.warnings?.some((warning) => /ignored|invalid/i.test(warning))) return { ...empty, error: "Scryfall could not apply one search filter. Check the search options." };
+    if (!Array.isArray(json.data)) return { ...empty, error: "Scryfall returned an invalid search response." };
+    loadDiskCache();
+    const cards: CardSearchHit[] = [];
+    for (const card of json.data) {
+      if (!card || typeof card.id !== "string" || typeof card.name !== "string") continue;
+      const visual = pickCard(card);
+      memory.set("id:" + card.id, visual);
+      // Searches must not replace a printing chosen in the deck editor.
+      if (!memory.has(canonicalizeName(card.name))) storeVisual(card.name, visual);
+      cards.push({ ...visual, id: card.id, setName: card.set_name, rarity: card.rarity, usd: parseEur(card.prices?.usd) });
+    }
+    schedulePersist();
+    return {
+      cards,
+      total: typeof json.total_cards === "number" && Number.isFinite(json.total_cards) ? json.total_cards : cards.length,
+      nextPage: json.has_more && typeof json.next_page === "string" ? searchPageUrl(json.next_page)?.href ?? null : null,
+    };
+  } catch {
+    return options.signal?.aborted ? empty : { ...empty, error: "Could not reach Scryfall. Try again." };
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", abort);
+  }
 }

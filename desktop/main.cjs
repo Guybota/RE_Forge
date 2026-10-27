@@ -1,5 +1,5 @@
 // Electron shell: starts the Forge engine bridge (Java) and opens the UI.
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, utilityProcess } = require('electron');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,7 +18,7 @@ const paths = app.isPackaged
     }
   : {
       cwd: path.resolve(__dirname, '..'),
-      java: process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java') : 'java',
+      java: process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java',
       engineJar: path.resolve(__dirname, '..', 'engine', 'target', 're-forge-engine.jar'),
       forgeAssets: path.resolve(__dirname, '..', 'forge', 'forge-gui'),
       ui: path.resolve(__dirname, '..', 'ui', 'dist', 'index.html'),
@@ -51,6 +51,7 @@ const engineLog = openEngineLog();
 
 let engine = null;
 let quitting = false;
+let central = null;
 
 // Starts the Java bridge and resolves with the port it printed on its READY line.
 function startEngine(onProgress) {
@@ -109,7 +110,7 @@ async function createWindow() {
     autoHideMenuBar: true,
     title: 'RE:Forge',
     icon: process.platform === 'win32' ? path.join(__dirname, 'icon.ico') : undefined,
-    webPreferences: { contextIsolation: true, sandbox: true },
+    webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   });
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml(app.getLocale()))}`);
 
@@ -127,6 +128,18 @@ async function createWindow() {
   }
 
   if (quitting) return;
+  // Start Central only when requested. Its server reuses the engine this window already owns.
+  if (ipcMain) ipcMain.handle('reforge:open-central', async event => {
+    if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('Invalid Central caller.');
+    if (!central) {
+      const serverRoot = app.isPackaged ? path.join(process.resourcesPath, 'central', 'central') : path.join(paths.cwd, 'build', 'central', 'central');
+      central = require('./central-launcher.cjs').createCentralLauncher({
+        serverRoot, enginePort: port,
+        fork: env => utilityProcess.fork(path.join(__dirname, 'central-server.cjs'), [], { cwd: serverRoot, env, stdio: 'pipe', serviceName: 'MTG Central' }),
+      });
+    }
+    return central.open();
+  });
   if (isDev) {
     await win.loadURL(`http://localhost:5173/?enginePort=${port}`);
   } else {
@@ -158,5 +171,6 @@ if (!app.requestSingleInstanceLock()) {
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => {
+  if (central) central.close();
   if (engine) engine.kill();
 });

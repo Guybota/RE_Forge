@@ -2,7 +2,7 @@
 
 Commander toolkit for saving decks in the browser, comparing two lists side-by-side, and diffing a list against a reference paste. **Cardmarket EUR** comes live from Scryfall `prices.eur`. Installable as a **Progressive Web App**.
 
-When this folder is `central/` inside the RE:Forge repo, it is the deck library, compare, improve, precons, and sage. Play starts the RE:Forge engine that sits next to this folder. Gameplay (the table, campaigns, limited, puzzles, and the Java engine) stays in the rest of that repo, so those files are not edited from here.
+This npm workspace provides the deck library, compare, improve, precons, card search and Sage tools. Play embeds the current built RE:Forge interface from `ui/`; there is no separate gameplay implementation. Electron reuses its running engine. Browser development starts one local engine and shares pending startup requests. External lists are checked and played in memory, without replacing saved Forge decks.
 
 ## Features
 
@@ -11,20 +11,22 @@ When this folder is `central/` inside the RE:Forge repo, it is the deck library,
 3. **Improve Decks** - paste a reference list to diff cuts, adds, and swaps for any commander. Giada and Bruna also have a hand-written Angel demo pack (collapsed). Swap EUR is live from Scryfall.
 4. **Magic Sage** - card lookup, Scryfall rulings, Commander legality, and Spellbook combos. Not an AI judge.
 5. **PWA** - install to home screen / desktop for a standalone app shell.
+6. **Card Search** - query card names, rules, types, colors, legality and prices, then inspect results and navigate the loaded cards.
 
 ## Run locally
 
 ```bash
-npm install
-npm run dev
+npm ci                  # from the repository root
+npm run build:ui
+npm run central:dev
 ```
 
-Dev server defaults to **http://127.0.0.1:4317**.
+Dev server defaults to **http://127.0.0.1:4317**. The desktop uses the same fixed origin so localStorage survives app restarts; a port conflict fails explicitly. `RE_FORGE_CENTRAL_PORT` changes the desktop port and therefore its storage origin. Install and build this workspace from the repository root; the root lockfile covers all workspaces.
 
 ```bash
-npm run build
-npm start
-npm run test:e2e
+npm run build           # from the repository root: both interfaces and standalone staging
+npm run start -w mtg-central
+npm run central:test
 ```
 
 Service worker (`public/sw.js`) registers in production builds (`npm run build` + `npm start`). It is not registered during `next dev` so hot reload stays simple.
@@ -67,7 +69,7 @@ Next.js (App Router) · TypeScript · Tailwind CSS · shadcn/ui · custom PWA se
 
 ## Notes
 
-- Decks never leave this browser unless you export JSON. Import merges a library export, a deck array, or one deck by id.
+- The library stays in this browser profile. Export downloads JSON; Play sends the selected list to the local Forge engine without saving it there. Import merges a library export, a deck array, or one deck by id.
 - Card art and **Cardmarket EUR** (`prices.eur`) load from **Scryfall** (batched `/cards/collection`, cached in `localStorage` + SW). A requested name is stored only when it matches the printing or a face of a double-faced card. Missing EUR shows "price unavailable" - never a fake number.
 - Improve suggestions are a diff against a list you paste. The Angel demo pack is hand-written for Giada and Bruna. Not an EDHREC or Cardmarket partner API.
 - Offline: cached app shell + `/offline` fallback; Scryfall needs network the first time (then CacheFirst for images).

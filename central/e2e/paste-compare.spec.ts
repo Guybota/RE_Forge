@@ -14,7 +14,7 @@ test("paste a list and open it in compare", async ({ page }) => {
     timeout: 20_000,
   });
 
-  await page.getByRole("link", { name: "Compare" }).click();
+  await page.getByRole("link", { name: "Compare", exact: true }).click();
   await expect(page).toHaveURL(/\/compare\?a=/);
   await expect(page.getByRole("heading", { name: "Compare Decks" })).toBeVisible();
   await expect(page.getByText("Smoke Angels").first()).toBeVisible();

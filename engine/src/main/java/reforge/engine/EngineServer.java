@@ -147,8 +147,11 @@ public final class EngineServer extends WebSocketServer {
                 c.deckLanguages.start(msg.get("requestId").getAsInt(), name, source, settings.language(),
                         DeckImageLanguages.entries(DeckSelection.find(name, source)), c.session::send);
             });
-            case "previewDeck" -> c.actions.execute(() -> c.session.send(
-                    DeckImporter.preview(string(msg, "text"), string(msg, "name")).json()));
+            case "previewDeck" -> c.actions.execute(() -> {
+                JsonObject preview = DeckImporter.preview(string(msg, "text"), string(msg, "name")).json();
+                if (msg.has("requestId")) preview.addProperty("requestId", string(msg, "requestId"));
+                c.session.send(preview);
+            });
             case "saveDeck" -> c.actions.execute(() -> {
                 String problem = DeckImporter.save(string(msg, "text"), string(msg, "name"));
                 c.session.send(problem == null ? decks() : error(problem));
@@ -186,7 +189,7 @@ public final class EngineServer extends WebSocketServer {
             case "setSkin" -> setSkin(c, msg);
             case "setPhaseStops" -> c.actions.execute(() -> setPhaseStops(c, msg));
             case "setAiOptions" -> c.actions.execute(() -> setAiOptions(c, msg));
-            case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
+            case "startMatch", "startDeckMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "campaign" -> c.actions.execute(() -> campaignAction(c, msg));
             case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
             case "setSlot", "setReady", "addSlot", "removeSlot", "kickPlayer", "startOnlineMatch", "chat", "leaveLobby" ->
@@ -264,7 +267,9 @@ public final class EngineServer extends WebSocketServer {
         WebGuiGame gui = new WebGuiGame(c.session, settings);
         try {
             c.gui = gui;
-            c.match = matches.start(gui, deck, string(msg, "deckSource"), opponents, aiProfiles);
+            c.match = "startDeckMatch".equals(string(msg, "type"))
+                    ? MatchStarter.startCommander(gui, DeckImporter.forPlay(string(msg, "text"), string(msg, "name")), opponents, aiProfiles)
+                    : matches.start(gui, deck, string(msg, "deckSource"), opponents, aiProfiles);
         } catch (RuntimeException e) {
             c.gui = null;
             gui.dispose();

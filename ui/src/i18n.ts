@@ -4,6 +4,9 @@ import { createContext, useContext } from 'react';
 // these cover the rest. Languages without their own table use English.
 
 const pt = {
+  centralTools: 'Central de decks', centralUnavailable: 'Não foi possível abrir a Central de decks. Tenta novamente.',
+  centralCheckingDeck: 'A verificar a lista no Forge…', centralUnknownCards: '{n} cartas não reconhecidas. Corrige a lista antes de jogar.',
+  centralNoCommander: 'Não foi reconhecido um comandante nesta lista.',
   deckLanguageChecking: 'A verificar imagens em {language}…',
   deckLanguageProgress: 'Verificação do idioma das imagens',
   deckLanguageAll: 'Imagens em {language}: 100% ({available}/{total}).',
@@ -428,6 +431,9 @@ const pt = {
 export type MessageKey = keyof typeof pt;
 
 const en: Record<MessageKey, string> = {
+  centralTools: 'Deck Central', centralUnavailable: 'Could not open Deck Central. Try again.',
+  centralCheckingDeck: 'Checking the list in Forge…', centralUnknownCards: '{n} unrecognized cards. Correct the list before playing.',
+  centralNoCommander: 'No commander was recognized in this list.',
   deckLanguageChecking: 'Checking images in {language}…',
   deckLanguageProgress: 'Checking card image language',
   deckLanguageAll: 'Images in {language}: 100% ({available}/{total}).',

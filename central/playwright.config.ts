@@ -13,7 +13,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev",
+    command: process.env.CENTRAL_TEST_PRODUCTION === "1" ? "npm run start" : "npm run dev",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
@@ -21,7 +21,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+          : undefined,
+      },
     },
   ],
 });

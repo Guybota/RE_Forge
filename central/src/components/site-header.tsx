@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
+  { href: "/search", label: "Search", short: "Search" },
   { href: "/decks", label: "My Decks", short: "Decks" },
   { href: "/precons", label: "Precons", short: "Precons" },
   { href: "/compare", label: "Compare Decks", short: "Compare" },

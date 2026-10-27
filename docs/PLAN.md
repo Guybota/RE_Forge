@@ -19,6 +19,26 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 
 ## Estado (feito)
 
+Integração da Central de decks (27/10/2026, `feat/central-integration`, sobre `central/deck-tools`):
+- A mesa duplicada foi removida. O Play usa a build atual do RE:Forge num iframe isolado, com o protocolo,
+  skins, escolhas, pesquisa na biblioteca e restantes modos existentes.
+- As listas externas são verificadas pelo Forge e jogadas em memória (`startDeckMatch`), sem escrever na
+  coleção de decks. Nomes iguais não substituem dados; cartas desconhecidas impedem iniciar uma lista incompleta.
+- Arranque partilhado durante a inicialização, reutilização do motor do Electron, Java correto no Windows e
+  nova tentativa após falha. Central abre pelo menu do desktop, com origem local estável para manter a biblioteca.
+- Workspace e build conjunta, recursos standalone incluídos no empacotamento e workflow de validação.
+  O commit mais recente do colaborador também tinha imports de pesquisa em falta; foram completados.
+- Verificação nativa: duas listas diferentes com o mesmo nome jogaram e concederam sem alterar o deck guardado;
+  correlação de previews e rejeição de cartas desconhecidas passaram. Testes UI existentes e do launcher passaram.
+  Build conjunta e TypeScript passaram, tal como os 15 testes do Central em produção. Browser a 844×390 e
+  texto a 200% sem overflow horizontal; ordenação, pesquisa na biblioteca, listas inválidas e repetição após falha.
+  Servidor standalone e subprocesso real do Electron a partir de ASAR passaram com perfis temporários.
+  O percurso de seleção nativo existente também passou, incluindo decks próprios/pré-construídos com o mesmo nome.
+  Verificação adicional no browser com o JAR real: Central → mesa atual → partida Commander com Giada;
+  o deck guardado com o mesmo nome manteve a lista original com Ezuri. Todos os dados foram temporários.
+  Commit, integração por fast-forward na main e instaladores Windows/macOS 0.1.7 autorizados pelo utilizador.
+  Desktop e motor alinhados em 0.1.7; distribuição em validação.
+
 Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN_PLAN.md](DESIGN_PLAN.md).
 Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,
 definições partilhadas, contraste, estados das cartas, instruções/confirmações da mesa, texto até 200%,

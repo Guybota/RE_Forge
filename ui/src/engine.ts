@@ -246,6 +246,7 @@ export type LobbyState = {
 export type ChatMessage = { type: 'chatMessage'; source?: string; text: string; kind: 'player' | 'system' | 'warning' };
 
 export type DeckPreview = {
+  requestId?: string;
   type: 'deckPreview';
   /** Card lines also carry the card as the catalog describes it, its quantity and ("commander" group) its section. */
   lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string;
@@ -332,7 +333,7 @@ export type ClientMessage =
   | { type: 'setSkin'; skin: string }
   | { type: 'setPhaseStops'; stops: PhaseStops | null }
   | { type: 'setAiOptions'; profile?: string; timeout?: number }
-  | { type: 'previewDeck'; text: string; name?: string }
+  | { type: 'previewDeck'; text: string; name?: string; requestId?: string }
   | { type: 'saveDeck'; text: string; name: string }
   | { type: 'chooseCommander'; text: string; name: string }
   | { type: 'fetchDeck'; url: string }
@@ -342,6 +343,7 @@ export type ClientMessage =
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; deckSource?: 'mine' | 'precon'; opponents: number; aiProfiles: string[] }
+  | { type: 'startDeckMatch'; text: string; name: string; opponents: number; aiProfiles?: string[] }
   | { type: 'hostGame'; name: string; port: number; upnp: boolean; transport?: 'direct' }
   | { type: 'joinGame'; name: string; address: string; transport?: 'direct' }
   | { type: 'hostGame'; name: string; transport: 'relay' }
