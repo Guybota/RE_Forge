@@ -76,9 +76,18 @@ export function ComboAddDialog({
           <DialogTitle>Add combo</DialogTitle>
           <DialogDescription>
             {combo.cardNames.join(" + ")}
+            {combo.pieces.length > 0
+              ? `, plus ${combo.pieces.map((piece) => piece.label.charAt(0).toLowerCase() + piece.label.slice(1)).join(" and ")}`
+              : ""}
             {combo.results.length > 0 ? `. ${combo.results.join(" · ")}` : ""}
           </DialogDescription>
         </DialogHeader>
+        {combo.pieces.length > 0 ? (
+          <p className="text-sm text-foreground/90">
+            You choose {combo.pieces.map((piece) => piece.label.charAt(0).toLowerCase() + piece.label.slice(1)).join(" and ")} yourself.
+            The buttons below add only the named cards.
+          </p>
+        ) : null}
 
         {missing.length === 0 ? (
           <p className="text-sm text-muted-foreground">

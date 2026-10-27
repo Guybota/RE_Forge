@@ -1,3 +1,8 @@
+export type EdhrecComboPiece = {
+  /** A role, not a specific card. For example "Any creature with Persist". */
+  label: string;
+};
+
 export type EdhrecCombo = {
   id: string;
   cardNames: string[];
@@ -5,6 +10,8 @@ export type EdhrecCombo = {
   decks: number;
   href: string;
   commander: string;
+  /** Extra pieces that are a kind of card, not one named card. */
+  pieces: EdhrecComboPiece[];
 };
 
 export type EdhrecCommanderCombos = {
@@ -87,6 +94,7 @@ export function parseEdhrecComboPage(commander: string, json: unknown): EdhrecCo
       decks: list.combo?.count ?? 0,
       href: list.href ? `https://edhrec.com${list.href}` : `https://edhrec.com/combos/${slug}`,
       commander,
+      pieces: [],
     });
   }
 

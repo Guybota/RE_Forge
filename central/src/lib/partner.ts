@@ -9,6 +9,8 @@ export type CommanderFlags = {
   loaded: boolean;
   failed: boolean;
   legendaryCreature: boolean;
+  /** Legendary Vehicle or Spacecraft. Since Edge of Eternities these can lead a deck. */
+  legendaryVehicle: boolean;
   canBeCommander: boolean;
   background: boolean;
   chooseBackground: boolean;
@@ -27,6 +29,7 @@ const EMPTY: CommanderFlags = {
   loaded: false,
   failed: false,
   legendaryCreature: false,
+  legendaryVehicle: false,
   canBeCommander: false,
   background: false,
   chooseBackground: false,
@@ -51,6 +54,9 @@ export function commanderFlags(visual: CardVisual | undefined): CommanderFlags {
     loaded: true,
     failed: false,
     legendaryCreature: type.includes("legendary") && type.includes("creature"),
+    legendaryVehicle:
+      type.includes("legendary") &&
+      (/\bvehicle\b/.test(type) || /\bspacecraft\b/.test(type)),
     canBeCommander: /can be your commander/.test(oracle),
     background: /\bbackground\b/.test(type),
     chooseBackground: /choose a background/.test(oracle),
@@ -67,6 +73,7 @@ export function canLeadAlone(flags: CommanderFlags): boolean {
   if (flags.background && !flags.legendaryCreature && !flags.canBeCommander) return false;
   return (
     flags.legendaryCreature ||
+    flags.legendaryVehicle ||
     flags.canBeCommander ||
     flags.chooseBackground ||
     flags.partner ||

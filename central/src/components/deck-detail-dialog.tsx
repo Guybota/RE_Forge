@@ -70,7 +70,13 @@ function formatUpdated(iso: string) {
   }
 }
 
-function ComboExplanation({ href }: { href: string }) {
+function ComboExplanation({
+  href,
+  pieces,
+}: {
+  href: string;
+  pieces: { label: string }[];
+}) {
   const [detail, setDetail] = useState<EdhrecComboExplanation | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +100,18 @@ function ComboExplanation({ href }: { href: string }) {
 
   return (
     <div className="mt-3 space-y-3 border-t border-border/50 pt-3 text-sm">
+      {pieces.length > 0 ? (
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Also needs
+          </p>
+          <ul className="mt-1 list-disc space-y-1 pl-4 text-foreground/90">
+            {pieces.map((piece) => (
+              <li key={piece.label}>{piece.label}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {detail.prerequisites.length > 0 ? (
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1254,8 +1272,22 @@ function DeckDetailForm({
                             </li>
                           );
                         })}
+                        {combo.pieces.map((piece) => (
+                          <li key={piece.label} className="w-20 text-center">
+                            <div className="flex aspect-[5/7] w-full items-center justify-center rounded-md border-2 border-dashed border-primary bg-primary/15 px-1.5 text-center">
+                              <p className="text-[10px] font-semibold leading-tight text-primary">
+                                {piece.label}
+                              </p>
+                            </div>
+                            <p className="mt-1 text-[10px] font-medium leading-tight text-primary">
+                              Needed
+                            </p>
+                          </li>
+                        ))}
                       </ul>
-                      {explaining ? <ComboExplanation href={combo.href} /> : null}
+                      {explaining ? (
+                        <ComboExplanation href={combo.href} pieces={combo.pieces} />
+                      ) : null}
                     </li>
                     );
                   })}

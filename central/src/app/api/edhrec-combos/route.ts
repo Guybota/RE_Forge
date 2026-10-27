@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { edhrecCommanderSlug, parseEdhrecComboPage } from "@/lib/edhrec-combos";
+import { attachComboPieces } from "@/lib/spellbook-templates";
 
 export async function GET(request: NextRequest) {
   const names = request.nextUrl.searchParams
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
       const json: unknown = await upstream.json();
-      commanders.push(parseEdhrecComboPage(name, json));
+      commanders.push(await attachComboPieces(parseEdhrecComboPage(name, json)));
     } catch {
       failures.push(name);
     }
