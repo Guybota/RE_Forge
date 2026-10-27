@@ -24,7 +24,25 @@ Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibi
 definições partilhadas, contraste, estados das cartas, instruções/confirmações da mesa, texto até 200%,
 inspeção universal e orientação em Adventure. Build e sete testes UI passam; testes visuais em landscape.
 O início passou a biblioteca lateral com os modos mais jogados, no ramo `feat/library-home`.
-Faltam seleção visual de decks e arte nos seletores. Ver progresso e limites nesse plano.
+O seletor de decks passou a lista com pré-visualização no ramo `feat/deck-picker` (27/10/2026).
+Falta arte nos seletores de campanhas. Ver progresso e limites nesse plano.
+
+Trabalho atual (27/10/2026, `feat/deck-picker`):
+- Lista de decks com pesquisa por nome/comandante em português e inglês, filtros de origem/identidade e favoritos locais.
+  Pré-visualização com arte real e inspeção, contagem de cartas e escolha de cada parceiro. Os resumos vêm do Forge;
+  chegam num único catálogo, sem números ou comandantes inventados. Aleatório mantém a escolha nativa.
+- Origem explícita no início da partida, para escolher corretamente entre deck próprio e pré-construído com o mesmo nome.
+  Testes UI e teste nativo cobrem traduções, parceiros, duplicados, remoção e armazenamento indisponível.
+- Aviso de imagens indisponíveis no idioma escolhido, com percentagem ponderada pelas cópias do deck e comandantes.
+  Verifica as edições exatas em segundo plano, deteta placeholders e distingue falhas de rede de imagens em falta.
+  Cache em memória, cancelamento ao trocar de seleção/idioma e opção de repetir verificações incompletas.
+  `engine:smoke-deck-language` valida cópias, parceiros, edições, placeholders, HTTP e cancelamento.
+  Browser: 100% real e 1/100 com 99 terrenos Alpha; 1280×720 e 844×390, texto a 200% sem overflow horizontal.
+- Mesa: turno/fases/espera no topo, Menu/Registo no canto superior direito, ações nativas no canto inferior direito e
+  campos encostados. A mão partilha o rodapé com as ações; a stack ocupa só a altura dos campos. O foco não desloca o cabeçalho.
+  Verificados no browser os botões Manter, Cancelar, pagamento automático e Resolver, incluindo stack aberta.
+  Mesa de dois/quatro jogadores: distância entre os campos = 0. As setas foram mantidas no referencial da janela
+  e acompanham a abertura da stack; erro medido de 0 px na origem e no alvo após o reflow.
 
 Trabalho atual (26/10/2026, entrega 0.1.5 no ramo `feat/library-home`):
 - Biblioteca lateral: seis modos, Decks/Online/Definições estáveis, destaque e até três modos mais jogados.

@@ -8,6 +8,7 @@ import { createModeUsageTracker } from './modeUsage';
 import { createOpeningCoinGate } from './table/openingCoin';
 import { animationOn } from './table/animationPrefs';
 import type { OpeningCoin } from './engine';
+import type { DeckLanguage } from './engine';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type DeckText, type ModesData, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
@@ -15,6 +16,7 @@ export type Engine = {
   failure: MessageKey | null;
   info: EngineInfo | null;
   decks: DeckLists;
+  deckLanguage: DeckLanguage | null;
   /** The latest reply to previewDeck. */
   deckPreview: DeckPreview | null;
   /** The latest fetched link or rewritten list (chooseCommander); a new object each time. */
@@ -50,6 +52,7 @@ export function useEngine(): Engine {
   const [failure, setFailure] = useState<MessageKey | null>(port ? null : 'noEngine');
   const [info, setInfo] = useState<EngineInfo | null>(null);
   const [decks, setDecks] = useState<DeckLists>({ mine: [], precons: [] });
+  const [deckLanguage, setDeckLanguage] = useState<DeckLanguage | null>(null);
   const [deckPreview, setDeckPreview] = useState<DeckPreview | null>(null);
   const [deckText, setDeckText] = useState<DeckText | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
@@ -90,6 +93,7 @@ export function useEngine(): Engine {
         setStatus('ready');
       },
       onDecks: setDecks,
+      onDeckLanguage: setDeckLanguage,
       onDeckPreview: setDeckPreview,
       onDeckText: setDeckText,
       onDeckDetail: setDeckDetail,
@@ -130,7 +134,7 @@ export function useEngine(): Engine {
 
   const send = useCallback((m: ClientMessage) => {
     if (coinGate.current.blocks(m)) return;
-    setError(null);
+    if (m.type !== 'deckLanguage' && m.type !== 'cancelDeckLanguage') setError(null);
     usage.current.requested(m);
     if (m.type === 'startMatch' || m.type === 'startOnlineMatch' || m.type === 'startPuzzle' || m.type === 'campaign' && m.action === 'duel' || m.type === 'limited' && m.action === 'play') {
       left.current = false;
@@ -157,5 +161,5 @@ export function useEngine(): Engine {
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckPreview, deckText, deckDetail, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
+  return { status, failure, info, decks, deckLanguage, deckPreview, deckText, deckDetail, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
 }

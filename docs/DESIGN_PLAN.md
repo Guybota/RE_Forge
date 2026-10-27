@@ -53,11 +53,26 @@ As caixas assinalam a implementação concluída. A validação executada e os l
 - [x] **2. Hierarquia do início.** Biblioteca lateral escolhida pelo utilizador: destaque para o modo mais jogado,
   até três atalhos de modos e Decks/Online/Definições estáveis. Abrir um modo exige intenção e não conta como jogar.
   Aceitação: primeira utilização, ausência de histórico, armazenamento indisponível e sessões repetidas verificados.
-- [ ] **9. Escolha visual de decks.** Pesquisa, favoritos e recentes, comandante e identidade de cor.
+- [x] **9. Escolha visual de decks.** Lista com pré-visualização escolhida pelo utilizador: pesquisa, favoritos,
+  comandante e identidade de cor. A proposta de recentes não faz parte desta variante.
   Reutilizar detalhe/previews do catálogo; distinguir decks próprios de pré-construídos; pedidos antigos não substituem seleção atual.
   Aceitação: catálogo grande, deck removido/renomeado, aleatório e carregamento/erro de imagens.
 - [ ] **12. Arte nos pontos de escolha.** Retratos e recortes das cartas nos seletores de decks e campanhas.
   Aceitação: imagens existentes com fallback legível, sem downloads de arte decorativa nem competição com a mesa.
+  A seleção de decks está concluída; a arte nos seletores de campanhas continua pendente.
+
+### Lista com pré-visualização e mesa — 27/10/2026
+
+Implementadas no ramo `feat/deck-picker`, a pedido do utilizador. A lista usa os comandantes, identidades e contagens
+nativos de 180 pré-construídos e dos decks próprios; os favoritos distinguem a origem mesmo com nomes iguais.
+Partida aleatória e definições individuais dos adversários mantêm os controladores do Forge.
+Testes de pesquisa, parceiros, traduções, catálogo atualizado e armazenamento passaram; a seleção nativa de ambas as
+origens com nomes iguais foi verificada até ao início da partida. No browser: favoritos após recarregar, inspeção por I,
+quatro skins, 1280×720 e 844×390, e texto a 200% com scroll vertical e sem overflow horizontal no seletor.
+
+A mesa passa a ter cabeçalho de turno/espera com Menu/Registo à direita e ações no rodapé direito.
+Os limites dos campos inimigo e local coincidem. Verificados Cancelar/alvos, pagamento de mana e Resolver com stack,
+além do início/mulligan; os controladores e atalhos existentes são reutilizados.
 
 ### Biblioteca lateral — 26/10/2026
 

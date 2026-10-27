@@ -145,9 +145,9 @@ html[data-text-scale]:not([data-text-scale='100']) .card__counters span { min-wi
 html[data-text-scale]:not([data-text-scale='100']) :is(.import__head, .campaign__head, .town-shop__head) { flex-wrap: wrap; }
 html[data-text-scale]:not([data-text-scale='100']) .home__ai { flex-wrap: wrap; }
 html[data-text-scale]:not([data-text-scale='100']) .home__ai .input { flex-basis: 100%; }
-html[data-text-scale]:not([data-text-scale='100']) .bar { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'turn phases' 'prompt prompt' 'buttons buttons'; }
+html[data-text-scale]:not([data-text-scale='100']) .bar { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'turn phases tools' 'prompt prompt prompt'; }
 html[data-text-scale]:not([data-text-scale='100']) .bar__phases { flex-wrap: wrap; }
-html[data-text-scale]:not([data-text-scale='100']) .bar > .bar__buttons { justify-content: flex-end; }
+html[data-text-scale]:not([data-text-scale='100']) .bar__tools { justify-content: flex-end; }
 html[data-text-scale]:not([data-text-scale='100']) .player__stats { flex-wrap: wrap; white-space: normal; }
 html[data-text-scale]:not([data-text-scale='100']) .life { width: auto; min-width: 44px; min-height: 44px; height: auto; padding: 4px 8px; }
 html[data-text-scale]:not([data-text-scale='100']) .side { overflow-y: auto; }
@@ -161,7 +161,7 @@ html[data-text-scale]:not([data-text-scale='100']) .campaign__library { grid-tem
 html[data-text-scale]:not([data-text-scale='100']) .modes__split { grid-template-columns: minmax(0, 1fr); }
 html[data-text-scale]:not([data-text-scale='100']) .modes__side { position: static; max-height: none; }
 @media (max-width: 760px) {
-  html[data-text-scale]:not([data-text-scale='100']) .table--narrow .bar { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'turn' 'prompt' 'buttons'; }
+  html[data-text-scale]:not([data-text-scale='100']) .table--narrow .bar { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'turn phases' 'prompt prompt' 'tools tools'; }
   html[data-text-scale]:not([data-text-scale='100']) .home { justify-content: flex-start; }
   html[data-text-scale]:not([data-text-scale='100']) .online__address .input { width: 100%; }
 }

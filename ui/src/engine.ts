@@ -230,7 +230,10 @@ export type Choice = {
   preselected?: number[];
 };
 
-export type DeckLists = { mine: string[]; precons: string[] };
+export type DeckSummary = { name: string; source: 'mine' | 'precon'; commanders?: CatalogCard[]; identity?: number; cards?: number };
+export type DeckLists = { mine: string[]; precons: string[]; summaries?: DeckSummary[]; loaded?: boolean };
+export type DeckLanguage = { type: 'deckLanguage'; requestId: number; name: string; source: string; language: string;
+  total: number; checked: number; available: number; missing: number; unknown: number; done: boolean };
 
 export type LobbyState = {
   type: 'lobby'; host: boolean; localSlot: number; port: number; addresses: string[];
@@ -305,8 +308,9 @@ type EngineMessage =
   | LobbyState
   | ChatMessage
   | { type: 'lobbyClosed' }
-  | { type: 'decks'; mine: string[]; commander: string[] }
+  | { type: 'decks'; mine: string[]; commander: string[]; summaries?: DeckSummary[] }
   | DeckPreview
+  | DeckLanguage
   | DeckText
   | DeckDetail
   | CardResults
@@ -322,6 +326,8 @@ export type ClientMessage =
   | { type: 'startPuzzle'; id: string }
   | { type: 'hello' }
   | { type: 'listDecks' }
+  | { type: 'deckLanguage'; requestId: number; name: string; source: 'mine' | 'precon' }
+  | { type: 'cancelDeckLanguage' }
   | { type: 'setLanguage'; language: string }
   | { type: 'setSkin'; skin: string }
   | { type: 'setPhaseStops'; stops: PhaseStops | null }
@@ -335,7 +341,7 @@ export type ClientMessage =
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
-  | { type: 'startMatch'; deck: string | null; opponents: number; aiProfiles: string[] }
+  | { type: 'startMatch'; deck: string | null; deckSource?: 'mine' | 'precon'; opponents: number; aiProfiles: string[] }
   | { type: 'hostGame'; name: string; port: number; upnp: boolean; transport?: 'direct' }
   | { type: 'joinGame'; name: string; address: string; transport?: 'direct' }
   | { type: 'hostGame'; name: string; transport: 'relay' }
@@ -353,6 +359,7 @@ export type EngineHandlers = {
   onOpeningCoin: (toss: OpeningCoin) => void;
   onInfo: (info: EngineInfo) => void;
   onDecks: (decks: DeckLists) => void;
+  onDeckLanguage: (result: DeckLanguage) => void;
   onDeckPreview: (preview: DeckPreview) => void;
   onDeckText: (text: DeckText) => void;
   onDeckDetail: (detail: DeckDetail) => void;
@@ -411,7 +418,8 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'campaign': h.onCampaign(msg); break;
       case 'campaignClosed': h.onCampaign(null); break;
       case 'engineInfo': h.onInfo(msg); break;
-      case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander }); break;
+      case 'decks': h.onDecks({ mine: msg.mine, precons: msg.commander, summaries: msg.summaries, loaded: true }); break;
+      case 'deckLanguage': h.onDeckLanguage(msg); break;
       case 'deckPreview': h.onDeckPreview(msg); break;
       case 'deckText': h.onDeckText(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;

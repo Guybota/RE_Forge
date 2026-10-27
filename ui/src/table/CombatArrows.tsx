@@ -63,12 +63,25 @@ export function CombatArrows({ game, container }: { game: GameState; container: 
       }
       setArrows(next);
     };
-    // After the browser has placed the cards (tapped cards rotate, attackers lift).
-    frame.current = requestAnimationFrame(measure);
-    window.addEventListener('resize', measure);
+    // The stack animates the board's width; keep both ends attached during that reflow.
+    const schedule = () => { cancelAnimationFrame(frame.current); frame.current = requestAnimationFrame(measure); };
+    const observer = new ResizeObserver(schedule);
+    const root = container.current;
+    frame.current = requestAnimationFrame(() => {
+      measure();
+      const current = container.current;
+      if (current) {
+        observer.observe(current);
+        current.querySelectorAll('.table__main, .stack-col').forEach(el => observer.observe(el));
+      }
+    });
+    window.addEventListener('resize', schedule);
+    root?.addEventListener('scroll', schedule, true);
     return () => {
       cancelAnimationFrame(frame.current);
-      window.removeEventListener('resize', measure);
+      observer.disconnect();
+      window.removeEventListener('resize', schedule);
+      root?.removeEventListener('scroll', schedule, true);
     };
   }, [game, container]);
 

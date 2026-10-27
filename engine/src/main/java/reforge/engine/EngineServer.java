@@ -43,6 +43,7 @@ public final class EngineServer extends WebSocketServer {
         volatile OnlineLobby online;
         /** This connection's draft in progress (events themselves are saved by Forge). */
         final Limited limited = new Limited();
+        final DeckImageLanguages deckLanguages = new DeckImageLanguages();
 
         Connection(WebSocket socket) {
             session = new Session(socket);
@@ -54,7 +55,7 @@ public final class EngineServer extends WebSocketServer {
     private final Campaigns campaigns;
     @FunctionalInterface
     interface MatchFactory {
-        HostedMatch start(WebGuiGame gui, String deck, int opponents, java.util.List<String> aiProfiles);
+        HostedMatch start(WebGuiGame gui, String deck, String source, int opponents, java.util.List<String> aiProfiles);
     }
     private final MatchFactory matches;
 
@@ -97,6 +98,7 @@ public final class EngineServer extends WebSocketServer {
         Connection c = conn.getAttachment();
         if (c == null) return;
         c.session.close();
+        c.deckLanguages.close();
         c.actions.execute(() -> {
             try {
                 if (c.gui != null && c.gui.getGameView() != null && c.gui.getGameView().isMatchOver()) campaigns.finish(c.session, c.gui.getGameView());
@@ -138,7 +140,13 @@ public final class EngineServer extends WebSocketServer {
         }
         switch (msg.get("type").getAsString()) {
             case "hello" -> c.session.send(engineInfo());
-            case "listDecks" -> c.session.send(decks());
+            case "listDecks" -> c.actions.execute(() -> c.session.send(decks()));
+            case "cancelDeckLanguage" -> c.actions.execute(c.deckLanguages::cancel);
+            case "deckLanguage" -> c.actions.execute(() -> {
+                String name = string(msg, "name"), source = string(msg, "source");
+                c.deckLanguages.start(msg.get("requestId").getAsInt(), name, source, settings.language(),
+                        DeckImageLanguages.entries(DeckSelection.find(name, source)), c.session::send);
+            });
             case "previewDeck" -> c.actions.execute(() -> c.session.send(
                     DeckImporter.preview(string(msg, "text"), string(msg, "name")).json()));
             case "saveDeck" -> c.actions.execute(() -> {
@@ -219,6 +227,7 @@ public final class EngineServer extends WebSocketServer {
         try {
             settings.changeLanguage(msg.has("language") ? msg.get("language").getAsString() : "");
             c.session.send(engineInfo());
+            c.session.send(decks());
         } catch (IllegalArgumentException | java.io.IOException e) {
             c.session.send(error(e.getMessage()));
         }
@@ -255,7 +264,7 @@ public final class EngineServer extends WebSocketServer {
         WebGuiGame gui = new WebGuiGame(c.session, settings);
         try {
             c.gui = gui;
-            c.match = matches.start(gui, deck, opponents, aiProfiles);
+            c.match = matches.start(gui, deck, string(msg, "deckSource"), opponents, aiProfiles);
         } catch (RuntimeException e) {
             c.gui = null;
             gui.dispose();
@@ -489,6 +498,7 @@ public final class EngineServer extends WebSocketServer {
         JsonArray precons = new JsonArray();
         MatchStarter.commanderPreconNames().forEach(precons::add);
         o.add("commander", precons);
+        o.add("summaries", DeckSelection.summaries());
         return o;
     }
 

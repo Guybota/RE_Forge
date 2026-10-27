@@ -31,7 +31,7 @@ public final class DialogHarness {
             else engineArgs.add(args[i]);
         }
         String selected = scenario;
-        Main.launch(engineArgs.toArray(String[]::new), (gui, deck, opponents, profiles) -> start(gui, selected.equals("library") ? "library:" + (deck == null ? "citadel" : deck) : selected));
+        Main.launch(engineArgs.toArray(String[]::new), (gui, deck, source, opponents, profiles) -> start(gui, selected.equals("library") ? "library:" + (deck == null ? "citadel" : deck) : selected));
     }
 
     private static HostedMatch start(WebGuiGame gui, String scenario) {

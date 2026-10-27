@@ -75,7 +75,7 @@ final class MatchStarter {
      * {@code deckName} null picks a random precon; opponents always get random ones.
      * {@code aiProfiles[i]} is opponent i's Forge AI profile: blank picks one at random, missing means Forge's default.
      */
-    static HostedMatch startCommander(WebGuiGame gui, String deckName, int opponents, List<String> aiProfiles) {
+    static HostedMatch startCommander(WebGuiGame gui, String deckName, String source, int opponents, List<String> aiProfiles) {
         if (opponents < 1 || opponents > 3) {
             throw new IllegalArgumentException("opponents must be 1 to 3");
         }
@@ -88,9 +88,7 @@ final class MatchStarter {
         Collections.shuffle(precons);
 
         // The player's own (imported) decks first, then Forge's precons.
-        Deck mine = deckName == null ? precons.get(0)
-                : DeckImporter.mine().contains(deckName) ? DeckImporter.mine().get(deckName)
-                : FModel.getDecks().getCommanderPrecons().get(deckName);
+        Deck mine = deckName == null ? precons.get(0) : DeckSelection.find(deckName, source);
         if (mine == null) {
             throw new IllegalArgumentException("Unknown deck: " + deckName);
         }

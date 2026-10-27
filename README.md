@@ -88,6 +88,7 @@ npm run engine:smoke-settings # settings survive restart; phase stops change liv
 npm run engine:smoke-fastforward # native fast-forward: legal responses, cancellation, own turn and blockers
 npm run engine:smoke-dialogs  # deterministic choices, invalid answers, scry/surveil and a real double block
 npm run engine:smoke-images   # card/token image URLs, per-language cache, English fallback, retries (simulated Scryfall)
+npm run engine:smoke-deck-language # native printings, weighted language coverage, placeholders, HTTP failures and cancellation
 npm run engine:smoke-builder  # deck builder catalog: names in two languages, filters, identity, pages, printings
 npm run ui:smoke-sounds       # sound cues, duplicate suppression, generated audio, volume/mute and autoplay
 ```
@@ -156,7 +157,8 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 
 | Direction | `type` | What |
 |---|---|---|
-| UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); `decks` with `mine` (imported) and `commander` (precons) |
+| UI → engine | `hello`, `listDecks` | Engine info (incl. `language`, missing on first run, and `languages`); `decks` with `mine` (imported), `commander` (precons), and `summaries` (name, source, native commanders, combined identity and main + commander count) |
+| UI → engine | `deckLanguage` / `cancelDeckLanguage` | `requestId`, `name`, `source` → progressive `deckLanguage` replies echoing these and the selected `language`, plus `total`, `checked`, `available`, `missing`, `unknown`, `done`. Counts include main + commanders with copies; exact printing scans are checked asynchronously, cached for 12 hours in memory. Network failures are unknown, never missing. Cancel on selection/language change or exit. |
 | UI → engine | `searchCards` / `getPrintings` | `query`, `colors` (mask W1 U2 B4 R8 G16, 32 colourless), `identity`, `cardType`, `cmc` (7 = 7+), `commanders`, `partnerOf` (English commander name, native Forge compatibility), `requestId`, `offset` → `cardResults` (echoes `requestId`) (`total`, 60 `cards`); `name` → `printings` (set, collector number, art index and image key) |
 | UI → engine | `getDeck` / `renameDeck` | `name` → `deckDetail` (same fields as `deckPreview` plus `name` and the exported `text`); `name`, `to` → `decks` |
 | UI → engine | `previewDeck` / `saveDeck` / `deleteDeck` | Decklist `text` (+ `name`) → `deckPreview` (lines with status — card lines also `name`, `qty`, type `group`, `imageKey`; unknown lines `requested` and up to 3 `suggestions` `{nameEn, name}` — cards, commanders, legality `problem`); save/delete answer `decks` |
@@ -164,7 +166,7 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | UI → engine | `setLanguage` | `language` (Forge code, e.g. `pt-BR`); not during a match. Saved in `reforge.properties` |
 | UI → engine | `setSkin` | `skin` id (`mesa`, `editorial`, `retro`, `terminal`; defined in `ui/src/skins.ts` and `index.css`). Saved too |
 | UI → engine | `setPhaseStops` | `stops: {mine: [phase names], opponents: [phase names]}`, or `stops: null` to restore defaults. Both rows are validated before saving; applies live |
-| UI → engine | `startMatch` | `deck` (name or null for random), `opponents` 1–3, `aiProfiles` (one Forge AI profile per opponent; `""` = random, missing = `Default`) |
+| UI → engine | `startMatch` | `deck` (name or null for random), optional `deckSource` (`mine` / `precon`, omitted keeps own-deck-first compatibility), `opponents` 1–3, `aiProfiles` (one Forge AI profile per opponent; `""` = random, missing = `Default`) |
 | UI → engine | `hostGame` / `joinGame` | Player `name`; direct host: `port` (1024–65535), optional `upnp`; direct join: `address` (`host:port`). Room host: `transport: "relay"`; room join: `transport: "relay"`, `code` (8 characters). Relay origin is engine configuration, never a UI-supplied URL |
 | UI → engine | `setSlot` | `index`, optional `slotType` (`ai` or `open`, host only), optional `deck` (own/AI slot only) |
 | UI → engine | `setReady`, `addSlot`, `removeSlot`, `kickPlayer`, `startOnlineMatch`, `leaveLobby` | `ready` boolean; remove/kick: `index` (kick: host only, slots with `kickable`). Host controls seats/start; one online session per engine. A closed lobby sends `lobbyClosed`, with an `error` `code` `kicked`, `hostDisconnected` or `relayDisconnected` when it wasn't the player's choice |

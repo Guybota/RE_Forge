@@ -1,18 +1,27 @@
 .table {
   height: 100vh;
+  container-type: inline-size;
   display: grid;
   /* The battlefield, then the stack's column (zero wide while the stack is empty). The panel is a drawer on top. */
   grid-template-columns: minmax(0, 1fr) auto;
-  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: clip;
 }
 
 .table__main {
+  grid-column: 1;
+  grid-row: 2;
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
 }
+.table__main > .player { border-top: 1px solid var(--table-line); }
+.table > .stack-col { grid-column: 2; grid-row: 2; }
+.table__bottom { grid-column: 1 / -1; grid-row: 3; display: grid; grid-template-columns: minmax(0, 1fr) fit-content(40%); align-items: end; min-width: 0; position: relative; }
+.table__bottom > .bar__buttons { z-index: 3; max-width: 380px; justify-content: flex-end; align-items: flex-end; padding: 12px 16px; }
+.table__bottom > .bar__buttons .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 
 .bar__fast-forward { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding-inline: 10px; }
 
@@ -352,18 +361,20 @@
 .pip--R { background: #b9472e; }
 .pip--G { background: #3f7b48; }
 
-/* ---------- centre bar */
+/* ---------- turn information at the top; native game actions at the bottom right ---------- */
 
 .bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'turn phases phases' 'prompt prompt buttons';
+  grid-template-areas: 'turn phases tools' 'prompt prompt tools';
   align-items: center;
   gap: 6px 16px;
-  margin: 0 16px;
-  padding: 8px;
-  border-block: 1px solid var(--table-line);
+  margin: 0;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--table-line);
 }
 .bar.is-shaking { animation: shake 0.4s; }
 @keyframes shake {
@@ -397,7 +408,7 @@
   overflow-wrap: anywhere;
   text-align: left;
 }
-.bar > .bar__buttons { grid-area: buttons; justify-content: flex-end; }
+.bar__tools { grid-area: tools; align-self: start; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .bar__buttons { display: flex; flex-wrap: wrap; gap: 10px; }
 /* A narrow table column (side panel open on a small window) keeps only the current phase, so the buttons fit. */
 .table__main { container-type: inline-size; }
@@ -409,12 +420,14 @@
 
 /* The hand peeks up from the bottom edge; a hovered card rises fully into view, above the table. */
 .hand {
-  flex: 0 0 170px;
+  height: 170px;
+  min-width: 0;
   display: flex;
   justify-content: center;
   padding-top: 14px;
   position: relative;
   z-index: 2;
+  overflow-x: clip;
 }
 .hand__slot { margin-left: -30px; transition: transform 160ms ease; }
 .hand__slot:first-child { margin-left: 0; }
@@ -705,7 +718,7 @@
 
 /* Short windows (laptops): the hand rises less, every board flows in one row and opponents' cards shrink. */
 @media (max-height: 820px) {
-  .hand { flex-basis: 120px; padding-top: 8px; }
+  .hand { height: 120px; padding-top: 8px; }
   .library-top { gap: 3px; padding-block: 0; }
   .library-top > span { font-size: 0.7rem; }
   .library-top .card--field { width: 54px; height: 75px; padding: 3px; }
@@ -801,8 +814,7 @@
   .table--narrow .player--collapsed { width: auto; }
   .table--narrow .player--collapsed .player__head { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
   .table--narrow .opponents--1 { flex: 1 1 0; }
-  .table--narrow .bar { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'turn buttons' 'prompt prompt'; row-gap: 6px; padding: 8px 12px; }
-  .table--narrow .bar__phases { display: none; }
+  .table--narrow .bar { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'turn phases tools' 'prompt prompt prompt'; row-gap: 6px; padding: 8px 12px; }
   .table--narrow .bar__prompt { order: 3; flex-basis: 100%; white-space: normal; }
   .table--narrow .player { padding: 8px 12px; }
   .table--narrow .field { flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: flex-end; gap: 6px; }
@@ -811,7 +823,7 @@
   .table--narrow .card--land { width: 40px; height: 56px; padding: 3px; }
   .table--narrow .card__type, .table--narrow .card__cost { display: none; }
   .table--narrow .card__name { font-size: 8px; }
-  .table--narrow .hand { flex-basis: 110px; }
+  .table--narrow .hand { height: 110px; }
   .table--narrow .card--hand { width: 86px; height: 120px; }
   .table--narrow .hand__slot { margin-left: -24px; }
   .table--narrow .hand__slot:hover .card { --lift: -40px; }
@@ -924,7 +936,13 @@
 .table--narrow .stack-col__item.is-next { width: 80px; }
 .table--narrow .stack-col__title { font-size: 14px; }
 /* A puzzle's goal in the phase bar; its name and situation are in the tooltip. */
-.bar__goal { flex: none; max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px; border: 1px solid var(--table-line); border-radius: var(--radius-control); font-size: 13px; cursor: help; }
+.bar__goal { grid-column: 1 / -1; max-width: 100%; overflow-wrap: anywhere; padding: 4px 10px; border: 1px solid var(--table-line); border-radius: var(--radius-control); font-size: 13px; cursor: help; }
+@media (max-width: 1000px) {
+  .table__bottom .card--hand { width: 100px; height: 139px; padding: 5px; }
+  .table__bottom .hand__slot { margin-left: -36px; }
+  .table__bottom .hand__slot:first-child { margin-left: 0; }
+  .table__bottom > .bar__buttons { gap: 6px; padding: 8px 12px; max-width: 310px; }
+}
 /* Sideboarding between games: deck and sideboard side by side; one click moves one copy. */
 .choice__sideboard { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; max-height: 60vh; }
 .choice__sideboard section { min-height: 0; overflow-y: auto; }

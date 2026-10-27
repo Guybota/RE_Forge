@@ -266,10 +266,25 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   return (
     <div ref={tableRoot} className={`table ${narrow ? 'table--narrow' : ''}`}>
       <div ref={animationLayer} className="anim-layer" aria-hidden="true" />
+      <CombatArrows game={game} container={tableRoot} />
       {turnBanner > 0 && <TurnBanner key={turnBanner} onDone={() => setTurnBanner(0)} />}
       {engine.openingCoin && <CoinFlip key={engine.openingCoin.gameId} toss={engine.openingCoin} onDone={engine.finishOpeningCoin} />}
+      <header className={`bar ${shake ? 'is-shaking' : ''}`}>
+        <span className="bar__turn" title={currentStep ? t(currentStep) : undefined}>{t('turn', { n: game.turn })}</span>
+        <ol className="bar__phases">
+          {PHASE_TRACK.map((step, i) => <li key={step.label} className={i === activeTrack ? 'is-current' : ''}>{t(step.label)}</li>)}
+        </ol>
+        <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
+        <div className="bar__tools">
+          {!sideOpen && !game.gameOver && !me.hasLost && <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>}
+          {!sideOpen && <button type="button" className="btn btn--ghost" aria-expanded={false} onClick={toggleSide}>{t('log')}</button>}
+        </div>
+        {game.puzzle && <span className="bar__goal" title={`${game.puzzle.name}\n\n${game.puzzle.description}`}>
+          {t('puzzleGoal')}: {game.puzzle.goal.toLowerCase() === 'win' ? t('goalWin') : game.puzzle.goal.toLowerCase() === 'survive' ? t('goalSurvive') : game.puzzle.goal}
+          {game.puzzle.turns && ` · ${t('turnsLimit', { n: game.puzzle.turns })}`}
+        </span>}
+      </header>
       <div className={`table__main ${maximized ? 'table__main--max' : ''}`} ref={main}>
-        <CombatArrows game={game} container={tableRoot} />
         {maximized ? (
           <div className="opponents opponents--1">
             <PlayerArea player={maximized} active={game.activePlayerId === maximized.id} maximized compact={false}
@@ -284,42 +299,10 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
           ))}
         </div>}
 
-        <div className={`bar ${shake ? 'is-shaking' : ''}`}>
-          <span className="bar__turn" title={currentStep ? t(currentStep) : undefined}>{t('turn', { n: game.turn })}</span>
-          <ol className="bar__phases">
-            {PHASE_TRACK.map((step, i) => (
-              <li key={step.label} className={i === activeTrack ? 'is-current' : ''}>{t(step.label)}</li>
-            ))}
-          </ol>
-          <span className={`bar__prompt ${waitingFor ? 'bar__prompt--waiting' : ''}`} title={waitingFor ? undefined : prompt.message}>{promptText}</span>
-          <div className="bar__buttons">
-            {game.puzzle && <span className="bar__goal" title={`${game.puzzle.name}
-
-${game.puzzle.description}`}>
-            {t('puzzleGoal')}: {game.puzzle.goal.toLowerCase() === 'win' ? t('goalWin') : game.puzzle.goal.toLowerCase() === 'survive' ? t('goalSurvive') : game.puzzle.goal}
-            {game.puzzle.turns && ` · ${t('turnsLimit', { n: game.puzzle.turns })}`}
-          </span>}
-            {/* While declaring attacks Forge's cancel button is "Alpha Strike" / "Call Back". */}
-            {promptButtons}
-            {!game.gameOver && !me.hasLost && <button type="button"
-              className={`btn ${game.fastForward ? 'btn--primary' : 'btn--ghost'} bar__fast-forward`}
-              aria-label={t(game.fastForward ? 'stopFastForward' : 'fastForward')} aria-pressed={!!game.fastForward}
-              title={t(game.fastForward ? 'stopFastForward' : 'fastForwardHint')}
-              disabled={!game.fastForward && (myTurn || !game.phase || !!engine.choice || game.phase === 'COMBAT_DECLARE_ATTACKERS' || game.phase === 'COMBAT_DECLARE_BLOCKERS')}
-              onClick={() => send({ type: 'action', action: 'fastForward', enabled: !game.fastForward })}>
-              <FastForwardIcon />
-            </button>}
-            {!sideOpen && !game.gameOver && !me.hasLost && (
-              <button type="button" className="btn btn--ghost" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}>{t('menu')}</button>
-            )}
-            {!sideOpen && (
-              <button type="button" className="btn btn--ghost" aria-expanded={false} onClick={toggleSide}>{t('log')}</button>
-            )}
-          </div>
-        </div>
-
         <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} priority={priorityOf(me)} ctx={ctx} />
-
+      </div>
+      <StackColumn game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
+      <footer className="table__bottom">
         <div className="hand" aria-label={t('hand')} data-zone="hand" data-zone-of={me.id}>
           {me.zones.hand.map((c, i, all) => {
             const d = i - (all.length - 1) / 2;
@@ -331,9 +314,16 @@ ${game.puzzle.description}`}>
             );
           })}
         </div>
-      </div>
-
-      <StackColumn game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
+        <div className="bar__buttons">
+          {promptButtons}
+          {!game.gameOver && !me.hasLost && <button type="button"
+            className={`btn ${game.fastForward ? 'btn--primary' : 'btn--ghost'} bar__fast-forward`}
+            aria-label={t(game.fastForward ? 'stopFastForward' : 'fastForward')} aria-pressed={!!game.fastForward}
+            title={t(game.fastForward ? 'stopFastForward' : 'fastForwardHint')}
+            disabled={!game.fastForward && (myTurn || !game.phase || !!engine.choice || game.phase === 'COMBAT_DECLARE_ATTACKERS' || game.phase === 'COMBAT_DECLARE_BLOCKERS')}
+            onClick={() => send({ type: 'action', action: 'fastForward', enabled: !game.fastForward })}><FastForwardIcon /></button>}
+        </div>
+      </footer>
 
       {!sideOpen && !narrow && hovered && !hovered.hidden && <FloatPreview key={hovered.id} card={hovered} />}
 

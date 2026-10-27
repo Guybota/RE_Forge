@@ -80,8 +80,19 @@ docs/       PLAN.md (roadmap).
   feature and up to three actual most-played modes. `modeUsage.ts` counts confirmed play sessions, never navigation;
   local storage, bounded validated records, stable ranking and no invented history. Artwork reuses cards seen in play.
 - `i18n.ts` — **all** our UI strings, Portuguese and English (`useT()`). Forge's own texts come translated from the engine.
+- `QuickMatch.tsx` / `DeckPicker.tsx` — match selection as a searchable deck list with commander art/inspection,
+  source and colour filters, and local favourites (`deckSelection.ts`). `decks.summaries` comes from `DeckSelection.java`;
+  no per-row detail requests. `startMatch.deckSource` disambiguates an owned deck and a precon with the same name.
+  `deck-picker.css` uses the existing skins and text scale; failed art keeps a readable icon and names.
+  `DeckLanguageStatus` checks the selected deck's exact printing scans through `DeckImageLanguages` in the background.
+  Coverage counts copies in main + commanders; unavailable scans warn, network failures stay unknown with retry.
+  Replies carry request/deck/source/language to discard stale checks; cancellation never blocks match actions.
 - `skins.ts` + `index.css` — skins are `[data-skin]` blocks of CSS tokens. `table/table.css` and `App.css` must use tokens only.
 - `table/` — `Table` (bar, side panel, hand, dialogs), `PlayerArea`, `Card`, `ChoiceDialog`, `CombatArrows`, `cards.ts` (mana parsing, phases).
+  Turn/phases/prompt and Menu/Log sit in a full-width header; the hand and native actions share the bottom row,
+  actions at the lower right. Opponent and local boards touch. The root uses `overflow: clip` so focusing a bottom
+  control cannot scroll the header away; the stack spans the board row only.
+  `CombatArrows` is a root child in viewport coordinates and observes board/stack resizing to keep targets aligned.
 - `table/GameMenu.tsx` — in-game skin, saved phase stops, reset and concede. Escape closes it; a Forge choice takes precedence. Live phase changes use Forge's `YieldUpdate` path for local/remote controllers.
 - The table's fast-forward button uses a transient native yield marker until the next local upkeep. Opponent spells
   are yielded even with playable responses; an attack against the local player interrupts it. Blocks and choices stay
