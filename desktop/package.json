@@ -23,6 +23,7 @@
     "extraResources": [
       { "from": "../ui/dist", "to": "ui" },
       { "from": "../build/central", "to": "central" },
+      { "from": "../build/central/node_modules", "to": "central/node_modules" },
       { "from": "central-server.cjs", "to": "central-server.cjs" },
       { "from": "../engine/target/re-forge-engine.jar", "to": "engine/re-forge-engine.jar" },
       { "from": "../build/runtime", "to": "runtime" },

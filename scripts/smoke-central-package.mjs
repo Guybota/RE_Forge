@@ -1,20 +1,35 @@
 // Exercise the staged production server with a supplied engine port; never launch Java.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const resources = process.argv[2] ? path.resolve(process.argv[2]) : null;
-const serverRoot = resources ? path.join(resources, 'central', 'central') : path.join(root, 'build', 'central', 'central');
-const wrapper = resources ? path.join(resources, 'central-server.cjs') : path.join(root, 'desktop', 'central-server.cjs');
-assert.ok(existsSync(path.join(serverRoot, '.next', 'BUILD_ID')), 'build the Central production server before testing');
+const sourceBundle = resources ? path.join(resources, 'central') : path.join(root, 'build', 'central');
+const sourceWrapper = resources ? path.join(resources, 'central-server.cjs') : path.join(root, 'desktop', 'central-server.cjs');
+assert.ok(existsSync(path.join(sourceBundle, 'central', '.next', 'BUILD_ID')), 'build the Central production server before testing');
+// electron-builder filters a root node_modules directory from generic resource mappings.
+// Require it explicitly so a checkout's dependencies cannot conceal an incomplete installer.
+assert.ok(existsSync(path.join(sourceBundle, 'node_modules', 'next', 'package.json')), 'Central package must include its own Next runtime');
 const data = mkdtempSync(path.join(os.tmpdir(), 'reforge-central-package-'));
+const isolatedResources = path.join(data, 'resources');
+const isolatedBundle = path.join(isolatedResources, 'central');
+mkdirSync(isolatedResources);
+cpSync(sourceBundle, isolatedBundle, { recursive: true, dereference: true });
+const wrapper = path.join(isolatedResources, 'central-server.cjs');
+copyFileSync(sourceWrapper, wrapper);
+const serverRoot = path.join(isolatedBundle, 'central');
+const requireCentral = createRequire(path.join(serverRoot, 'package.json'));
+const resolvedNext = realpathSync(requireCentral.resolve('next'));
+const relativeNext = path.relative(realpathSync(isolatedBundle), resolvedNext);
+assert.ok(relativeNext && relativeNext !== '..' && !relativeNext.startsWith('..' + path.sep) && !path.isAbsolute(relativeNext), 'Next must resolve inside the isolated Central bundle');
 const child = spawn(process.execPath, [wrapper], {
   cwd: serverRoot,
-  env: { ...process.env, RE_FORGE_CENTRAL_ROOT: serverRoot, RE_FORGE_CENTRAL_PORT: '0', RE_FORGE_ENGINE_PORT: '54321', RE_FORGE_ROOT: data, RE_FORGE_DATA: data },
+  env: { ...process.env, NODE_PATH: '', RE_FORGE_CENTRAL_ROOT: serverRoot, RE_FORGE_CENTRAL_PORT: '0', RE_FORGE_ENGINE_PORT: '54321', RE_FORGE_ROOT: data, RE_FORGE_DATA: data },
   windowsHide: true,
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -51,7 +66,7 @@ try {
     }
   }
   assert.doesNotMatch(output, /^READY \d+$/m, 'the smoke test never starts another engine');
-  console.log('OK: staged Central production server, shared game UI assets and Electron engine reuse');
+  console.log('OK: isolated Central production runtime and dependencies, shared game UI assets and Electron engine reuse');
 } finally {
   child.kill();
 }
