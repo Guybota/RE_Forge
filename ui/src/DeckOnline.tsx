@@ -38,7 +38,7 @@ export function DeckPrices({ detail, engine, source = 'mine' }: { detail: DeckDe
     return detail.lines.filter((l) => l.nameEn && l.qty && l.set).map((l) => ({ line: l, price: byPrinting.get(`${l.set}/${l.number}`) }))
       .sort((a, b) => (b.price?.eur ?? -1) * (b.line.qty ?? 1) - (a.price?.eur ?? -1) * (a.line.qty ?? 1));
   }, [answer, detail]);
-  const counted = rows?.filter((r) => !r.line.sideboard) ?? [];
+  const counted = rows?.filter((r) => !r.line.sideboard && !r.line.maybeboard) ?? [];
   const total = counted.reduce((sum, r) => sum + (r.price?.eur ?? 0) * (r.line.qty ?? 1), 0);
   const unpriced = counted.filter((r) => r.price?.eur == null).reduce((n, r) => n + (r.line.qty ?? 1), 0);
   const approximate = counted.filter((r) => r.price && !r.price.exact && r.price.eur != null).length;
@@ -64,7 +64,7 @@ export function DeckPrices({ detail, engine, source = 'mine' }: { detail: DeckDe
             <tbody>{rows.map(({ line, price }, i) => (
               <tr key={i}>
                 <td>{line.qty}</td>
-                <td><InspectableCard as="span" card={line.imageKey ? cardForInspection(line) : null}>{line.name}{line.sideboard ? ` · ${t('groupSideboard')}` : ''}</InspectableCard></td>
+                <td><InspectableCard as="span" card={line.imageKey ? cardForInspection(line) : null}>{line.name}{line.maybeboard ? ` · ${t('groupMaybeboard')}` : line.sideboard ? ` · ${t('groupSideboard')}` : ''}</InspectableCard></td>
                 <td>{line.set} {line.number}</td>
                 <td title={price && !price.exact ? t('priceApproxHint') : undefined}>{price?.eur == null ? '—' : `${euros(price.eur)}${price.exact ? '' : ' *'}`}</td>
               </tr>
@@ -149,7 +149,7 @@ export function DeckCombos({ detail, engine, source = 'mine' }: { detail: DeckDe
   const answer = reply(engine, 'deckCombos', combos.id.current);
   const lines = useMemo(() => {
     const map = new Map<string, Line>();
-    for (const l of detail.lines) if (l.nameEn && !l.sideboard) { map.set(key(l.nameEn), l); map.set(front(l.nameEn), l); }
+    for (const l of detail.lines) if (l.nameEn && !l.sideboard && !l.maybeboard) { map.set(key(l.nameEn), l); map.set(front(l.nameEn), l); }
     return map;
   }, [detail]);
   const has = (n: string) => lines.has(key(n)) || lines.has(front(n));

@@ -253,7 +253,7 @@ export type DeckPreview = {
   requestId?: string;
   type: 'deckPreview';
   /** Card lines also carry the card as the catalog describes it, its quantity and ("commander" group) its section. */
-  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string; sideboard?: boolean;
+  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string; sideboard?: boolean; maybeboard?: boolean;
     /** Unknown lines: the name as typed and the closest real cards. */
     requested?: string; suggestions?: { nameEn: string; name: string }[] } & Partial<CatalogCard>)[];
   /** The commanders' combined colour identity (bits W 1, U 2, B 4, R 8, G 16). */

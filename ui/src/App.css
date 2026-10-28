@@ -599,6 +599,7 @@ dialog.choice.rules-card { width: 100vw; max-width: 100vw; height: 100vh; max-he
 .builder__bar > span { min-height: 2px; background: var(--accent); border-radius: 2px 2px 0 0; }
 .builder__bar small { font-size: 11px; color: var(--on-table-muted); }
 .builder__line { display: flex; align-items: center; gap: 4px; padding: 2px 0 !important; }
+.builder__board { width: auto; max-width: 9.5rem; padding-right: 4px; }
 .builder__line::before { display: none; }
 .builder__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .builder__cost { display: flex; gap: 1px; }

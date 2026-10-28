@@ -1,6 +1,6 @@
 import type { CatalogCard } from './engine';
 
-export type DeckEntry = CatalogCard & { qty: number; commander: boolean };
+export type DeckEntry = CatalogCard & { qty: number; commander: boolean; board?: 'deck' | 'sideboard' | 'maybeboard' };
 export const MANA_COLORS = ['W', 'U', 'B', 'R', 'G', 'C'] as const;
 export type DeckFilter = { kind: 'cost'; value: number } | { kind: 'color'; value: number } | null;
 
@@ -12,7 +12,7 @@ export function matchesDeckFilter(card: DeckEntry, filter: DeckFilter): boolean 
 
 /** Quantities count; the command zone is excluded unless explicitly requested. */
 export function deckStatistics(entries: DeckEntry[], includeCommanders = false) {
-  const cards = entries.filter(c => includeCommanders || !c.commander);
+  const cards = entries.filter(c => (c.board ?? 'deck') === 'deck' && (includeCommanders || !c.commander));
   const spells = cards.filter(c => c.group !== 'land');
   const lands = cards.filter(c => c.group === 'land');
   const count = cards.reduce((n, c) => n + c.qty, 0);
@@ -55,20 +55,29 @@ export function drawProbability(population: number, successes: number, draws: nu
   return Math.min(1, probability);
 }
 
-/** The decklist the engine reads back: commanders, then the deck, each with its exact printing. */
+/** The decklist the engine reads back: commanders, the deck, then sideboard and maybeboard, each with its exact printing. */
 export function decklist(entries: DeckEntry[]) {
   const line = (e: DeckEntry) => `${e.qty} ${e.nameEn} (${e.set}) ${e.number}`;
+  const board = (e: DeckEntry) => e.board ?? 'deck';
   const commanders = entries.filter((e) => e.commander).map(line);
-  const deck = entries.filter((e) => !e.commander).map(line);
-  return [commanders.length ? `Commander\n${commanders.join('\n')}` : '', deck.length ? `Deck\n${deck.join('\n')}` : ''].filter(Boolean).join('\n\n');
+  const deck = entries.filter((e) => !e.commander && board(e) === 'deck').map(line);
+  const sideboard = entries.filter((e) => board(e) === 'sideboard').map(line);
+  const maybeboard = entries.filter((e) => board(e) === 'maybeboard').map(line);
+  return [
+    commanders.length ? `Commander\n${commanders.join('\n')}` : '',
+    deck.length ? `Deck\n${deck.join('\n')}` : '',
+    sideboard.length ? `Sideboard\n${sideboard.join('\n')}` : '',
+    maybeboard.length ? `Maybeboard\n${maybeboard.join('\n')}` : '',
+  ].filter(Boolean).join('\n\n');
 }
 
 /** Changing one printing keeps other arts and coalesces identical basic-land entries. */
-export function replacePrinting(entries: DeckEntry[], target: DeckEntry, printing: Pick<CatalogCard, 'set' | 'number' | 'imageKey'>): DeckEntry[] {
-  const merged = new Map<string, DeckEntry>();
+export function replacePrinting<T extends DeckEntry>(entries: T[], target: T, printing: Pick<CatalogCard, 'set' | 'number' | 'imageKey'>): T[] {
+  const merged = new Map<string, T>();
   for (const entry of entries) {
-    const card = entry.imageKey === target.imageKey && entry.commander === target.commander ? { ...entry, set: printing.set, number: printing.number, imageKey: printing.imageKey } : entry;
-    const key = `${card.commander}:${card.imageKey}`;
+    const card = entry.imageKey === target.imageKey && entry.commander === target.commander && (entry.board ?? 'deck') === (target.board ?? 'deck')
+      ? { ...entry, set: printing.set, number: printing.number, imageKey: printing.imageKey } : entry;
+    const key = `${card.commander}:${card.board ?? 'deck'}:${card.imageKey}`;
     const previous = merged.get(key);
     merged.set(key, previous ? { ...previous, qty: previous.qty + card.qty } : card);
   }

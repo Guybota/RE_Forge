@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { DeckCards, type BestPrice, type FacePrice } from './DeckCards';
 import { reply, useRequest } from './deckRequests';
 import { deckKey } from './deckSelection';
-import { demoteCommander, removeCopy, swapPrinting } from './deckText';
+import { demoteCommander, moveCopy, removeCopy, swapPrinting } from './deckText';
 import type { DeckDetail, DeckLists, DeckPreview, DeckSummary } from './engine';
 import { PrintingsDialog } from './PrintingsDialog';
 import { useT, type MessageKey } from './i18n';
@@ -88,7 +88,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
     send({ type: 'saveDeck', text, name: detail.name, from: detail.name });
     send({ type: 'getDeck', name: detail.name });
   };
-  const sectionOf = (line: DeckPreview['lines'][number]) => line.sideboard ? 'sideboard' : line.group === 'commander' ? 'commander' : 'deck';
+  const sectionOf = (line: DeckPreview['lines'][number]) => line.maybeboard ? 'maybeboard' : line.sideboard ? 'sideboard' : line.group === 'commander' ? 'commander' : 'deck';
 
   useEffect(() => {
     if (appliedInitial.current || !initialDeck) return;
@@ -168,7 +168,8 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
               {detail && view === 'list' && <DeckCards preview={detail} faces prices={prices} best={best} editable={owned}
                 onChangePrinting={owned ? setPrintingOf : undefined}
                 onRemove={owned ? (line) => line.nameEn && saveList(removeCopy(detail.text, line.nameEn, line, sectionOf(line))) : undefined}
-                onDemote={owned ? (line) => line.nameEn && saveList(demoteCommander(detail.text, line.nameEn, line)) : undefined} />}
+                onDemote={owned ? (line) => line.nameEn && saveList(demoteCommander(detail.text, line.nameEn, line)) : undefined}
+                onMove={owned ? (line, to) => line.nameEn && saveList(moveCopy(detail.text, line.nameEn, line, sectionOf(line), to)) : undefined} />}
               {printingOf?.nameEn && <PrintingsDialog title={printingOf.name ?? printingOf.nameEn} printings={engine.printings?.name === printingOf.nameEn ? engine.printings.printings : null}
                 current={printingOf.imageKey ?? ''} onClose={() => setPrintingOf(null)} onRetry={() => send({ type: 'getPrintings', name: printingOf.nameEn! })}
                 onPick={(p) => {

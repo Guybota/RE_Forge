@@ -38,7 +38,12 @@ const printingKey = (l: Line) => l.set && l.number ? `${l.set}/${l.number}` : ''
  * A checked decklist: summary, then cards grouped by type. Hover shows the card, right click zooms it. On the import
  * screen, possible commanders can be chosen and unknown lines replaced by a suggested card.
  */
-export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote }: {
+const BOARDS: { id: 'sideboard' | 'maybeboard'; label: MessageKey }[] = [
+  { id: 'sideboard', label: 'groupSideboard' }, { id: 'maybeboard', label: 'groupMaybeboard' },
+];
+const zoneOf = (l: Line) => l.maybeboard ? 'maybeboard' : l.sideboard ? 'sideboard' : null;
+
+export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onMove }: {
   preview: Omit<DeckPreview, 'type'>;
   onCommander?: (nameEn: string) => void;
   onReplace?: (requested: string, nameEn: string) => void;
@@ -46,11 +51,12 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
   faces?: boolean;
   prices?: Map<string, FacePrice>;
   best?: Map<string, BestPrice>;
-  /** Owned decks can change a printing, drop a card, or stop it being the commander. */
+  /** Owned decks can change a printing, drop a card, move it, or stop it being the commander. */
   editable?: boolean;
   onChangePrinting?: (line: Line) => void;
   onRemove?: (line: Line) => void;
   onDemote?: (line: Line) => void;
+  onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
 }) {
   const t = useT();
   const zoom = useContext(CardZoom);
@@ -59,7 +65,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
   const [menu, setMenu] = useState<{ id: string; line: Line; x: number; y: number } | null>(null);
   const show = (l: Line, el: HTMLElement) => { setHovered(l); setAnchor(el.getBoundingClientRect()); };
   const hide = () => { setHovered(null); setAnchor(null); };
-  const loose = preview.lines.filter((l) => !l.group);
+  const loose = preview.lines.filter((l) => !l.group && !zoneOf(l));
   const picture = hovered?.imageKey ? cardImage(hovered.imageKey, 'full') : null;
   const line = (l: Line, i: number) => {
     const lead = onCommander && l.canCommand && l.group !== 'commander' && l.nameEn;
@@ -86,14 +92,14 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
       </p>
       <div className={faces ? 'deck-face-groups deck-gallery' : 'import__groups'}>
         {loose.length > 0 && <ul className="import__lines">{loose.map(line)}</ul>}
-        {[...GROUPS, { id: 'sideboard', label: 'groupSideboard' as MessageKey }].map((g) => {
-          const lines = preview.lines.filter((l) => g.id === 'sideboard' ? l.sideboard : l.group === g.id && !l.sideboard);
-          if (!lines.length) return null;
+        {[...GROUPS.map((g) => ({ ...g, zone: null as 'sideboard' | 'maybeboard' | null })), ...BOARDS.map((g) => ({ ...g, zone: g.id }))].map((g) => {
+          const lines = g.zone ? preview.lines.filter((l) => zoneOf(l) === g.zone) : preview.lines.filter((l) => !zoneOf(l) && l.group === g.id);
+          if (!lines.length && !(g.zone && (editable || !faces))) return null;
           const count = lines.reduce((n, l) => n + (l.qty ?? 0), 0);
           return (
             <section key={g.id} className="import__group">
               <h2>{t(g.label)} <span className="muted">{count}</span></h2>
-              {faces ? (
+              {lines.length > 0 && faces ? (
                 <ul className="deck-faces">{lines.map((l, i) => {
                   const src = l.imageKey ? cardImage(l.imageKey, 'full') : null;
                   const key = printingKey(l);
@@ -122,7 +128,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
                     </InspectableCard>
                   );
                 })}</ul>
-              ) : <ul className="import__lines">{lines.map(line)}</ul>}
+              ) : lines.length > 0 && <ul className="import__lines">{lines.map(line)}</ul>}
             </section>
           );
         })}
@@ -130,13 +136,13 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
       {picture && anchor && faces && !menu && <CardBeside anchor={anchor} src={picture} />}
       {picture && !faces && <img className="import__picture" src={picture} alt="" aria-hidden="true" />}
       {menu && <CardMenu line={menu.line} x={menu.x} y={menu.y} editable={editable} onClose={() => setMenu(null)}
-        onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote}
+        onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onMove={onMove}
         onView={() => { if (menu.line.imageKey) zoom(cardForInspection(menu.line)); }} />}
     </section>
   );
 }
 
-function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, onDemote, onView }: {
+function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, onDemote, onMove, onView }: {
   line: Line;
   x: number;
   y: number;
@@ -145,6 +151,7 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
   onChangePrinting?: (line: Line) => void;
   onRemove?: (line: Line) => void;
   onDemote?: (line: Line) => void;
+  onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
   onView: () => void;
 }) {
   const t = useT();
@@ -156,16 +163,21 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
       if (e.key === 'Escape') { onClose(); return; }
       const key = e.key.toLowerCase();
       const done = (run?: () => void) => { run?.(); onClose(); };
+      const zone = line.maybeboard ? 'maybeboard' : line.sideboard ? 'sideboard' : 'deck';
+      const movable = editable && line.group !== 'commander' && !!line.nameEn;
       if (editable && key === 'p' && line.nameEn) { e.preventDefault(); done(() => onChangePrinting?.(line)); }
       else if (key === 'n') { e.preventDefault(); void navigator.clipboard.writeText(line.name ?? line.nameEn ?? '').then(() => setCopied(true)).catch(() => {}); }
       else if (editable && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); done(() => onRemove?.(line)); }
       else if (editable && key === 'd' && line.group === 'commander') { e.preventDefault(); done(() => onDemote?.(line)); }
+      else if (movable && key === 's' && zone !== 'sideboard') { e.preventDefault(); done(() => onMove?.(line, 'sideboard')); }
+      else if (movable && key === 'm' && zone !== 'maybeboard') { e.preventDefault(); done(() => onMove?.(line, 'maybeboard')); }
+      else if (movable && key === 'b' && zone !== 'deck') { e.preventDefault(); done(() => onMove?.(line, 'deck')); }
       else if (key === 'i') { e.preventDefault(); done(onView); }
     };
     window.addEventListener('mousedown', close);
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', onKey); };
-  }, [editable, line, onChangePrinting, onClose, onDemote, onRemove, onView]);
+  }, [editable, line, onChangePrinting, onClose, onDemote, onMove, onRemove, onView]);
   useEffect(() => {
     const place = () => {
       const el = ref.current;
@@ -181,12 +193,16 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
   const copy = async () => {
     try { await navigator.clipboard.writeText(line.name ?? line.nameEn ?? ''); setCopied(true); } catch { /* the menu stays open */ }
   };
+  const zone = line.maybeboard ? 'maybeboard' : line.sideboard ? 'sideboard' : 'deck';
   const buy = line.nameEn ? `https://www.cardmarket.com/en/Magic/Products/Search?searchString=${encodeURIComponent(line.nameEn)}` : '';
   const act = (run?: () => void) => { run?.(); onClose(); };
   return (
     <div ref={ref} className="deck-face__options" role="menu" style={{ left: x, top: y }}>
       {editable && line.nameEn && <button type="button" role="menuitem" onClick={() => act(() => onChangePrinting?.(line))}>{t('menuChangePrinting')}<kbd>P</kbd></button>}
       <button type="button" role="menuitem" onClick={copy}>{t(copied ? 'copied' : 'menuCopyName')}<kbd>N</kbd></button>
+      {editable && line.group !== 'commander' && line.nameEn && zone !== 'sideboard' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'sideboard'))}>{t('menuToSideboard')}<kbd>S</kbd></button>}
+      {editable && line.group !== 'commander' && line.nameEn && zone !== 'maybeboard' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'maybeboard'))}>{t('menuToMaybeboard')}<kbd>M</kbd></button>}
+      {editable && line.group !== 'commander' && line.nameEn && zone !== 'deck' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'deck'))}>{t('menuToDeck')}<kbd>B</kbd></button>}
       {editable && <button type="button" role="menuitem" className="is-danger" onClick={() => act(() => onRemove?.(line))}>{t('menuRemove')}<kbd>DEL</kbd></button>}
       {editable && line.group === 'commander' && <button type="button" role="menuitem" onClick={() => act(() => onDemote?.(line))}>{t('menuRemoveCommander')}<kbd>D</kbd></button>}
       <button type="button" role="menuitem" onClick={() => act(onView)}>{t('menuViewCard')}<kbd>I</kbd></button>

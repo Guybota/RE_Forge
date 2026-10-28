@@ -20,7 +20,7 @@ import forge.model.FModel;
 
 /**
  * Fetches a public Archidekt or Moxfield deck and writes it as a decklist ({@code Commander} / {@code Deck} /
- * {@code Sideboard}, with set and collector number) for the import screen. Only these two sites' own APIs are
+ * {@code Sideboard} / {@code Maybeboard}, with set and collector number) for the import screen. Only these two sites' own APIs are
  * contacted: any other address is refused before a request is made.
  */
 final class DeckLinks {
@@ -68,14 +68,15 @@ final class DeckLinks {
                     card.getAsJsonObject("edition").get("editioncode").getAsString(), str(card, "collectorNumber"));
             String first = categories.isEmpty() ? "" : categories.get(0);
             if (categories.stream().anyMatch(premier::contains)) s.commander.add(line);
-            else if (excluded.contains(first) || first.equalsIgnoreCase("Maybeboard")) continue;
+            else if (first.equalsIgnoreCase("Maybeboard")) s.maybeboard.add(line);
+            else if (excluded.contains(first)) continue;
             else if (first.equalsIgnoreCase("Sideboard")) s.sideboard.add(line);
             else s.main.add(line);
         }
         return new Deck(str(deck, "name"), s.text());
     }
 
-    /** Moxfield: boards by name; companions travel in the sideboard, maybeboards stay out. */
+    /** Moxfield: boards by name; companions travel in the sideboard, and the maybeboard comes along. */
     static Deck moxfield(JsonObject deck) {
         JsonObject boards = deck.getAsJsonObject("boards");
         Sections s = new Sections();
@@ -83,6 +84,7 @@ final class DeckLinks {
         board(boards, "mainboard", s.main);
         board(boards, "companions", s.sideboard);
         board(boards, "sideboard", s.sideboard);
+        board(boards, "maybeboard", s.maybeboard);
         return new Deck(str(deck, "name"), s.text());
     }
 
@@ -97,13 +99,14 @@ final class DeckLinks {
     }
 
     private static final class Sections {
-        final List<String> commander = new ArrayList<>(), main = new ArrayList<>(), sideboard = new ArrayList<>();
+        final List<String> commander = new ArrayList<>(), main = new ArrayList<>(), sideboard = new ArrayList<>(), maybeboard = new ArrayList<>();
 
         String text() {
             StringBuilder out = new StringBuilder();
             section(out, "Commander", commander);
             section(out, "Deck", main);
             section(out, "Sideboard", sideboard);
+            section(out, "Maybeboard", maybeboard);
             return out.toString();
         }
 

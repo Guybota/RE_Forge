@@ -15,7 +15,7 @@ export function isCentralLibrary(content: string): boolean {
 
 /**
  * MTGO's .dek is XML (sideboard cards flagged; Commander puts the commander there), Forge's .dck has
- * [Commander] / [Main] / [Sideboard] sections with "qty Name|SET|art" lines. Anything else is read as text.
+ * [Commander] / [Main] / [Sideboard] / [Maybeboard] sections with "qty Name|SET|art" lines. Anything else is read as text.
  */
 export function fileToDecklist(fileName: string, content: string): { text: string; name?: string } {
   const ext = fileName.toLowerCase().split('.').pop();
@@ -34,7 +34,7 @@ export function fileToDecklist(fileName: string, content: string): { text: strin
     const out: string[] = [];
     let name: string | undefined;
     let current: string | null = null;
-    const titles: Record<string, string> = { commander: 'Commander', main: 'Deck', sideboard: 'Sideboard' };
+    const titles: Record<string, string> = { commander: 'Commander', main: 'Deck', sideboard: 'Sideboard', maybeboard: 'Maybeboard' };
     for (const raw of content.split(/\r?\n/)) {
       const line = raw.trim();
       const header = line.match(/^\[(.+)\]$/);

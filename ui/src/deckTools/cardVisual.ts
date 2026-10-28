@@ -53,6 +53,7 @@ export function deckFromLines(name: string, lines: Line[], identity?: number): {
     const card = line as Line & CatalogCard;
     visuals.set(card.nameEn, visualFromCatalog(card));
     const entry: DeckCard = { name: card.nameEn, quantity: line.qty ?? 1, setCode: card.set };
+    if (line.maybeboard) continue;
     if (line.group === 'commander') commanders.push({ ...entry, zone: 'command' });
     else if (line.sideboard) sideboard.push({ ...entry, zone: 'sideboard' });
     else cards.push({ ...entry, zone: 'main' });

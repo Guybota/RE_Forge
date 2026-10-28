@@ -26,9 +26,11 @@ Name=Superfriends
 30 Plains
 [Sideboard]
 1 Swords to Plowshares|EMA|2
+[Maybeboard]
+1 Counterspell|MH2|67
 `;
 assert.deepEqual(fileToDecklist('x.dck', dck), {
-  text: "Commander\n1 Atraxa, Praetors' Voice (C16)\n\nDeck\n1 Sol Ring (C21)\n30 Plains\n\nSideboard\n1 Swords to Plowshares (EMA)\n",
+  text: "Commander\n1 Atraxa, Praetors' Voice (C16)\n\nDeck\n1 Sol Ring (C21)\n30 Plains\n\nSideboard\n1 Swords to Plowshares (EMA)\n\nMaybeboard\n1 Counterspell (MH2)\n",
   name: 'Superfriends',
 });
 assert.deepEqual(fileToDecklist('list.txt', '1 Sol Ring\n'), { text: '1 Sol Ring\n', name: 'list' });

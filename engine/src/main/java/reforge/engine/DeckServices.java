@@ -105,6 +105,11 @@ final class DeckServices {
                 out.putIfAbsent(p.key(), p);
             }
         }
+        for (DeckImporter.StoredPrinting extra : DeckImporter.maybeboardPrintings(deck)) {
+            if (extra.set().isEmpty() || extra.number().isEmpty()) continue;
+            Printing p = new Printing(extra.name(), extra.set(), extra.number());
+            out.putIfAbsent(p.key(), p);
+        }
         return new ArrayList<>(out.values());
     }
 

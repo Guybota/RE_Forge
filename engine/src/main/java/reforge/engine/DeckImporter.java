@@ -1,12 +1,16 @@
 package reforge.engine;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -19,6 +23,10 @@ import forge.deck.DeckRecognizer;
 import forge.deck.DeckRecognizer.Token;
 import forge.deck.DeckRecognizer.TokenType;
 import forge.deck.DeckSection;
+import forge.deck.io.DeckStorage;
+import forge.localinstance.properties.ForgeConstants;
+import forge.util.FileSection;
+import forge.util.FileUtil;
 import forge.game.GameType;
 import forge.gui.interfaces.ICheckBox;
 import forge.gui.interfaces.IComboBox;
@@ -39,6 +47,9 @@ final class DeckImporter {
 
     static Preview preview(String text, String name) {
         if (text == null) text = "";
+        // Forge has no maybeboard. Peel it off so those cards are not absorbed by the section above them.
+        MaybeSplit split = splitMaybeboard(text);
+        text = split.deck();
         DeckImportController controller = controller();
         List<Token> tokens = controller.parseInput(text);
         List<String> found = impliedCommanders(text, tokens);
@@ -46,40 +57,18 @@ final class DeckImporter {
 
         JsonArray lines = new JsonArray();
         int unknown = 0;
-        for (Token t : tokens) {
-            String status = status(t.getType());
-            if (status == null) continue; // comments, section headers and other non-card text
-            if ("error".equals(status)) unknown++;
-            JsonObject l = new JsonObject();
-            l.addProperty("text", controller.getTokenMessage(t));
-            l.addProperty("status", status);
-            String message = controller.getTokenStatusMessage(t);
-            if (message != null && !message.isEmpty()) l.addProperty("message", message);
-            if (t.getType() == TokenType.UNKNOWN_CARD && unknown <= MAX_SUGGESTED) {
-                // The name as typed (Forge keeps the whole line: count, set, number) and the closest real cards.
-                String requested = t.getText().trim().replaceFirst("^\\d+x?\\s+", "")
-                        .replaceFirst("\\s*[\\[(][^\\])]*[\\])](\\s+\\S+)?$", "");
-                l.addProperty("requested", requested);
-                JsonArray suggestions = new JsonArray();
-                for (PaperCard s : CardCatalog.similar(requested, 3)) {
-                    JsonObject o = new JsonObject();
-                    o.addProperty("nameEn", s.getName());
-                    o.addProperty("name", forge.util.CardTranslation.getTranslatedName(s.getName()));
-                    suggestions.add(o);
-                }
-                l.add("suggestions", suggestions);
+        for (Token t : tokens) unknown = addLine(lines, controller, t, false, unknown);
+        if (!split.maybeboard().isEmpty()) {
+            // A Commander import would promote a lone instant (an Oathbreaker signature spell) into the command zone.
+            DeckRecognizer recognizer = new DeckRecognizer();
+            recognizer.setAllowedDeckSections(new ArrayList<>(SECTIONS));
+            DeckImportController messages = controller();
+            for (String line : split.maybeboard()) {
+                Token t = recognizer.recognizeLine(line, DeckSection.Main);
+                if (t == null) continue;
+                if (t.isCardToken() && t.getTokenSection() == null) t.resetTokenSection(DeckSection.Main);
+                unknown = addLine(lines, messages, t, true, unknown);
             }
-            PaperCard card = t.getCard();
-            if (card != null) {
-                // For the grouped list and the builder: the card as the catalog describes it, its count and section.
-                CardCatalog.card(card).entrySet().forEach(e -> l.add(e.getKey(), e.getValue()));
-                l.addProperty("qty", t.getQuantity());
-                // "commander" replaces the type group for display; typeGroup keeps it for the builder.
-                l.addProperty("typeGroup", group(card));
-                if (t.getTokenSection() == DeckSection.Commander) l.addProperty("group", "commander");
-                if (t.getTokenSection() == DeckSection.Sideboard) l.addProperty("sideboard", true);
-            }
-            lines.add(l);
         }
 
         Deck deck = tokens.isEmpty() ? null : controller.accept(name == null ? "" : name);
@@ -110,6 +99,82 @@ final class DeckImporter {
 
     /** Unknown lines that get suggestions; each one scans the whole catalog. */
     private static final int MAX_SUGGESTED = 10;
+
+    /** One recognised line. A maybeboard card is flagged and kept out of Forge's deck. */
+    private static int addLine(JsonArray lines, DeckImportController controller, Token t, boolean maybeboard, int unknown) {
+        String status = status(t.getType());
+        if (status == null) return unknown; // comments, section headers and other non-card text
+        if ("error".equals(status)) unknown++;
+        JsonObject l = new JsonObject();
+        l.addProperty("text", controller.getTokenMessage(t));
+        l.addProperty("status", status);
+        String message = controller.getTokenStatusMessage(t);
+        if (message != null && !message.isEmpty()) l.addProperty("message", message);
+        if (t.getType() == TokenType.UNKNOWN_CARD && unknown <= MAX_SUGGESTED) {
+            // The name as typed (Forge keeps the whole line: count, set, number) and the closest real cards.
+            String requested = t.getText().trim().replaceFirst("^\\d+x?\\s+", "")
+                    .replaceFirst("\\s*[\\[(][^\\])]*[\\])](\\s+\\S+)?$", "");
+            l.addProperty("requested", requested);
+            JsonArray suggestions = new JsonArray();
+            for (PaperCard s : CardCatalog.similar(requested, 3)) {
+                JsonObject o = new JsonObject();
+                o.addProperty("nameEn", s.getName());
+                o.addProperty("name", forge.util.CardTranslation.getTranslatedName(s.getName()));
+                suggestions.add(o);
+            }
+            l.add("suggestions", suggestions);
+        }
+        PaperCard card = t.getCard();
+        if (card != null) {
+            // For the grouped list and the builder: the card as the catalog describes it, its count and section.
+            CardCatalog.card(card).entrySet().forEach(e -> l.add(e.getKey(), e.getValue()));
+            l.addProperty("qty", t.getQuantity());
+            // "commander" replaces the type group for display; typeGroup keeps it for the builder.
+            l.addProperty("typeGroup", group(card));
+            if (maybeboard) l.addProperty("maybeboard", true);
+            else {
+                if (t.getTokenSection() == DeckSection.Commander) l.addProperty("group", "commander");
+                if (t.getTokenSection() == DeckSection.Sideboard) l.addProperty("sideboard", true);
+            }
+        } else if (maybeboard) l.addProperty("maybeboard", true);
+        lines.add(l);
+        return unknown;
+    }
+
+    /** The list Forge can store, and the maybeboard lines it would otherwise drop. */
+    private record MaybeSplit(String deck, List<String> maybeboard) {}
+
+    private static MaybeSplit splitMaybeboard(String text) {
+        List<String> deck = new ArrayList<>(), maybe = new ArrayList<>();
+        boolean inMaybe = false;
+        for (String line : text.split("\\R", -1)) {
+            if (maybeHeader(line)) { inMaybe = true; continue; }
+            if (inMaybe && otherHeader(line)) inMaybe = false;
+            (inMaybe ? maybe : deck).add(line);
+        }
+        List<String> cards = new ArrayList<>();
+        for (String line : maybe) if (!line.isBlank()) cards.add(line.trim());
+        return new MaybeSplit(String.join("\n", deck), cards);
+    }
+
+    private static String headerName(String line) {
+        String t = line.trim();
+        if (t.startsWith("[") && t.endsWith("]") && t.length() > 2) t = t.substring(1, t.length() - 1).trim();
+        t = t.replaceFirst("^(?://|#)+\\s*", "").replaceAll("[:\\s]+$", "");
+        return t;
+    }
+
+    private static boolean maybeHeader(String line) {
+        String t = headerName(line);
+        return t.equalsIgnoreCase("maybeboard") || t.equalsIgnoreCase("maybe board");
+    }
+
+    private static boolean otherHeader(String line) {
+        return switch (headerName(line).toLowerCase(Locale.ROOT)) {
+            case "commander", "commanders", "deck", "main", "mainboard", "sideboard", "side", "sb", "companion" -> true;
+            default -> false;
+        };
+    }
 
     /**
      * Commanders a list implies without a Commander section, which Forge doesn't settle: two partners in the
@@ -220,7 +285,8 @@ final class DeckImporter {
     static String save(String text, String name, String from) {
         String invalid = invalidName(name);
         if (invalid != null) return invalid;
-        Preview p = preview(text, name);
+        MaybeSplit split = splitMaybeboard(text == null ? "" : text);
+        Preview p = preview(split.deck(), name);
         if (p.deck() == null || p.deck().getMain().isEmpty()) return "No cards recognised";
         Deck old = mine().get(from != null && !from.isBlank() ? from : name.trim());
         if (old != null) {
@@ -228,6 +294,8 @@ final class DeckImporter {
             p.deck().getTags().addAll(old.getTags());
         }
         mine().add(p.deck());
+        // Forge rewrites the file from its own sections, so the maybeboard is put back afterwards.
+        writeMaybeboard(p.deck(), split.maybeboard());
         return null;
     }
 
@@ -256,7 +324,9 @@ final class DeckImporter {
         if (bracket > 0) deck.getTags().add(BRACKET_TAG + bracket);
         String comment = notes == null ? "" : notes.strip().replace("\\", "\\\\").replace("\r", "").replace("\n", "\\n");
         deck.setComment(comment.isEmpty() ? null : comment);
+        List<String> maybe = storedMaybeboard(deck);
         mine().add(deck);
+        writeMaybeboard(deck, maybe);
         return null;
     }
 
@@ -283,6 +353,7 @@ final class DeckImporter {
                 section(list, "Commander", d, "commanders");
                 section(list, "Deck", d, "cards");
                 section(list, "Sideboard", d, "sideboard");
+                section(list, "Maybeboard", d, "maybeboard");
                 String name = freeName(from.isEmpty() ? "Central" : from.replaceAll("[\\\\/:*?\"<>|]", "-"));
                 String problem = save(list.toString(), name, null);
                 if (problem != null) throw new IllegalArgumentException(problem);
@@ -351,8 +422,8 @@ final class DeckImporter {
     }
 
     /**
-     * One of the player's decks as a decklist ("Commander" / "Deck" / "Sideboard" sections, with set and number so
-     * the exact printings survive an edit) plus the same grouped preview the import screen shows.
+     * One of the player's decks as a decklist ("Commander" / "Deck" / "Sideboard" / "Maybeboard" sections, with set
+     * and number so the exact printings survive an edit) plus the same grouped preview the import screen shows.
      */
     static JsonObject detail(String name) {
         return detail(mine().get(name), name);
@@ -371,6 +442,12 @@ final class DeckImporter {
                 text.append(entry.getValue()).append(' ').append(card.getName())
                         .append(" (").append(card.getEdition()).append(") ").append(card.getCollectorNumber()).append('\n');
             }
+        }
+        List<String> maybe = storedMaybeboard(deck);
+        if (!maybe.isEmpty()) {
+            if (text.length() > 0) text.append('\n');
+            text.append("Maybeboard\n");
+            for (String line : maybe) text.append(line).append('\n');
         }
         JsonObject o = preview(text.toString(), name).json();
         o.addProperty("type", "deckDetail");
@@ -410,7 +487,10 @@ final class DeckImporter {
         String target = to.trim();
         if (target.equals(from)) return null;
         if (mine().contains(target)) return "A deck with that name already exists";
-        mine().add((Deck) deck.copyTo(target));
+        List<String> maybe = storedMaybeboard(deck);
+        Deck copy = (Deck) deck.copyTo(target);
+        mine().add(copy);
+        writeMaybeboard(copy, maybe);
         mine().delete(from);
         return null;
     }
@@ -421,6 +501,63 @@ final class DeckImporter {
 
     static IStorage<Deck> mine() {
         return FModel.getDecks().getCommander();
+    }
+
+    /** A printing kept in the maybeboard, which Forge's deck file would otherwise discard. */
+    record StoredPrinting(String name, String set, String number) {}
+
+    private static final Pattern STORED_LINE = Pattern.compile("^\\d+\\s+(.+?)(?:\\s+\\(([^)]+)\\)\\s*(\\S+)?)?\\s*$");
+
+    static List<StoredPrinting> maybeboardPrintings(Deck deck) {
+        List<StoredPrinting> out = new ArrayList<>();
+        for (String line : storedMaybeboard(deck)) {
+            Matcher m = STORED_LINE.matcher(line.trim());
+            if (!m.matches()) continue;
+            out.add(new StoredPrinting(m.group(1), m.group(2) == null ? "" : m.group(2), m.group(3) == null ? "" : m.group(3)));
+        }
+        return out;
+    }
+
+    /** Maybeboard lines of this exact deck file. Empty for precons and for decks that have none. */
+    private static List<String> storedMaybeboard(Deck deck) {
+        if (deck == null || mine().get(deck.getName()) != deck) return List.of();
+        File file = deckFile(deck);
+        if (!file.isFile()) return List.of();
+        Map<String, List<String>> sections = FileSection.parseSections(FileUtil.readFile(file));
+        for (Map.Entry<String, List<String>> e : sections.entrySet()) {
+            if (e.getKey().equalsIgnoreCase("Maybeboard")) return e.getValue();
+        }
+        return List.of();
+    }
+
+    /** Puts the maybeboard back onto the file Forge just wrote, or removes it when the list no longer has one. */
+    private static void writeMaybeboard(Deck deck, List<String> lines) {
+        File file = deckFile(deck);
+        if (!file.isFile()) return;
+        List<String> existing = new ArrayList<>(FileUtil.readFile(file));
+        for (int i = 0; i < existing.size(); i++) {
+            if (!existing.get(i).trim().equalsIgnoreCase("[Maybeboard]")) continue;
+            int end = existing.size();
+            for (int j = i + 1; j < existing.size(); j++) {
+                String t = existing.get(j).trim();
+                if (t.startsWith("[") && t.endsWith("]")) { end = j; break; }
+            }
+            existing.subList(i, end).clear();
+            break;
+        }
+        while (!existing.isEmpty() && existing.get(existing.size() - 1).isBlank()) existing.remove(existing.size() - 1);
+        List<String> cards = new ArrayList<>();
+        for (String line : lines) if (line != null && !line.isBlank()) cards.add(line.trim());
+        if (!cards.isEmpty()) {
+            if (!existing.isEmpty()) existing.add("");
+            existing.add("[Maybeboard]");
+            existing.addAll(cards);
+        }
+        FileUtil.writeFile(file, existing);
+    }
+
+    private static File deckFile(Deck deck) {
+        return new File(ForgeConstants.DECK_COMMANDER_DIR, deck.getBestFileName() + DeckStorage.FILE_EXTENSION);
     }
 
     static String group(PaperCard card) {

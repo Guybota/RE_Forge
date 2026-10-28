@@ -54,7 +54,7 @@ export function DeckImprove({ detail, engine, onCreated, source = 'mine' }: { de
   const [refRequest, setRefRequest] = useState('');
   const refPreview = engine.deckPreview?.requestId === refRequest && refRequest ? engine.deckPreview : null;
   const refSuggestions = useMemo(() => refPreview
-    ? suggestionsFromReference(deck, refPreview.lines.filter((l) => l.nameEn && l.group !== 'commander' && !l.sideboard)
+    ? suggestionsFromReference(deck, refPreview.lines.filter((l) => l.nameEn && l.group !== 'commander' && !l.sideboard && !l.maybeboard)
       .map((l) => ({ name: l.nameEn!, quantity: l.qty ?? 1 })))
     : [], [deck, refPreview]);
   const plans: GamePlan[] = useMemo(() => refSuggestions.length ? [...built.plans, {
