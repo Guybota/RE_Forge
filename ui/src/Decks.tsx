@@ -180,7 +180,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
             <section key={group.year || 'mine'} aria-label={group.year ? String(group.year) : t('myDecks')}>
               {group.year > 0 && <h2 className="deck-shelf__year">{group.year}</h2>}
               {group.sets.map((set) => (
-                <div key={set.key}>
+                <div className="deck-shelf__set" key={set.key}>
                   {set.name && <header className="deck-shelf__edition"><h3>{set.name}</h3>{set.code && <span>{set.code}</span>}</header>}
                   <ul className="deck-exhibits">
                     {set.decks.map((deck) => <Poster key={deck.name} deck={deck} onOpen={() => { setOpened(deck.name); setView('list'); }} />)}
