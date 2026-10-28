@@ -406,8 +406,8 @@ function preconShelf(decks: DeckSummary[]) {
     const key = `${code}:${year}`;
     let group = groups.at(-1);
     if (group?.year !== year) { group = { year, sets: [] }; groups.push(group); }
-    let set = group.sets.at(-1);
-    if (set?.key !== key) { set = { key, name: deck.setName || code, code, decks: [] }; group.sets.push(set); }
+    let set = group.sets.find((entry) => entry.key === key);
+    if (!set) { set = { key, name: deck.setName || code, code, decks: [] }; group.sets.push(set); }
     set.decks.push(deck);
   }
   return groups;

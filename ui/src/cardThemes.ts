@@ -8,7 +8,7 @@ import {
 } from './deckTools/card-tag-bits';
 import { tagOf } from './deckTools/card-tags';
 import { deckLeanThreads } from './deckTools/improve-adapt';
-import type { Deck } from './deckTools/parse-decklist';
+import type { Deck } from './deckTools/types';
 import { say } from './deckTools/say';
 
 const THEME_LABELS: { bit: number; label: string }[] = [

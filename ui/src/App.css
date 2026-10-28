@@ -653,6 +653,7 @@
   overscroll-behavior: none;
 }
 .card-inspect::backdrop { background: color-mix(in srgb, var(--table) 75%, transparent); }
+.card-inspect .muted { color: var(--panel-ink-muted); }
 .card-inspect__body {
   box-sizing: border-box;
   display: grid;

@@ -85,6 +85,14 @@ const fixture = createServer((req, res) => {
       return json(200, { data: [{ source: 'wotc', published_at: '2004-10-04', comment: 'Old ruling.' }] });
     }
     if (url.pathname === '/scryfall/cards/search') {
+      if (url.searchParams.get('q') === 'reforge-search-fixture') {
+        return json(200, { total_cards: 176, has_more: !url.searchParams.has('page'), data: [
+          { name: 'Sol Ring', prices: { eur: '1.50' } },
+          { name: 'RE Forge Search Fixture', set: 'test', collector_number: '7', mana_cost: '{2}{W}', cmc: 3,
+            type_line: 'Creature — Test', oracle_text: 'Test text.', color_identity: ['W'], colors: ['W'],
+            image_uris: { normal: 'https://cards.scryfall.io/normal/test.jpg' }, prices: { eur: '2.50' } },
+        ] });
+      }
       // Sol Ring: a cheaper printing Forge lacks (skipped) and one Forge has; nothing else is cheaper.
       const q = url.searchParams.get('q');
       const data = q.includes('!"Sol Ring"') ? [
@@ -320,14 +328,23 @@ async function run(port) {
   const unruled = await ask({ type: 'cardRulings', requestId: 16, name: 'Grizzly Bears' }, 'cardRulings', 'servicesError');
   assert.deepEqual(unruled.rulings, [], 'unknown to Scryfall: no rulings, not an error');
   assert.equal((await ask({ type: 'cardRulings', requestId: 17, name: 'Not A Card' }, 'cardRulings', 'servicesError')).type, 'servicesError');
-  const priced = await ask({ type: 'cardPrice', requestId: 18, name: 'Sol Ring', set: 'c21', number: '263' }, 'cardPrice', 'servicesError');
-  assert.equal(priced.type, 'cardPrice');
-  assert.equal(priced.eur, 10);
-  assert.equal(priced.exact, true);
+  const cardPrice = await ask({ type: 'cardPrice', requestId: 18, name: 'Sol Ring', set: 'c21', number: '263' }, 'cardPrice', 'servicesError');
+  assert.equal(cardPrice.type, 'cardPrice');
+  assert.equal(cardPrice.eur, 10);
+  assert.equal(cardPrice.exact, true);
   const byName = await ask({ type: 'cardPrice', requestId: 19, name: 'Arcane Signet' }, 'cardPrice', 'servicesError');
   assert.equal(byName.type, 'cardPrice');
   assert.equal(byName.eur, 3);
   assert.equal(byName.exact, false);
+  const searchResult = await ask({ type: 'cardSearch', requestId: 20, query: 'reforge-search-fixture' }, 'cardSearch', 'servicesError');
+  assert.deepEqual([searchResult.type, searchResult.total, searchResult.offset, searchResult.hasMore], ['cardSearch', 176, 0, true]);
+  assert.ok(searchResult.cards[0].imageKey, 'known search cards use Forge art');
+  assert.deepEqual([searchResult.cards[0].nameEn, searchResult.cards[0].name, searchResult.cards[0].eur], ['Sol Ring', 'Anel Solar', 1.5]);
+  assert.deepEqual([searchResult.cards[1].nameEn, searchResult.cards[1].set, searchResult.cards[1].number, searchResult.cards[1].identity,
+    searchResult.cards[1].imageUrl, searchResult.cards[1].eur],
+    ['RE Forge Search Fixture', 'TEST', '7', 1, 'https://cards.scryfall.io/normal/test.jpg', 2.5]);
+  const searchPage = await ask({ type: 'cardSearch', requestId: 21, query: 'reforge-search-fixture', page: 2 }, 'cardSearch', 'servicesError');
+  assert.deepEqual([searchPage.offset, searchPage.hasMore], [175, false], 'search pagination reaches Scryfall');
   const noTab = await ask({ type: 'deckCombos', requestId: 7, name: 'Crafted' }, 'deckCombos', 'servicesError');
   assert.equal(noTab.type, 'servicesError', 'Crafted is not saved');
   await ask({ type: 'saveDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring", name: 'Atraxa' }, 'decks');

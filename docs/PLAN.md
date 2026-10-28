@@ -19,6 +19,17 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 
 ## Estado (feito)
 
+Integração completa de `central/deck-tools` (28/10/2026, `feat/integrate-central-deck-tools`):
+- Os 18 commits posteriores ao PR #2, até `2d8a14d`, foram integrados sem conflitos: pesquisa de cartas,
+  navegação nos decks, análise com bracket guardado, combos ilustrados, inspeção de cartas e símbolos de mana.
+- Corrigidos o import do tipo `Deck` que impedia a build, uma variável duplicada no teste de decks,
+  grupos repetidos de pré-construídos e o contraste do texto secundário no modal de inspeção.
+- UI e motor compilam; testes UI de builder, importação, Melhorar, seletor de decks e contraste passam.
+  `engine:smoke-decktools` passa com serviços simulados, incluindo preço individual, bracket e pesquisa paginada.
+- Browser com perfil temporário: menu, 180 pré-construídos, filtro, abertura de deck e inspeção/navegação entre cartas;
+  1280×720 e 844×390, sem overflow horizontal nem erros de execução. Pesquisa online apresentou o estado de
+  serviço indisponível porque o Scryfall pediu uma pausa; a integração da pesquisa foi validada com respostas locais.
+
 Integração da Central de decks (27/10/2026, `feat/central-integration`, sobre `central/deck-tools`):
 - A mesa duplicada foi removida. O Play usa a build atual do RE:Forge num iframe isolado, com o protocolo,
   skins, escolhas, pesquisa na biblioteca e restantes modos existentes.
