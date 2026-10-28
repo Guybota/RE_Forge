@@ -41,7 +41,9 @@ export function QuickMatch({ engine, onPick, initialDeck, onBack }: Props) {
   const info = engine.info;
   const languageName = info?.languages.find((l) => l.code === info.language)?.name;
   const decks = useMemo(() => selectionDecks(engine.decks), [engine.decks]);
-  const selected = selectedKey === null ? decks.find(d => d.name === initialDeck) : decks.find(d => deckKey(d) === selectedKey);
+  const selected = selectedKey === null
+    ? decks.find(d => deckKey(d) === initialDeck) ?? decks.find(d => d.name === initialDeck)
+    : decks.find(d => deckKey(d) === selectedKey);
   const busy = starting && !engine.error;
   const loading = engine.decks.loaded === false || !engine.decks.loaded && !decks.length;
 

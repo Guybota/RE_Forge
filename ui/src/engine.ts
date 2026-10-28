@@ -371,7 +371,7 @@ export type ClientMessage =
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
   | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
-  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string }
+  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string; source?: 'mine' | 'precon' }
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }
   | { type: 'cardRulings'; requestId: number; name: string }

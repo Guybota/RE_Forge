@@ -441,17 +441,42 @@
 /* Improve and Compare. */
 .deck-compare__pick { max-width: 520px; }
 /* Rules (Central's Magic Sage). */
+.decks__sources { display: flex; gap: 8px; }
+.decks__sources .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.decks__readonly { margin: 0; flex-basis: 100%; }
+.deck-face-groups { min-height: 0; max-height: calc(100vh - 230px); overflow-y: auto; }
+.deck-faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.deck-face { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; border-radius: var(--card-radius); }
+.deck-face img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: var(--card-radius); }
+.deck-face:focus-visible { outline: 2px solid var(--focus-table); outline-offset: 3px; }
+.deck-face__qty, .deck-face__price { position: absolute; min-height: 22px; padding: 0 6px; border-radius: var(--radius-control); background: var(--panel); color: var(--panel-ink); font-size: 12px; font-weight: 700; }
+.deck-face__qty { top: 6px; right: 6px; display: grid; place-items: center; }
+.deck-face__price { left: 6px; bottom: 6px; opacity: 0; }
+.deck-face:hover .deck-face__price, .deck-face:focus-visible .deck-face__price { opacity: 1; }
+.card-beside { position: fixed; z-index: 30; aspect-ratio: 5 / 7; border-radius: var(--card-radius); border: var(--panel-edge); pointer-events: none; }
+.rules__layout { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; }
 .rules__search { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.rules__search .decks__list { max-height: calc(100vh - 170px); }
-.rules__body { max-height: calc(100vh - 120px); }
-.rules__card { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.rules__results { max-height: calc(100vh - 280px); overflow-y: auto; }
 .rules__picture img { display: block; width: 100%; border-radius: var(--card-radius); }
 .rules__text { white-space: pre-line; }
 .rules__rulings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .rules__rulings p { margin: 2px 0 0; }
 .rules__faq summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
 .rules__faq p { margin: 0 0 8px; }
-@media (max-width: 640px) { .rules__card { grid-template-columns: 1fr; } .rules__picture { max-width: 240px; } }
+dialog.choice.rules-card { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; margin: 0; border: 0; background: none; box-shadow: none; display: grid; place-items: center; overflow: visible; }
+.rules-card__body { position: relative; width: min(880px, calc(100vw - 128px)); max-height: calc(100vh - 48px); overflow: auto; display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 16px; align-items: start; padding: 20px; background: var(--panel); color: var(--panel-ink); border: var(--panel-edge); border-radius: var(--panel-radius); }
+.rules-card__type { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rules-card__step { position: absolute; top: 50%; width: 44px; height: 44px; transform: translateY(-50%); background: var(--panel); color: var(--panel-ink); }
+.rules-card__step--prev { left: 16px; }
+.rules-card__step--next { right: 16px; }
+.rules-card__step::before { content: ""; display: block; width: 10px; height: 10px; margin: auto; border-top: 2px solid currentColor; border-right: 2px solid currentColor; }
+.rules-card__step--prev::before { transform: rotate(-135deg); }
+.rules-card__step--next::before { transform: rotate(45deg); }
+.rules-card__step:disabled { opacity: 0.35; }
+@media (max-width: 760px), (max-height: 560px) {
+  .rules-card__body { grid-template-columns: 1fr; }
+  .rules__picture { max-width: 180px; }
+}
 .deck-improve h3 { margin: 12px 0 6px; font-size: 15px; }
 .deck-improve__combos, .deck-improve__plans, .deck-improve__ideas, .deck-improve__held { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .deck-improve__plan { width: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;

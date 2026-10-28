@@ -30,7 +30,7 @@ const isSet = (item: Suggestion) => suggestionAdds(item).length > 1 || suggestio
  * Central's Improve on a Forge deck: switches that push what the list already does, bracket adjustments and the
  * differences with a pasted list. Ideas are only held here; a copy with them becomes a new Forge deck.
  */
-export function DeckImprove({ detail, engine, onCreated }: { detail: DeckDetail; engine: Engine; onCreated: (name: string) => void }) {
+export function DeckImprove({ detail, engine, onCreated, source = 'mine' }: { detail: DeckDetail; engine: Engine; onCreated: (name: string) => void; source?: 'mine' | 'precon' }) {
   const t = useT();
   const id = useId();
   const { send } = engine;
@@ -91,7 +91,7 @@ export function DeckImprove({ detail, engine, onCreated }: { detail: DeckDetail;
     return map;
   }, [lines, cardsAnswer]);
 
-  const combosRequest = useRequest((requestId) => send({ type: 'deckSpellbook', requestId, name: detail.name }), [detail, send]);
+  const combosRequest = useRequest((requestId) => send({ type: 'deckSpellbook', requestId, name: detail.name, source }), [detail, source, send]);
   const combos = reply(engine, 'deckSpellbook', combosRequest.id.current);
 
   const [copyName, setCopyName] = useState(t('improveCopyDefault', { deck: detail.name }));
