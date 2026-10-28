@@ -51,7 +51,7 @@ npm run package
 ```
 
 This builds the UI and engine, creates a Java runtime with `jlink`, and writes
-`dist-app/RE-Forge-Setup-0.1.7.exe`. The installer runs per user; players do not need
+`dist-app/RE-Forge-Setup-0.1.8.exe`. The installer runs per user; players do not need
 Java, Node or Maven installed. `dist-app/win-unpacked/` contains the same application
 before installation. Includes Adventure's shared maps, decks, world data and sprites plus
 Shandalar's world data. Other Adventure worlds and music are excluded. Card and token
