@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { deckFromLines } from './deckTools/cardVisual';
 import { rankComboCuts } from './deckTools/combo-cuts';
+import { canonicalizeName } from './deckTools/parse-decklist';
 import { addAndCut, swapPrinting } from './deckText';
 import type { CheaperOffer, DeckDetail, DeckPreview, EdhrecCombo } from './engine';
-import { useT } from './i18n';
+import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
 import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
@@ -11,11 +12,20 @@ import type { Engine } from './useEngine';
 import { nextRequestId, reply, useRequest } from './deckRequests';
 
 type Line = DeckPreview['lines'][number];
+type ComboFilter = 'near' | 'ready' | 'all';
+type ComboFace = { nameEn: string; name: string; imageKey?: string; imageUrl?: string };
 
 const euros = (n: number) => new Intl.NumberFormat(document.documentElement.lang || undefined, { style: 'currency', currency: 'EUR' }).format(n);
 const key = (n: string) => n.toLowerCase();
 /** EDHREC writes two-faced cards in full ("A // B"); Forge names them by the front face. */
 const front = (n: string) => key(n.split(' // ')[0]);
+const FILTERS: { id: ComboFilter; label: MessageKey }[] = [
+  { id: 'near', label: 'comboFilterNear' },
+  { id: 'ready', label: 'comboFilterReady' },
+  { id: 'all', label: 'comboFilterAll' },
+];
+const matchesFilter = (missing: number, filter: ComboFilter) =>
+  filter === 'all' || (filter === 'ready' ? missing === 0 : missing === 1);
 
 export function Unavailable({ onRetry }: { onRetry: () => void }) {
   const t = useT();
@@ -153,9 +163,37 @@ export function DeckCombos({ detail, engine, source = 'mine' }: { detail: DeckDe
     return map;
   }, [detail]);
   const has = (n: string) => lines.has(key(n)) || lines.has(front(n));
+  const [filter, setFilter] = useState<ComboFilter>('near');
   const [shown, setShown] = useState<Record<string, number>>({});
   const [explained, setExplained] = useState<string | null>(null);
   const [adding, setAdding] = useState<EdhrecCombo | null>(null);
+
+  const outside = useMemo(() => {
+    if (answer?.type !== 'deckCombos') return [] as string[];
+    const names = new Set<string>();
+    for (const g of answer.groups) for (const combo of g.combos.slice(0, 48)) {
+      for (const n of combo.cardNames) if (!has(n)) names.add(n.split(' // ')[0]);
+    }
+    return [...names].sort();
+  }, [answer, lines]);
+  const cardsRequest = useRequest((requestId) => { if (outside.length) send({ type: 'cardsByName', requestId, names: outside }); }, [outside.join('|'), send]);
+  const cardsAnswer = reply(engine, 'cardsByName', cardsRequest.id.current);
+  const faces = useMemo(() => {
+    const map = new Map<string, ComboFace>();
+    for (const l of detail.lines) {
+      if (!l.nameEn || l.sideboard || l.maybeboard) continue;
+      const face = { nameEn: l.nameEn, name: l.name ?? l.nameEn, imageKey: l.imageKey, imageUrl: l.imageUrl };
+      map.set(canonicalizeName(l.nameEn), face);
+      map.set(canonicalizeName(l.nameEn.split(' // ')[0]), face);
+    }
+    if (cardsAnswer?.type === 'cardsByName') for (const c of cardsAnswer.cards) {
+      const face = { nameEn: c.nameEn, name: c.name, imageKey: c.imageKey, imageUrl: c.imageUrl };
+      map.set(canonicalizeName(c.nameEn), face);
+      map.set(canonicalizeName(c.nameEn.split(' // ')[0]), face);
+    }
+    return map;
+  }, [detail, cardsAnswer]);
+  const faceOf = (n: string) => faces.get(canonicalizeName(n)) ?? faces.get(canonicalizeName(n.split(' // ')[0]));
 
   if (!hasCommander) return <p className="muted">{t('comboNoCommander')}</p>;
   return (
@@ -165,36 +203,78 @@ export function DeckCombos({ detail, engine, source = 'mine' }: { detail: DeckDe
         : <>
           {answer.missing.map((c) => <p key={c} className="muted">{t('combosNone', { commander: lines.get(key(c))?.name ?? c })}</p>)}
           {answer.groups.map((g) => {
+            const commanderLine = lines.get(key(g.commander)) ?? lines.get(front(g.commander));
+            const commanderName = commanderLine?.name ?? g.commander;
+            const commanderArt = commanderLine?.imageKey ? cardImage(commanderLine.imageKey, 'crop') : null;
+            const counted = { near: 0, ready: 0, all: g.combos.length };
+            for (const combo of g.combos) {
+              const missing = combo.cardNames.filter((n) => !has(n)).length;
+              if (missing === 0) counted.ready += 1;
+              if (missing === 1) counted.near += 1;
+            }
+            const filtered = g.combos.filter((combo) => matchesFilter(combo.cardNames.filter((n) => !has(n)).length, filter));
             const limit = shown[g.commander] ?? 12;
-            return <section key={g.commander} className="deck-analysis__panel" aria-label={g.commander}>
-              <header className="deck-analysis__head">
-                <h2 title={t('combosHint')}>{t('combosCount', { total: g.total.toLocaleString(document.documentElement.lang || undefined), commander: lines.get(key(g.commander))?.name ?? g.commander })}</h2>
+            return <section key={g.commander} className="deck-analysis__panel deck-combos" aria-label={commanderName}>
+              <header className="deck-combos__head">
+                {commanderArt && <img className="deck-combos__commander" src={commanderArt} alt="" />}
+                <div className="deck-combos__title">
+                  <h2 title={t('combosHint')}>{t('combosCount', { total: g.total.toLocaleString(document.documentElement.lang || undefined), commander: commanderName })}</h2>
+                  <p className="muted">{t('combosLead')}</p>
+                </div>
                 <a className="btn btn--ghost" href={g.url} target="_blank" rel="noreferrer">{t('combosOpen')}</a>
               </header>
-              {g.combos.length === 0 && <p className="muted">{t('combosNone', { commander: g.commander })}</p>}
-              <ul className="deck-online__combos">{g.combos.slice(0, limit).map((combo) => {
+              {g.combos.length > 0 && <div className="deck-combos__filters" role="group" aria-label={t('comboFilters')}>
+                {FILTERS.map((f) => (
+                  <button key={f.id} type="button" className="btn btn--ghost" aria-pressed={filter === f.id}
+                    onClick={() => { setFilter(f.id); setShown((s) => ({ ...s, [g.commander]: 12 })); }}>
+                    {t(f.label)} <span className="muted">{counted[f.id]}</span>
+                  </button>
+                ))}
+              </div>}
+              {g.combos.length === 0 && <p className="muted">{t('combosNone', { commander: commanderName })}</p>}
+              {g.combos.length > 0 && filtered.length === 0 && <p className="muted">{t('comboFilterEmpty')}</p>}
+              <ul className="deck-online__combos">{filtered.slice(0, limit).map((combo) => {
                 const missing = combo.cardNames.filter((n) => !has(n));
+                const have = combo.cardNames.length - missing.length;
                 const open = explained === combo.href;
-                return <li key={combo.id} className={missing.length ? '' : 'is-complete'}>
-                  <p lang="en"><strong>{combo.results.length ? combo.results.join(' · ') : combo.cardNames.join(' + ')}</strong></p>
-                  <ul className="deck-analysis__names">
+                const results = combo.results.length ? combo.results : [combo.cardNames.join(' + ')];
+                return <li key={combo.id} className={`deck-combo${missing.length ? '' : ' is-complete'}`}>
+                  <ul className="deck-combo__faces" aria-label={t('comboCards')}>
                     {combo.cardNames.map((n) => {
-                      const l = lines.get(key(n)) ?? lines.get(front(n));
-                      return <InspectableCard as="li" key={n} card={l?.imageKey ? cardForInspection(l) : null}
-                        className={`deck-analysis__name ${l ? 'is-owned' : ''}`} title={l ? t('comboInDeck') : t('comboNeeded')}>{l?.name ?? n}</InspectableCard>;
+                      const owned = has(n);
+                      const face = faceOf(n);
+                      const src = face?.imageKey ? cardImage(face.imageKey, 'full') : face?.imageUrl ?? null;
+                      const label = face?.name ?? n;
+                      return <InspectableCard as="li" key={n} card={face?.imageKey ? cardForInspection({ name: face.name, imageKey: face.imageKey }) : null}
+                        className={`deck-combo__face${owned ? ' is-owned' : ' is-needed'}`}
+                        title={owned ? t('comboInDeck') : t('comboNeeded')}>
+                        {src ? <img src={src} alt={label} loading="lazy" decoding="async" /> : <span className="deck-combo__fallback">{label}</span>}
+                        <span className="deck-combo__mark">{owned ? t('comboMarkHave') : t('comboMarkNeed')}</span>
+                      </InspectableCard>;
                     })}
-                    {combo.pieces.map((p) => <li key={p} className="deck-analysis__name deck-online__piece" lang="en" title={t('comboPieceHint')}>{t('comboPiece', { name: p })}</li>)}
+                    {combo.pieces.map((p) => (
+                      <li key={p} className="deck-combo__face deck-combo__face--piece" lang="en" title={t('comboPieceHint')}>
+                        <span className="deck-combo__fallback">{t('comboPiece', { name: p })}</span>
+                      </li>
+                    ))}
                   </ul>
-                  <div className="deck-analysis__head">
-                    <span className="muted">{missing.length ? t('comboMissing', { n: missing.length }) : t('comboInDeck')}
-                      {combo.decks > 0 && ` · ${t('comboDecks', { n: combo.decks.toLocaleString(document.documentElement.lang || undefined) })}`}</span>
-                    <button type="button" className="btn btn--ghost" aria-expanded={open} onClick={() => setExplained(open ? null : combo.href)}>{t('comboExplain')}</button>
-                    {source === 'mine' && <button type="button" className="btn btn--ghost" disabled={!missing.length} onClick={() => setAdding(combo)}>{t('comboAdd')}</button>}
+                  <div className="deck-combo__body">
+                    <ul className="deck-combo__results" lang="en">
+                      {results.map((r) => <li key={r}>{r}</li>)}
+                    </ul>
+                    <div className="deck-combo__meta">
+                      <span className={`deck-combo__progress${missing.length ? '' : ' is-ready'}`}>
+                        {missing.length ? t('comboHave', { have, total: combo.cardNames.length }) : t('comboComplete')}
+                        {combo.decks > 0 && <span className="muted"> · {t('comboDecks', { n: combo.decks.toLocaleString(document.documentElement.lang || undefined) })}</span>}
+                      </span>
+                      <button type="button" className="btn btn--ghost" aria-expanded={open} onClick={() => setExplained(open ? null : combo.href)}>{t('comboExplain')}</button>
+                      {source === 'mine' && missing.length > 0 && <button type="button" className="btn btn--primary" onClick={() => setAdding(combo)}>{t('comboAdd')}</button>}
+                    </div>
+                    {open && <ComboExplanation href={combo.href} engine={engine} />}
                   </div>
-                  {open && <ComboExplanation href={combo.href} engine={engine} />}
                 </li>;
               })}</ul>
-              {limit < g.combos.length && <button type="button" className="btn btn--ghost" onClick={() => setShown((s) => ({ ...s, [g.commander]: limit + 12 }))}>{t('combosMore')}</button>}
+              {limit < filtered.length && <button type="button" className="btn btn--ghost" onClick={() => setShown((s) => ({ ...s, [g.commander]: limit + 12 }))}>{t('combosMore')}</button>}
             </section>;
           })}
         </>}
