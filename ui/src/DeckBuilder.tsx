@@ -19,6 +19,12 @@ const COLORS: { bit: number; key: string; label: MessageKey }[] = [
 ];
 const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 const CURVE = [0, 1, 2, 3, 4, 5, 6, 7];
+type Stat = 'mv' | 'pow' | 'tou' | 'loy';
+type StatOp = '=' | '<' | '<=' | '>' | '>=' | '!=';
+const STATS: { id: Stat; label: MessageKey }[] = [
+  { id: 'mv', label: 'manaValue' }, { id: 'pow', label: 'statPower' }, { id: 'tou', label: 'statToughness' }, { id: 'loy', label: 'statLoyalty' },
+];
+const STAT_OPS: StatOp[] = ['=', '<', '<=', '>', '>=', '!='];
 let nextCatalogRequest = 0;
 
 /** Build or change a Commander deck: catalog on the left, the deck on the right. */
@@ -49,9 +55,17 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
   const [pickCommander, setPickCommander] = useState(commanders.length === 0);
   const [partnerOf, setPartnerOf] = useState<string | null>(null);
   const partnerName = partnerOf && commanders.length === 1 && commanders[0].nameEn === partnerOf ? partnerOf : undefined;
+  // Advanced (from Central's search): rules text, type line, and one number compared.
+  const [rules, setRules] = useState('');
+  const [typeText, setTypeText] = useState('');
+  const [stat, setStat] = useState<Stat>('pow');
+  const [statOp, setStatOp] = useState<StatOp>('>=');
+  const [statValue, setStatValue] = useState('');
+  const statNumber = statValue.trim() === '' || !Number.isFinite(Number(statValue)) ? undefined : Math.trunc(Number(statValue));
+  const advanced = [rules.trim(), typeText.trim(), statNumber !== undefined].filter(Boolean).length;
   const [results, setResults] = useState<CatalogCard[]>([]);
   const [resultScope, setResultScope] = useState('');
-  const searchScope = JSON.stringify([query, colors, cardType, cmc, pickCommander, identity, partnerName]);
+  const searchScope = JSON.stringify([query, colors, cardType, cmc, pickCommander, identity, partnerName, rules, typeText, stat, statOp, statNumber]);
   const shownResults = resultScope === searchScope ? results : [];
   const offset = useRef(0);
   const requestId = useRef(0);
@@ -59,8 +73,9 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
     offset.current = from;
     requestId.current = id;
     send({ type: 'searchCards', requestId: id, query, colors, cardType, cmc, offset: from, commanders: pickCommander, partnerOf: partnerName,
-      identity: commanders.length && !pickCommander ? identity : undefined });
-  }, [send, query, colors, cardType, cmc, pickCommander, identity, partnerName, commanders.length]);
+      identity: commanders.length && !pickCommander ? identity : undefined,
+      rules, typeText, ...(statNumber === undefined ? {} : { stat, statOp, statValue: statNumber }) });
+  }, [send, query, colors, cardType, cmc, pickCommander, identity, partnerName, commanders.length, rules, typeText, stat, statOp, statNumber]);
   useEffect(() => {
     const id = ++nextCatalogRequest;
     requestId.current = id;
@@ -109,7 +124,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
   }));
   const toggleCommander = (entry: Entry) => change((old) => old.map((e) => (same(e, entry) ? { ...e, commander: !e.commander, qty: 1 } : !entry.commander && e.commander ? { ...e, commander: false } : e)));
   const choosePartner = () => {
-    setView('cards'); setStatsFilter(null); setQuery(''); setColors(0); setCardType(''); setCmc(-1);
+    setView('cards'); setStatsFilter(null); setQuery(''); setColors(0); setCardType(''); setCmc(-1); setRules(''); setTypeText(''); setStatValue('');
     setPartnerOf(commanders[0].nameEn); setPickCommander(true);
   };
 
@@ -173,6 +188,24 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
               <input type="checkbox" checked={pickCommander} onChange={(e) => { setPickCommander(e.target.checked); setPartnerOf(null); }} />{t('commandersOnly')}
             </label>
           </div>
+          <details className="builder__more">
+            <summary>{t('moreFilters')}{advanced > 0 && ` (${advanced})`}</summary>
+            <div className="builder__filters">
+              <input className="input" type="search" aria-label={t('rulesTextFilter')} placeholder={t('rulesTextFilter')} title={t('rulesTextHint')}
+                value={rules} onChange={(e) => setRules(e.target.value)} />
+              <input className="input" type="search" aria-label={t('typeLineFilter')} placeholder={t('typeLineFilter')} title={t('typeLineHint')}
+                value={typeText} onChange={(e) => setTypeText(e.target.value)} />
+              <span className="builder__stat">
+                <select className="input" aria-label={t('statFilter')} value={stat} onChange={(e) => setStat(e.target.value as Stat)}>
+                  {STATS.map((s) => <option key={s.id} value={s.id}>{t(s.label)}</option>)}
+                </select>
+                <select className="input" aria-label={t('statComparison')} value={statOp} onChange={(e) => setStatOp(e.target.value as StatOp)}>
+                  {STAT_OPS.map((op) => <option key={op} value={op}>{op === '!=' ? '≠' : op === '<=' ? '≤' : op === '>=' ? '≥' : op}</option>)}
+                </select>
+                <input className="input" type="number" inputMode="numeric" aria-label={t('statValue')} value={statValue} onChange={(e) => setStatValue(e.target.value)} />
+              </span>
+            </div>
+          </details>
           {partnerName && <div className="builder__partner-search" role="status">
             <span>{t('partnerFor', { name: commanders[0].name })}</span>
             <button type="button" className="btn btn--ghost" onClick={() => { setPartnerOf(null); setPickCommander(false); }}>{t('cancel')}</button>

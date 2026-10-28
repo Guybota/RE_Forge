@@ -8,7 +8,7 @@ import { cardImage } from './images';
 import './home.css';
 import { centralUrl } from './centralBridge';
 
-export type HomeDestination = PlayableMode | 'decks' | 'skin' | 'language';
+export type HomeDestination = PlayableMode | 'decks' | 'rules' | 'skin' | 'language';
 
 function ModeArtwork({ mode, imageKey }: { mode: PlayableMode; imageKey?: string }) {
   const src = cardImage(imageKey, 'crop');
@@ -45,6 +45,7 @@ export function Home({ engine, onPick }: { engine: Engine; onPick: (destination:
         <nav className="library-home__nav" aria-label={t('mainMenu')}>
           <button className="btn btn--ghost" type="button" aria-current="page">{t('home')}</button>
           <button className="btn btn--ghost" type="button" onClick={() => onPick('decks')}>{t('decks')}</button>
+          <button className="btn btn--ghost" type="button" onClick={() => onPick('rules')}>{t('rules')}</button>
           {(central || window.reforge) && <button className="btn btn--ghost" type="button" disabled={centralBusy} onClick={() => { void openCentral(); }}>{t('centralTools')}</button>}
           <button className="btn btn--ghost" type="button" onClick={() => onPick('online')}>{t('online')}</button>
         </nav>

@@ -120,8 +120,19 @@ async function run(port) {
   assert.equal(preview.identity, 1 | 2 | 4 | 16, 'Atraxa is WUBG');
   assert.ok(preview.lines.every((l) => l.nameEn && l.cmc !== undefined && l.set), 'lines carry builder fields');
 
+  // Advanced filters (from Central's search): rules text in either language, type line, compared numbers.
+  assert.ok(names(await search({ rules: 'destroy target artifact', cardType: 'instant' })).includes('Shatter'), 'English rules text');
+  assert.ok(names(await search({ rules: 'destrua artefato', cardType: 'instant' })).includes('Shatter'), 'Portuguese rules text, words in any order');
+  const cheapAngels = await search({ typeText: 'angel', stat: 'mv', statOp: '<=', statValue: 2 });
+  assert.ok(cheapAngels.cards.length > 0 && cheapAngels.cards.every((c) => /Angel/.test(c.typeEn) && c.cmc <= 2), 'type line and mana value');
+  assert.ok(names(await search({ typeText: 'planeswalker', stat: 'loy', statOp: '>=', statValue: 7, query: 'ugin' })).includes('Ugin, the Spirit Dragon'), 'loyalty');
+  assert.ok(!names(await search({ query: 'grizzly bears', stat: 'pow', statOp: '>', statValue: 2 })).includes('Grizzly Bears'), 'power compared');
+  assert.ok(names(await search({ query: 'grizzly bears', stat: 'pow', statOp: '=', statValue: 2 })).includes('Grizzly Bears'));
+  assert.ok(!names(await search({ query: 'channel' })).includes('Channel'), 'the builder only offers Commander-legal cards');
+  assert.ok(names(await search({ query: 'channel', allCards: true })).includes('Channel'), 'rules lookup sees banned cards too');
+
   clearTimeout(timeout);
-  console.log(`OK: catalog of ${all.total} cards, names in two languages, filters, identity, pages, mana sources, printings persistence and all five partnership families`);
+  console.log(`OK: catalog of ${all.total} cards, names in two languages, filters (rules text, type line, numbers), identity, pages, mana sources, printings persistence and all five partnership families`);
   ws.close();
   engine.kill();
 }

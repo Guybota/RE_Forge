@@ -457,6 +457,35 @@ final class DeckServices {
         return o;
     }
 
+    /**
+     * Scryfall's published rulings for a card (by its exact English name): {@code rulings: [{date, source, comment}]},
+     * oldest first, in English. A card Scryfall does not know answers an empty list.
+     */
+    static JsonObject rulings(String name) {
+        JsonElement cached = fresh("r:" + name);
+        if (cached == null) {
+            JsonArray list = new JsonArray();
+            JsonElement card = request(SCRYFALL + "/cards/named?exact=" + URLEncoder.encode(name, StandardCharsets.UTF_8), null);
+            if (card != null) {
+                String id = str(card.getAsJsonObject(), "id");
+                JsonElement answer = id.matches("[0-9a-f-]{36}") ? request(SCRYFALL + "/cards/" + id + "/rulings", null) : null;
+                if (answer != null) for (JsonElement e : answer.getAsJsonObject().getAsJsonArray("data")) {
+                    JsonObject r = e.getAsJsonObject(), o = new JsonObject();
+                    o.addProperty("date", str(r, "published_at"));
+                    o.addProperty("source", str(r, "source"));
+                    o.addProperty("comment", str(r, "comment"));
+                    list.add(o);
+                }
+            }
+            store("r:" + name, list);
+            save();
+            cached = list;
+        }
+        JsonObject o = new JsonObject();
+        o.add("rulings", cached);
+        return o;
+    }
+
     /** How one EDHREC combo plays: {@code prerequisites} and {@code steps}, in English as EDHREC writes them. */
     static JsonObject comboDetail(String href) {
         String path;

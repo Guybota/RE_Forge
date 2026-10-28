@@ -48,10 +48,19 @@ final class CardCatalog {
         String partnerName = string(q, "partnerOf");
         PaperCard partner = partnerName.isEmpty() ? null : FModel.getMagicDb().getCommonCards().getCard(partnerName);
         int offset = Math.max(0, integer(q, "offset", 0));
+        // Advanced: every word of the rules text and of the type line (English or translated), and one number compared.
+        List<String> rulesWords = words(string(q, "rules"));
+        List<String> typeWords = words(string(q, "typeText"));
+        String stat = string(q, "stat"), statOp = string(q, "statOp");
+        int statValue = integer(q, "statValue", Integer.MIN_VALUE);
 
-        List<PaperCard> matches = playable()
+        boolean everything = q.has("allCards") && q.get("allCards").getAsBoolean();
+        List<PaperCard> matches = (everything ? known() : playable())
                 .filter(pc -> {
                     CardRules r = pc.getRules();
+                    if (!rulesWords.isEmpty() && !rulesWords.stream().allMatch(searchText(pc.getName(), true)::contains)) return false;
+                    if (!typeWords.isEmpty() && !typeWords.stream().allMatch(searchText(pc.getName(), false)::contains)) return false;
+                    if (statValue != Integer.MIN_VALUE && !compare(statOf(r, stat), statOp, statValue)) return false;
                     if (commanders && !r.canBeCommander()) return false;
                     if (!partnerName.isEmpty() && (partner == null || pc.getName().equals(partnerName)
                             || !r.canBeCommander() || !partner.getRules().canBePartnerCommanders(r))) return false;
@@ -155,6 +164,12 @@ final class CardCatalog {
         return o;
     }
 
+    /** Every real card, one per name, banned ones included (for looking rules up). */
+    private static java.util.stream.Stream<PaperCard> known() {
+        return FModel.getMagicDb().getCommonCards().streamUniqueCards()
+                .filter(pc -> !pc.getRules().isCustom() && !pc.isRebalanced() && !pc.getName().startsWith("A-"));
+    }
+
     /** Commander-legal paper cards, one per name. */
     private static java.util.stream.Stream<PaperCard> playable() {
         return FModel.getMagicDb().getCommonCards().streamUniqueCards()
@@ -212,6 +227,50 @@ final class CardCatalog {
         String en = normalize(pc.getName()), local = normalize(CardTranslation.getTranslatedName(pc.getName()));
         if (en.equals(text) || local.equals(text)) return 0;
         return en.startsWith(text) || local.startsWith(text) ? 1 : 2;
+    }
+
+    private static List<String> words(String s) {
+        String n = normalize(s);
+        return n.isEmpty() ? List.of() : List.of(n.split("\\s+"));
+    }
+
+    private static final java.util.Map<String, String> RULES_TEXT = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<String, String> TYPE_TEXT = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** English and translated rules text (or type line) of a card, normalized once; the language can change, so both. */
+    private static String searchText(String name, boolean rules) {
+        java.util.Map<String, String> cache = rules ? RULES_TEXT : TYPE_TEXT;
+        String key = name + '\n' + FModel.getPreferences().getPref(forge.localinstance.properties.ForgePreferences.FPref.UI_LANGUAGE);
+        return cache.computeIfAbsent(key, k -> {
+            CardRules r = FModel.getMagicDb().getCommonCards().getCard(name).getRules();
+            String en = rules ? r.getOracleText().replace("\\n", " ") : r.getType().toString();
+            String local = rules ? CardTranslation.getTranslatedOracle(name) : CardTranslation.getTranslatedType(name, en);
+            return normalize(en + " " + (local == null ? "" : local.replace("\\n", " ")));
+        });
+    }
+
+    /** Mana value, power, toughness or starting loyalty; null when the card has none or it is not a number ("*"). */
+    private static Integer statOf(CardRules r, String stat) {
+        String value = switch (stat) {
+            case "mv" -> String.valueOf(r.getManaCost() == null ? 0 : r.getManaCost().getCMC());
+            case "pow" -> r.getType().isCreature() ? r.getPower() : null;
+            case "tou" -> r.getType().isCreature() ? r.getToughness() : null;
+            case "loy" -> r.getInitialLoyalty();
+            default -> null;
+        };
+        try { return value == null ? null : Integer.valueOf(value.trim()); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static boolean compare(Integer value, String op, int to) {
+        if (value == null) return false;
+        return switch (op) {
+            case "<" -> value < to;
+            case "<=" -> value <= to;
+            case ">" -> value > to;
+            case ">=" -> value >= to;
+            case "!=" -> value != to;
+            default -> value == to;
+        };
     }
 
     private static String normalize(String s) {

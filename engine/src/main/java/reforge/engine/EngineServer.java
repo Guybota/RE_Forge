@@ -184,7 +184,7 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
-            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook" -> services(c, msg);
+            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings" -> services(c, msg);
             case "setDeckMeta" -> c.actions.execute(() -> {
                 List<String> tags = new ArrayList<>();
                 if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
@@ -545,6 +545,15 @@ public final class EngineServer extends WebSocketServer {
                 if (type.equals("comboDetail")) {
                     reply = DeckServices.comboDetail(string(msg, "href"));
                     reply.addProperty("href", string(msg, "href"));
+                } else if (type.equals("cardRulings")) {
+                    // The card's rules text in the player's language comes along (Forge's own translation).
+                    forge.item.PaperCard pc = forge.model.FModel.getMagicDb().getCommonCards().getCard(name);
+                    if (pc == null) throw new IllegalArgumentException("Unknown card: " + name);
+                    String text = forge.util.CardTranslation.getTranslatedOracle(name);
+                    reply = DeckServices.rulings(name);
+                    reply.addProperty("name", name);
+                    reply.add("card", CardCatalog.card(pc));
+                    reply.addProperty("text", (text == null || text.isBlank() ? pc.getRules().getOracleText() : text).replace("\\n", "\n"));
                 } else if (type.equals("cardsByName")) {
                     JsonArray cards = new JsonArray();
                     for (JsonElement n : msg.getAsJsonArray("names")) {

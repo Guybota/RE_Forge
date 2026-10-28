@@ -78,6 +78,12 @@ const fixture = createServer((req, res) => {
       }
       return json(200, { data, not_found: [] });
     }
+    if (url.pathname === '/scryfall/cards/named') {
+      return url.searchParams.get('exact') === 'Sol Ring' ? json(200, { id: '00000000-0000-0000-0000-000000000001', name: 'Sol Ring' }) : json(404, {});
+    }
+    if (url.pathname === '/scryfall/cards/00000000-0000-0000-0000-000000000001/rulings') {
+      return json(200, { data: [{ source: 'wotc', published_at: '2004-10-04', comment: 'Old ruling.' }] });
+    }
     if (url.pathname === '/scryfall/cards/search') {
       // Sol Ring: a cheaper printing Forge lacks (skipped) and one Forge has; nothing else is cheaper.
       const q = url.searchParams.get('q');
@@ -279,6 +285,13 @@ async function run(port) {
   assert.equal((await ask({ type: 'deckLines', requestId: 13, name: 'Rohan', source: 'nowhere' }, 'deckLines', 'servicesError')).type, 'servicesError');
   const named = await ask({ type: 'cardsByName', requestId: 14, names: ['Rhystic Study', 'Not A Card'] }, 'cardsByName', 'servicesError');
   assert.deepEqual(named.cards.map((c) => [c.nameEn, c.name]), [['Rhystic Study', 'Estudo Rístico']], 'translated, unknown names left out');
+  // Rules lookup: the card, its text in the player's language and Scryfall's rulings.
+  const ruled = await ask({ type: 'cardRulings', requestId: 15, name: 'Sol Ring' }, 'cardRulings', 'servicesError');
+  assert.deepEqual([ruled.card.nameEn, ruled.rulings], ['Sol Ring', [{ date: '2004-10-04', source: 'wotc', comment: 'Old ruling.' }]]);
+  assert.ok(ruled.text && !ruled.text.includes('\\n') && ruled.text !== ruled.card.textEn, `translated text, real line breaks: ${ruled.text}`);
+  const unruled = await ask({ type: 'cardRulings', requestId: 16, name: 'Grizzly Bears' }, 'cardRulings', 'servicesError');
+  assert.deepEqual(unruled.rulings, [], 'unknown to Scryfall: no rulings, not an error');
+  assert.equal((await ask({ type: 'cardRulings', requestId: 17, name: 'Not A Card' }, 'cardRulings', 'servicesError')).type, 'servicesError');
   const noTab = await ask({ type: 'deckCombos', requestId: 7, name: 'Crafted' }, 'deckCombos', 'servicesError');
   assert.equal(noTab.type, 'servicesError', 'Crafted is not saved');
   await ask({ type: 'saveDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring", name: 'Atraxa' }, 'decks');
@@ -308,6 +321,6 @@ async function run(port) {
 
   clearTimeout(timeout);
   fixture.close();
-  console.log(`OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket, text edits, prices, cheaper printings, combos, complete combos, other decks, cards by name; live: ${live}`);
+  console.log(`OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket, text edits, prices, cheaper printings, combos, complete combos, other decks, cards by name, rulings; live: ${live}`);
   process.exit(0);
 }

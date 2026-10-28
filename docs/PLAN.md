@@ -45,7 +45,8 @@ Central dentro do RE:Forge: plano em [CENTRAL_PLAN.md](CENTRAL_PLAN.md) (7 fases
 `feat/deck-tools-base`: lógica da Central em `ui/src/deckTools`, alimentada pelos decks do Forge. Fase 2 no ramo
 `feat/deck-tools-analysis`: análise, notas e etiquetas no ecrã de Decks. Fase 3 no ramo `feat/deck-tools-online`:
 preços (Cardmarket via Scryfall), impressões mais baratas e combos do EDHREC. Fase 4 no ramo
-`feat/deck-tools-improve`: Melhorar (traduzido) e Comparar.
+`feat/deck-tools-improve`: Melhorar (traduzido) e Comparar. Fase 5 no ramo `feat/deck-tools-sage`: ecrã Regras e
+filtros avançados no construtor.
 
 Design e acessibilidade: plano aprovado com os 12 pontos da auditoria em [DESIGN_PLAN.md](DESIGN_PLAN.md).
 Primeira entrega implementada num worktree dedicado, ramo `feat/design-accessibility`: navegação,

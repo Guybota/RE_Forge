@@ -314,7 +314,8 @@ export type DeckServicesReply =
   | (Omit<DeckDetail, 'type'> & { type: 'deckLines'; requestId: number; source: 'mine' | 'precon' })
   | { type: 'cardsByName'; requestId: number; cards: CatalogCard[] }
   | { type: 'deckSpellbook'; requestId: number; name: string; combos: { id: string; cardNames: string[]; produces: string[] }[] }
-  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'deckSpellbook';
+  | { type: 'cardRulings'; requestId: number; name: string; card: CatalogCard; text: string; rulings: { date: string; source: string; comment: string }[] }
+  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'deckSpellbook' | 'cardRulings';
       unavailable: boolean; message: string };
 
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
@@ -367,8 +368,11 @@ export type ClientMessage =
   | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string }
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }
+  | { type: 'cardRulings'; requestId: number; name: string }
   | { type: 'comboDetail'; requestId: number; href: string }
-  | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
+  | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number;
+      /** Advanced: words of the rules text / type line (English or translated) and one compared number. */
+      rules?: string; typeText?: string; /** Every card, not only Commander-legal ones (rules lookup). */ allCards?: boolean; stat?: 'mv' | 'pow' | 'tou' | 'loy'; statOp?: '=' | '<' | '<=' | '>' | '>=' | '!='; statValue?: number }
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; deckSource?: 'mine' | 'precon'; opponents: number; aiProfiles: string[] }
@@ -456,7 +460,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckText': h.onDeckText(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;
       case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
-      case 'deckLines': case 'cardsByName': case 'deckSpellbook':
+      case 'deckLines': case 'cardsByName': case 'deckSpellbook': case 'cardRulings':
         h.onDeckServices(msg); break;
       case 'cardResults': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;

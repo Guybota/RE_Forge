@@ -21,6 +21,7 @@ import { installClickSounds } from './audio/sounds';
 import { installAppearanceSettings } from './settings/appearancePrefs';
 import './settings/appearance.css';
 import { acceptsCentralMessage, type CentralDeck } from './centralBridge';
+import { RulesScreen } from './RulesScreen';
 import { CentralDeckScreen } from './CentralDeckScreen';
 
 export default function App() {
@@ -46,7 +47,7 @@ export default function App() {
   useEffect(() => {
     if (centralBridge) window.parent.postMessage({ type: 'central:game', active: centralGameActive }, window.location.origin);
   }, [centralBridge, centralGameActive]);
-  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
+  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'rules' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
   const [building, setBuilding] = useState<DeckDetail | undefined>();
@@ -86,6 +87,8 @@ export default function App() {
     screen = <CampaignScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'draft' || picking === 'sealed') {
     screen = <LimitedScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
+  } else if (picking === 'rules') {
+    screen = <RulesScreen engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'puzzles') {
     screen = <PuzzleScreen engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'commander') {

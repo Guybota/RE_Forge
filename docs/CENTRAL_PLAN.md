@@ -99,6 +99,12 @@ Cada fase: ramo `feat/deck-tools-<fase>`, compila, testes de fumo, verificado no
   um deck, FAQ traduzida.
 - `CardCatalog.search`: texto de regras, legalidade por formato, P/T/lealdade, operadores; filtro de preço
   aplicado aos resultados com os preços do motor.
+- **Feito** (28/10/2026, `feat/deck-tools-sage`): ecrã Regras (botão no cabeçalho do início) com pesquisa em todas
+  as cartas, incluindo banidas, texto traduzido do Forge, legalidade, rulings do Scryfall e FAQ (as 4 da Central + taxa
+  de comandante e identidade de cor). A verificação Commander e os combos já estão nas vistas Análise/Melhorar.
+  Construtor: "Mais filtros" com texto de regras e tipo (inglês ou traduzido) e valor de mana/poder/resistência/
+  lealdade com operador. Ficam de fora formatos (catálogo só Commander), raridades/edições e filtro de preço
+  (exigiria preços dos 32 mil cartas).
 
 ### 6. Migração da biblioteca
 - Antes de apagar a Central, o desktop lê uma vez a biblioteca da origem `127.0.0.1:4317`

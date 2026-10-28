@@ -446,6 +446,18 @@
 .deck-online__cuts label { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
 /* Improve and Compare. */
 .deck-compare__pick { max-width: 520px; }
+/* Rules (Central's Magic Sage). */
+.rules__search { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.rules__search .decks__list { max-height: calc(100vh - 170px); }
+.rules__body { max-height: calc(100vh - 120px); }
+.rules__card { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.rules__picture img { display: block; width: 100%; border-radius: var(--card-radius); }
+.rules__text { white-space: pre-line; }
+.rules__rulings { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.rules__rulings p { margin: 2px 0 0; }
+.rules__faq summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
+.rules__faq p { margin: 0 0 8px; }
+@media (max-width: 640px) { .rules__card { grid-template-columns: 1fr; } .rules__picture { max-width: 240px; } }
 .deck-improve h3 { margin: 12px 0 6px; font-size: 15px; }
 .deck-improve__combos, .deck-improve__plans, .deck-improve__ideas, .deck-improve__held { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .deck-improve__plan { width: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
@@ -483,6 +495,10 @@
 .builder__body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 24px; }
 .builder__catalog { min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .builder__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.builder__more summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
+.builder__more .builder__filters > input { flex: 1 1 180px; min-width: 0; }
+.builder__stat { display: flex; gap: 6px; }
+.builder__stat input { width: 80px; }
 .builder__filters .input { width: auto; }
 .builder__query { flex: 1 1 220px; }
 .builder__colors { display: flex; gap: 4px; }
