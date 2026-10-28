@@ -167,6 +167,7 @@
 }
 .import__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
 }
@@ -176,6 +177,35 @@
   font-weight: var(--display-weight);
   font-size: 32px;
 }
+.decks__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+.decks__title h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.decks__name-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: 28px;
+}
+.decks__rename {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+.decks__actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
 .import__body {
   flex: 1;
   min-height: 0;
@@ -368,10 +398,17 @@
 .decks__item:hover { background: color-mix(in srgb, var(--on-table) 8%, transparent); }
 .decks__item.is-on { background: var(--accent); color: var(--accent-ink); }
 .decks__detail { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.decks__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.decks__name { flex: 1 1 260px; min-width: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 22px; }
 .decks__delete { color: var(--danger-text); }
 .decks .import__summary { margin-top: 8px; }
+.deck-into-import { width: min(960px, calc(100vw - 32px)); max-width: none; }
+.deck-into-import__body { display: grid; gap: 16px; padding: 0 20px 12px; max-height: 70vh; overflow: auto; }
+.deck-into-import__body--preview { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.deck-into-import__left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.deck-into-import__left .import__paste textarea { min-height: 180px; }
+.deck-into-import__actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px 20px; border-top: 1px solid var(--panel-line); }
+@media (max-width: 800px) {
+  .deck-into-import__body--preview { grid-template-columns: 1fr; }
+}
 
 /* Deck analysis (Central's tools) and notes, under the deck's view tabs. */
 .deck-analysis, .deck-notes { min-height: 0; max-height: calc(100vh - 215px); overflow-y: auto; padding-right: 12px; }
@@ -498,7 +535,7 @@
 }
 .decks__sources { display: flex; gap: 8px; }
 .decks__sources .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.decks__readonly { margin: 0; flex-basis: 100%; }
+.decks__readonly { margin: 0; }
 .deck-face-groups { min-height: 0; }
 .deck-gallery { display: flex; flex-direction: column; gap: 8px; overflow: visible; padding-bottom: 32px; }
 .deck-gallery .import__group h2 { margin: 8px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--table-line); font-size: 22px; }

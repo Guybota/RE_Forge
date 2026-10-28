@@ -9,7 +9,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addAndCut, demoteCommander, moveCopy, removeCopy, swapPrinting } from '../ui/src/deckText.ts';
+import { addAndCut, demoteCommander, mergeDecklists, moveCopy, removeCopy, swapPrinting } from '../ui/src/deckText.ts';
 import { deckFromLines, visualFromCatalog } from '../ui/src/deckTools/cardVisual.ts';
 import { estimateBracket } from '../ui/src/deckTools/bracket.ts';
 import { checkCommanderDeck } from '../ui/src/deckTools/commander-check.ts';
@@ -224,6 +224,9 @@ async function run(port) {
   assert.equal(addAndCut(sample, ['Rhystic Study'], ['Arcane Signet', 'Sol Ring']),
     'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n1 Rhystic Study\n1 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269',
     'adds to the deck, cuts one copy from the deck only');
+  assert.equal(mergeDecklists(sample, 'Commander\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring (LEA) 269\n1 Rhystic Study\n\nMaybeboard\n1 Opt'),
+    'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n2 Sol Ring (LEA) 269\n1 Atraxa, Praetors\' Voice\n1 Rhystic Study\n\nSideboard\n1 Sol Ring (LEA) 269\n\nMaybeboard\n1 Opt',
+    'adds cards into matching sections; imported commanders join the deck');
   assert.equal(removeCopy(sample, 'Sol Ring', { set: 'LEA', number: '269' }, 'deck'),
     'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269',
     'one copy leaves the deck, the sideboard copy stays');

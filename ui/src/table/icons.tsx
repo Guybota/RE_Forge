@@ -12,3 +12,4 @@ export const SearchIcon = () => <svg {...props}><circle cx="10" cy="10" r="6" />
 export const StarIcon = () => <svg {...props}><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" /></svg>;
 export const ShuffleIcon = () => <svg {...props}><path d="M3 6h3c5 0 7 12 12 12h3m-4-4 4 4-4 4M3 18h3c2 0 3-2 5-5m2-2c2-3 3-5 5-5h3m-4-4 4 4-4 4" /></svg>;
 export const CheckIcon = () => <svg {...props}><path d="m5 12 4 4L19 6" /></svg>;
+export const PencilIcon = () => <svg {...props}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
