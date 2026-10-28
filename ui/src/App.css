@@ -453,6 +453,15 @@
 .deck-online__scroll { overflow-x: auto; }
 .deck-online__table { width: 100%; border-collapse: collapse; }
 .decks .builder__views { flex-wrap: wrap; }
+.decks__view-mark {
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex: none;
+}
+.builder__views .btn { display: inline-flex; align-items: center; }
 .deck-online__table th, .deck-online__table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--table-line); }
 .deck-online__table th { color: var(--on-table-muted); font-weight: 400; font-size: 13px; }
 .deck-online__table td:first-child, .deck-online__table th:first-child, .deck-online__table td:last-child, .deck-online__table th:last-child { text-align: right; white-space: nowrap; }

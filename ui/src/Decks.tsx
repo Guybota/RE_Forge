@@ -190,7 +190,15 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
               {!owned && <p className="muted decks__readonly">{t('preconReadOnly')}</p>}
               {engine.error && <p className="error" role="alert">{engine.error}</p>}
               <nav className="builder__views" aria-label={t('deckViews')}>
-                {VIEWS.filter((v) => owned || v.id !== 'notes').map((v) => <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id} onClick={() => setView(v.id)}>{t(v.label)}</button>)}
+                {VIEWS.filter((v) => owned || v.id !== 'notes').map((v) => {
+                  const needsAnalyze = v.id === 'analysis' && owned && detail != null && detail.calculatedBracket === 0;
+                  return <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id}
+                    aria-label={needsAnalyze ? `${t(v.label)}. ${t('analyzePending')}` : undefined}
+                    title={needsAnalyze ? t('analyzePending') : undefined}
+                    onClick={() => setView(v.id)}>{t(v.label)}
+                    {needsAnalyze && <span className="decks__view-mark" aria-hidden="true" />}
+                  </button>;
+                })}
               </nav>
               {detail && view === 'list' && <DeckCards preview={detail} faces prices={prices} best={best} editable={owned}
                 onChangePrinting={owned ? setPrintingOf : undefined}
