@@ -136,7 +136,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
   return (
     <main className="import decks">
       <header className="import__head">
-        <button type="button" className="btn btn--ghost" onClick={() => opened ? setOpened(null) : onBack()}>{t('back')}</button>
+        <button type="button" className="btn btn--ghost" onClick={() => opened ? setOpened(null) : onBack()}>{t(opened ? 'back' : 'home')}</button>
         {opened ? (
           <div className="decks__title">
             {owned && editingName ? (
