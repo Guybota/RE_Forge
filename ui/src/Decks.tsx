@@ -52,6 +52,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
   const [renaming, setRenaming] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [view, setView] = useState<(typeof VIEWS)[number]['id']>('list');
   const [query, setQuery] = useState('');
   const [year, setYear] = useState(0);
@@ -106,6 +107,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
     setEditingName(false);
     setCopied(false);
     setImporting(false);
+    setConfirmingDelete(false);
     if (owned && opened) send({ type: 'getDeck', name: opened });
   }, [opened, owned, send]);
 
@@ -167,9 +169,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
               if (!detail) return;
               try { await navigator.clipboard.writeText(detail.text); setCopied(true); } catch { setCopied(false); }
             }}>{t(copied ? 'copied' : 'exportDeck')}</button>
-            {owned && <button type="button" className="btn btn--ghost decks__delete" onClick={() => {
-              if (window.confirm(t('confirmDelete', { name: opened }))) send({ type: 'deleteDeck', name: opened });
-            }}>{t('deleteDeck')}</button>}
+            {owned && <button type="button" className="btn btn--ghost decks__delete" onClick={() => setConfirmingDelete(true)}>{t('deleteDeck')}</button>}
           </span>
         ) : decks.mine.length > 0 && <span className="decks__new">
           <button type="button" className="btn btn--ghost" onClick={onImport}>{t('import')}</button>
@@ -220,6 +220,8 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
               {detail && view === 'notes' && <DeckNotes key={[detail.name, detail.tags.join(','), detail.bracketIntent, detail.notes].join('\n')} detail={detail} engine={engine} />}
               </Suspense>
               {importing && owned && detail && <DeckIntoImport engine={engine} deckName={detail.name} currentText={detail.text} onClose={() => setImporting(false)} />}
+              {confirmingDelete && opened && <DeleteDeckDialog name={opened} onCancel={() => setConfirmingDelete(false)}
+                onConfirm={() => { send({ type: 'deleteDeck', name: opened }); setConfirmingDelete(false); }} />}
             </section>
       ) : (
         <div className="deck-shelf">
@@ -257,6 +259,29 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
         </div>
       )}
     </main>
+  );
+}
+
+function DeleteDeckDialog({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => void }) {
+  const t = useT();
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+  return (
+    <dialog ref={ref} className="choice game-menu zone decks__delete-dialog" aria-labelledby="delete-deck-title"
+      onCancel={(e) => { e.preventDefault(); onCancel(); }}>
+      <header className="game-menu__head">
+        <h2 id="delete-deck-title" className="choice__title">{t('confirmDelete', { name })}</h2>
+      </header>
+      <p className="decks__delete-copy">{t('confirmDeleteHint')}</p>
+      <div className="decks__delete-actions">
+        <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('cancel')}</button>
+        <button type="button" className="btn btn--primary decks__delete" onClick={onConfirm}>{t('deleteDeck')}</button>
+      </div>
+    </dialog>
   );
 }
 
