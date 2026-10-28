@@ -30,7 +30,7 @@ export function DeckIdentity({ identity }: { identity?: number }) {
   if (identity === undefined) return null;
   const colors = COLORS.filter(c => identity === 0 ? c.bit === 0 : c.bit > 0 && !!(identity & c.bit));
   return <span className="deck-identity" aria-label={`${t('colorIdentity')}: ${colors.map(c => t(c.label)).join(', ')}`}>
-    {colors.map(c => <span key={c.bit} className="deck-identity__pip" aria-hidden="true">{c.symbol}</span>)}
+    {colors.map(c => <span key={c.bit} className={`pip pip--${c.symbol === 'C' ? 'n' : c.symbol}`} aria-hidden="true">{c.symbol}</span>)}
   </span>;
 }
 

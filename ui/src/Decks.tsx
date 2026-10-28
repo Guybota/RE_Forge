@@ -311,7 +311,7 @@ function Poster({ deck, onOpen }: { deck: DeckSummary; onOpen: () => void }) {
         {src ? <img src={src} alt="" loading="lazy" /> : <span className="deck-poster__blank" />}
         <span className="deck-poster__shade" />
         <span className="deck-poster__pips">
-          {pips.map((color) => <span key={color.key} className={`pip pip--${color.key === 'C' ? 'n' : color.key}`} title={t(color.label)} />)}
+          {pips.map((color) => <span key={color.key} className={`pip pip--${color.key === 'C' ? 'n' : color.key}`} title={t(color.label)}>{color.key}</span>)}
         </span>
         <span className="deck-poster__copy">
           <strong>{deckTitle(deck.name)}</strong>

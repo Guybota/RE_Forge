@@ -291,8 +291,10 @@ export type CatalogCard = {
   /** Potential front-face mana production, W1 U2 B4 R8 G16 C32. */
   manaProduction: number;
   commanderMana: boolean;
+  /** A Scryfall scan, used when Forge has no printing for this card. */
+  imageUrl?: string;
 };
-export type CardResults = { type: 'cardResults'; requestId: number; total: number; offset: number; cards: CatalogCard[] };
+export type CardResults = { type: 'cardResults' | 'cardSearch'; requestId: number; total: number; offset: number; hasMore?: boolean; cards: CatalogCard[] };
 export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string; artIndex: number }[] };
 
 /** One of the player's decks: its decklist (with printings) and the grouped preview. */
@@ -379,6 +381,7 @@ export type ClientMessage =
   | { type: 'cardRulings'; requestId: number; name: string }
   | { type: 'importCentral'; json: string; migration?: boolean }
   | { type: 'comboDetail'; requestId: number; href: string }
+  | { type: 'cardSearch'; requestId: number; query: string; page?: number }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number;
       /** Advanced: words of the rules text / type line (English or translated) and one compared number. */
       rules?: string; typeText?: string; /** Every card, not only Commander-legal ones (rules lookup). */ allCards?: boolean; stat?: 'mv' | 'pow' | 'tou' | 'loy'; statOp?: '=' | '<' | '<=' | '>' | '>=' | '!='; statValue?: number }
@@ -472,7 +475,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
       case 'deckLines': case 'cardsByName': case 'deckSpellbook': case 'cardRulings':
         h.onDeckServices(msg); break;
-      case 'cardResults': h.onCardResults(msg); break;
+      case 'cardResults': case 'cardSearch': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;
       case 'state': h.onState(msg); break;
       case 'choice': h.onChoice(msg); break;

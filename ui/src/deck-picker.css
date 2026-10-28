@@ -41,7 +41,7 @@
 .deck-artwork img { width: 100%; height: 100%; object-fit: cover; }
 .deck-artwork > svg { width: 30px; height: 30px; }
 .deck-identity { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap; }
-.deck-identity__pip { background: var(--panel); color: var(--panel-ink); border: 1px solid var(--panel-line); border-radius: var(--radius-control); min-width: 20px; height: 20px; display: grid; place-items: center; font-size: 11px; }
+.deck-identity .pip { width: 18px; height: 18px; font-size: 11px; }
 .deck-picker__empty { padding: 20px 0; color: var(--on-table-muted); display: grid; gap: 16px; justify-items: start; }
 .deck-picker__empty p { margin: 0; }
 .quick-match__preview { --focus: var(--focus-panel); min-width: 0; overflow: hidden; border-radius: var(--panel-radius); background: var(--panel); color: var(--panel-ink); color-scheme: light; }

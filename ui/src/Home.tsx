@@ -8,7 +8,7 @@ import { cardImage } from './images';
 import './home.css';
 import { CentralImportResult } from './ImportDeck';
 
-export type HomeDestination = PlayableMode | 'decks' | 'rules' | 'skin' | 'language';
+export type HomeDestination = PlayableMode | 'decks' | 'search' | 'rules' | 'skin' | 'language';
 
 function ModeArtwork({ mode, imageKey }: { mode: PlayableMode; imageKey?: string }) {
   const src = cardImage(imageKey, 'crop');
@@ -35,6 +35,7 @@ export function Home({ engine, onPick }: { engine: Engine; onPick: (destination:
         <nav className="library-home__nav" aria-label={t('mainMenu')}>
           <button className="btn btn--ghost" type="button" aria-current="page">{t('home')}</button>
           <button className="btn btn--ghost" type="button" onClick={() => onPick('decks')}>{t('decks')}</button>
+          <button className="btn btn--ghost" type="button" onClick={() => onPick('search')}>{t('search')}</button>
           <button className="btn btn--ghost" type="button" onClick={() => onPick('rules')}>{t('rules')}</button>
           <button className="btn btn--ghost" type="button" onClick={() => onPick('online')}>{t('online')}</button>
         </nav>

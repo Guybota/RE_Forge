@@ -184,7 +184,7 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
-            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings" -> services(c, msg);
+            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings", "cardSearch" -> services(c, msg);
             case "importCentral" -> c.actions.execute(() -> {
                 // The old Central library: once automatically on desktop ("migration"), or a JSON export by hand.
                 try {
@@ -554,7 +554,10 @@ public final class EngineServer extends WebSocketServer {
         DeckServices.WORK.execute(() -> {
             JsonObject reply;
             try {
-                if (type.equals("comboDetail")) {
+                if ("cardSearch".equals(type)) {
+                    int page = msg.has("page") && msg.get("page").isJsonPrimitive() ? msg.get("page").getAsInt() : 1;
+                    reply = DeckServices.cardSearch(string(msg, "query"), page);
+                } else if (type.equals("comboDetail")) {
                     reply = DeckServices.comboDetail(string(msg, "href"));
                     reply.addProperty("href", string(msg, "href"));
                 } else if (type.equals("cardRulings")) {

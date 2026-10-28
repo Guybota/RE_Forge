@@ -355,11 +355,12 @@
   background: #cfc9be;
 }
 .card--hand .pip { width: 14px; height: 14px; font-size: 10px; }
-.pip--W { background: #f4edcf; }
-.pip--U { background: #4573a3; }
-.pip--B { background: #3a3431; }
-.pip--R { background: #b9472e; }
-.pip--G { background: #3f7b48; }
+.pip--W { background: #f4edcf; color: #241c14; }
+.pip--U { background: #4573a3; color: #f6f1e6; }
+.pip--B { background: #3a3431; color: #f6f1e6; }
+.pip--R { background: #b9472e; color: #f6f1e6; }
+.pip--G { background: #3f7b48; color: #f6f1e6; }
+.pip--n { color: #241c14; }
 
 /* ---------- turn information at the top; native game actions at the bottom right ---------- */
 

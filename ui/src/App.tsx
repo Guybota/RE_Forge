@@ -21,12 +21,13 @@ import { installClickSounds } from './audio/sounds';
 import { installAppearanceSettings } from './settings/appearancePrefs';
 import './settings/appearance.css';
 import { RulesScreen } from './RulesScreen';
+import { SearchScreen } from './SearchScreen';
 
 export default function App() {
   useEffect(installClickSounds, []);
   useEffect(installAppearanceSettings, []);
   const engine = useEngine();
-  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'rules' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
+  const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'search' | 'rules' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
   // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
   const [building, setBuilding] = useState<DeckDetail | undefined>();
@@ -64,6 +65,8 @@ export default function App() {
     screen = <CampaignScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'draft' || picking === 'sealed') {
     screen = <LimitedScreen key={picking} mode={picking} engine={engine} onBack={() => setPicking(null)} />;
+  } else if (picking === 'search') {
+    screen = <SearchScreen engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'rules') {
     screen = <RulesScreen engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'puzzles') {
