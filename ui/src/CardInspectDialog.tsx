@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cardThemeLabels } from './cardThemes';
-import { reply, useGatedRequest, useRequest } from './deckRequests';
+import { reply, replyForCard, useGatedRequest, useRequest } from './deckRequests';
 import { Unavailable } from './DeckOnline';
 import pt from './deckTools/pt.json';
 import { setDeckToolsLanguage } from './deckTools/say';
@@ -68,7 +68,7 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   const rulingsReq = useRequest((requestId) => {
     send({ type: 'cardRulings', requestId, name: nameEn });
   }, [nameEn, send]);
-  const rulingsAnswer = reply(engine, 'cardRulings', rulingsReq.id.current);
+  const rulingsAnswer = replyForCard(engine, 'cardRulings', rulingsReq.requestId, nameEn);
   const rulings = rulingsAnswer?.type === 'cardRulings' && rulingsAnswer.name === nameEn ? rulingsAnswer : null;
   const oracle = rulings?.text || card.text || card.textEn;
 
@@ -77,8 +77,7 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   const priceReq = useRequest((requestId) => {
     send({ type: 'cardPrice', requestId, name: nameEn, set: card.set, number: card.number });
   }, [nameEn, card.set, card.number, send]);
-  const priceRaw = reply(engine, 'cardPrice', priceReq.id.current);
-  const price = priceRaw && (priceRaw.type === 'servicesError' || priceRaw.name === nameEn) ? priceRaw : null;
+  const price = replyForCard(engine, 'cardPrice', priceReq.requestId, nameEn);
 
   useEffect(() => {
     if (!versionsOpen) return;
@@ -89,7 +88,7 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   const combosReq = useGatedRequest(!!(combosOpen && card.deckName), (requestId) => {
     send({ type: 'deckCombos', requestId, name: card.deckName!, source: card.deckSource ?? 'mine' });
   }, [card.deckName, card.deckSource, send]);
-  const combosAnswer = reply(engine, 'deckCombos', combosReq.id.current);
+  const combosAnswer = reply(engine, 'deckCombos', combosReq.requestId);
   const cardCombos = useMemo(() => {
     if (combosAnswer?.type !== 'deckCombos') return null;
     return combosAnswer.groups.flatMap((g) => g.combos.filter((c) => hasName(c, nameEn))).slice(0, 8);
