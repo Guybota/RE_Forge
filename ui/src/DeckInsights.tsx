@@ -56,7 +56,7 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 /** Central's deck reading on a Forge deck: bracket, Commander rules, card jobs, statistics and a sample hand. */
-export function DeckAnalysis({ detail }: { detail: DeckDetail }) {
+export function DeckAnalysis({ detail, engine }: { detail: DeckDetail; engine?: Engine | null }) {
   const t = useT();
   const { deck, visuals } = useMemo(() => deckFromLines(detail.name, detail.lines, detail.identity), [detail]);
   const lines = useMemo(() => new Map(detail.lines.filter((l) => l.nameEn).map((l) => [l.nameEn!, l])), [detail]);
@@ -69,6 +69,7 @@ export function DeckAnalysis({ detail }: { detail: DeckDetail }) {
     .map((l) => ({ ...(l as CatalogCard), group: l.typeGroup ?? l.group ?? 'other', qty: l.qty ?? 1, commander: l.group === 'commander' })), [detail]);
   const [filter, setFilter] = useState<DeckFilter>(null);
   const [includeCommanders, setIncludeCommanders] = useState(false);
+  const [savingBracket, setSavingBracket] = useState(false);
 
   // Sample hand: the 99 shuffled; the commander stays in the command zone.
   const library = useMemo(() => deck.cards.flatMap((c) => Array.from({ length: c.quantity }, () => c.name)), [deck]);
@@ -76,18 +77,38 @@ export function DeckAnalysis({ detail }: { detail: DeckDetail }) {
   const order = hand?.library === library ? hand.order : null;
   const [drawn, setDrawn] = useState(HAND);
   const newHand = () => { setHand({ library, order: shuffled(library) }); setDrawn(HAND); };
+  useEffect(() => { if (engine?.error) setSavingBracket(false); }, [engine?.error]);
+  useEffect(() => { setSavingBracket(false); }, [detail.calculatedBracket]);
 
   const identity = (deck.colorIdentity ?? []).join('');
   const intent = detail.bracketIntent;
+  const stamped = detail.calculatedBracket;
+  const analyze = () => {
+    if (!engine || savingBracket) return;
+    setSavingBracket(true);
+    engine.send({
+      type: 'setDeckMeta',
+      name: detail.name,
+      tags: detail.tags,
+      notes: detail.notes,
+      bracketIntent: detail.bracketIntent,
+      calculatedBracket: bracket.bracket,
+    });
+  };
   return (
     <div className="deck-analysis">
       <section className="deck-analysis__panel" aria-labelledby="deck-bracket">
-        <h2 id="deck-bracket" title={t('bracketDisclaimer')}>{t('bracketTitle')}</h2>
+        <header className="deck-analysis__head">
+          <h2 id="deck-bracket" title={t('bracketDisclaimer')}>{t('bracketTitle')}</h2>
+          {engine && <button type="button" className="btn btn--primary" title={t('analyzeDeckHint')}
+            disabled={savingBracket || stamped === bracket.bracket} onClick={analyze}>{t('analyzeDeck')}</button>}
+        </header>
         <p className="deck-analysis__bracket">
           <strong>{bracket.bracket}</strong>
           <span>{t(`bracket${bracket.bracket}` as MessageKey)}</span>
           {intent > 0 && <span className={intent === bracket.bracket ? 'muted' : 'deck-analysis__warn'}>{t('bracketIntentIs', { n: intent })}</span>}
         </p>
+        {stamped > 0 && <p className={stamped === bracket.bracket ? 'muted' : 'deck-analysis__warn'}>{t('bracketCalculatedIs', { n: stamped })}</p>}
         <p>{t(`bracketRule_${bracket.ruleId}` as MessageKey, { gc: bracket.gameChangers.length, fm: bracket.fastMana.length })}</p>
         <p className="muted">{t(`bracketNote${bracket.bracket}` as MessageKey)}</p>
         {TRIGGERS.map(({ key, label }) => bracket[key].length > 0 && (

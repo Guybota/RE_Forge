@@ -303,7 +303,9 @@ export type DeckText = { type: 'deckText'; text: string; name?: string };
 
 export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string;
   /** The player's own tags, notes and intended bracket (0 = none), kept in the Forge deck. */
-  tags: string[]; notes: string; bracketIntent: number };
+  tags: string[]; notes: string; bracketIntent: number;
+  /** Bracket stamped by Analyze deck on the Analysis tab (0 = none). */
+  calculatedBracket: number };
 
 /** Deck tools' online lookups (engine's DeckServices). Prices use Forge's set codes; EUR is Cardmarket via Scryfall. */
 export type PrintingPrice = { set: string; number: string; eur?: number | null; exact: boolean };
@@ -374,7 +376,7 @@ export type ClientMessage =
   | { type: 'fetchDeck'; url: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
-  | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
+  | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number; calculatedBracket?: number }
   | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string; source?: 'mine' | 'precon' }
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }

@@ -202,8 +202,10 @@ public final class EngineServer extends WebSocketServer {
                 List<String> tags = new ArrayList<>();
                 if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
                 String name = string(msg, "name");
+                Integer calculated = msg.has("calculatedBracket") && msg.get("calculatedBracket").isJsonPrimitive()
+                        ? msg.get("calculatedBracket").getAsInt() : null;
                 String problem = DeckImporter.setMeta(name, tags, string(msg, "notes"),
-                        msg.has("bracketIntent") ? msg.get("bracketIntent").getAsInt() : 0);
+                        msg.has("bracketIntent") ? msg.get("bracketIntent").getAsInt() : 0, calculated);
                 c.session.send(problem == null ? DeckImporter.detail(name) : error(problem));
             });
             case "deleteDeck" -> c.actions.execute(() -> {

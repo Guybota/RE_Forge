@@ -200,22 +200,27 @@ async function run(port) {
   const rohanText = readFileSync(path.join(root, 'scripts/fixtures/riders-of-rohan-arena.txt'), 'utf8');
   await ask({ type: 'saveDeck', text: rohanText, name: 'Rohan' }, 'decks');
   const notes = 'Linha 1\nLinha \\ 2, com vírgula';
-  let detail = await ask({ type: 'setDeckMeta', name: 'Rohan', tags: ['Cavalaria', ' Casual ', 'casual'], notes, bracketIntent: 3 }, 'deckDetail');
+  let detail = await ask({ type: 'setDeckMeta', name: 'Rohan', tags: ['Cavalaria', ' Casual ', 'casual'], notes, bracketIntent: 3, calculatedBracket: 4 }, 'deckDetail');
   assert.deepEqual(detail.tags, ['Casual', 'Cavalaria'], 'trimmed, case-insensitive, sorted by Forge');
   assert.equal(detail.notes, notes, 'line breaks and backslashes round-trip');
   assert.equal(detail.bracketIntent, 3);
+  assert.equal(detail.calculatedBracket, 4, 'Analyze deck stamps a calculated bracket');
   await ask({ type: 'saveDeck', text: rohanText.replace('1 Arcane Signet', '1 Mind Stone'), name: 'Rohan 2', from: 'Rohan' }, 'decks');
   detail = await ask({ type: 'getDeck', name: 'Rohan 2' }, 'deckDetail');
-  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [['Casual', 'Cavalaria'], notes, 3], 'edit keeps the metadata');
+  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent, detail.calculatedBracket], [['Casual', 'Cavalaria'], notes, 3, 4], 'edit keeps the metadata');
   await ask({ type: 'renameDeck', name: 'Rohan 2', to: 'Rohan 3' }, 'decks');
   detail = await ask({ type: 'getDeck', name: 'Rohan 3' }, 'deckDetail');
   assert.equal(detail.bracketIntent, 3, 'rename keeps the metadata');
+  assert.equal(detail.calculatedBracket, 4, 'rename keeps the calculated bracket');
   const restart = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: ['a,b'], notes: '', bracketIntent: 0 }, 'error');
   assert.match(restart.message, /Invalid tag/);
   assert.match((await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: ['reforge-won-1'], notes: '', bracketIntent: 0 }, 'error')).message, /Invalid tag/,
     'internal tags cannot be set');
   detail = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: [], notes: '', bracketIntent: 0 }, 'deckDetail');
-  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [[], '', 0], 'cleared');
+  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [[], '', 0], 'cleared intent');
+  assert.equal(detail.calculatedBracket, 4, 'notes save without calculatedBracket leaves the stamp');
+  detail = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: [], notes: '', bracketIntent: 0, calculatedBracket: 0 }, 'deckDetail');
+  assert.equal(detail.calculatedBracket, 0, 'calculated bracket cleared');
 
   // Decklist text edits used by "apply cheaper printings" and "add combo".
   const sample = 'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n1 Sol Ring (LEA) 269\n\nSideboard\n1 Sol Ring (LEA) 269';

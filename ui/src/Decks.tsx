@@ -204,7 +204,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                   setPrintingOf(null);
                 }} />}
               <Suspense fallback={<p className="muted" role="status">{t('connecting')}</p>}>
-              {detail && view === 'analysis' && <DeckAnalysis detail={detail} />}
+              {detail && view === 'analysis' && <DeckAnalysis detail={detail} engine={owned ? engine : null} />}
               {detail && view === 'prices' && <DeckPrices key={detail.name} detail={detail} engine={engine} source={library} />}
               {detail && view === 'combos' && <DeckCombos key={detail.name} detail={detail} engine={engine} source={library} />}
               {detail && view === 'improve' && <DeckImprove key={detail.name} detail={detail} engine={engine} source={library} onCreated={(created) => { setLibrary('mine'); setRenaming(created); setView('list'); }} />}
