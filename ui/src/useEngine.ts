@@ -8,7 +8,7 @@ import { createModeUsageTracker } from './modeUsage';
 import { createOpeningCoinGate } from './table/openingCoin';
 import { animationOn } from './table/animationPrefs';
 import type { OpeningCoin } from './engine';
-import type { DeckLanguage, DeckServicesReply } from './engine';
+import type { CentralImport, DeckLanguage, DeckServicesReply } from './engine';
 import { connectEngine, enginePort, type Choice, type ClientMessage, type CardResults, type DeckDetail, type DeckLists, type Printings, type DeckPreview, type DeckText, type ModesData, type EngineConnection, type EngineInfo, type GameState, type Notice } from './engine';
 
 export type Engine = {
@@ -23,6 +23,8 @@ export type Engine = {
   deckText: DeckText | null;
   /** The latest online deck-tools reply of each kind (errors under their service); match requestId before use. */
   deckServices: Partial<Record<Exclude<DeckServicesReply['type'], 'servicesError'>, DeckServicesReply>>;
+  /** The latest Central library import (the desktop migration or a JSON export). */
+  centralImport: CentralImport | null;
   /** The latest reply to getDeck. */
   deckDetail: DeckDetail | null;
   /** The latest replies to searchCards and getPrintings (deck builder). */
@@ -59,6 +61,8 @@ export function useEngine(): Engine {
   const [deckText, setDeckText] = useState<DeckText | null>(null);
   const [deckDetail, setDeckDetail] = useState<DeckDetail | null>(null);
   const [deckServices, setDeckServices] = useState<Engine['deckServices']>({});
+  const [centralImport, setCentralImport] = useState<CentralImport | null>(null);
+  const migrating = useRef(false);
   const [cardResults, setCardResults] = useState<CardResults | null>(null);
   const [printings, setPrintings] = useState<Printings | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
@@ -94,6 +98,13 @@ export function useEngine(): Engine {
         setImageBase(i.imageBase, i.language);
         setInfo(i);
         setStatus('ready');
+        // Desktop, once: bring the old Central library in. A busy port or a failure tries again next start.
+        if (!i.centralMigrated && !migrating.current && window.reforge?.centralLibrary) {
+          migrating.current = true;
+          window.reforge.centralLibrary().then((read) => {
+            if (read.status === 'ok') c.send({ type: 'importCentral', json: read.json ?? '{"decks":[]}', migration: true });
+          }).catch(() => {});
+        }
       },
       onDecks: setDecks,
       onDeckLanguage: setDeckLanguage,
@@ -101,6 +112,7 @@ export function useEngine(): Engine {
       onDeckText: setDeckText,
       onDeckDetail: setDeckDetail,
       // Lookups run in parallel in the engine: an older request's late reply never replaces a newer one.
+      onCentralImport: setCentralImport,
       onDeckServices: (reply) => setDeckServices((all) => {
         const kind = reply.type === 'servicesError' ? reply.service : reply.type;
         const previous = all[kind];
@@ -170,5 +182,5 @@ export function useEngine(): Engine {
     setChoice(null);
   }, []);
 
-  return { status, failure, info, decks, deckLanguage, deckPreview, deckText, deckDetail, deckServices, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
+  return { status, failure, info, decks, deckLanguage, deckPreview, deckText, deckDetail, deckServices, centralImport, cardResults, printings, game, openingCoin, finishOpeningCoin, choice, notice, error, lobby, chat, campaigns, campaign, modes, reconnecting, send, answer, leaveGame };
 }

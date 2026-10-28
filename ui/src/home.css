@@ -79,3 +79,7 @@ html[data-text-scale]:not([data-text-scale='100']) .library-home__shortcuts { gr
 @media (max-width: 600px) {
   html[data-text-scale]:not([data-text-scale='100']) .library-home__body { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* After the desktop brought the old Central library in: what came, once. */
+.library-home__migration { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 12px 32px 0;
+  padding: 12px 16px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }

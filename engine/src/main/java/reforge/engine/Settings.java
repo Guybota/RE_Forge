@@ -181,6 +181,14 @@ final class Settings {
         save();
     }
 
+    /** Whether the old Central library (desktop localStorage) was already brought into the Forge decks. */
+    boolean centralMigrated() { return Boolean.parseBoolean(props.getProperty("centralMigrated")); }
+
+    synchronized void markCentralMigrated() throws IOException {
+        props.setProperty("centralMigrated", "true");
+        save();
+    }
+
     private synchronized void save() throws IOException {
         var target = file.toPath().toAbsolutePath();
         Files.createDirectories(target.getParent());

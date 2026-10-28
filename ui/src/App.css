@@ -629,3 +629,7 @@
 .builder__group-head h2 { margin: 0; }
 .builder__group-head .btn { font-size: 12px; }
 .builder__partner-search { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+/* Central library import result (Import screen and the home notice). */
+.central-import p { margin: 0 0 4px; font-weight: 700; }
+.central-import ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; max-height: 40vh; overflow-y: auto; }

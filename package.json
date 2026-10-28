@@ -34,6 +34,7 @@
     "ui:smoke-deck-picker": "node scripts/smoke-deck-picker.mjs",
     "ui:smoke-library-choice": "node scripts/smoke-library-choice.mjs",
     "desktop:smoke-startup": "node scripts/smoke-startup.mjs",
+    "desktop:smoke-migration": "node scripts/smoke-central-migration.mjs",
     "ui:smoke-guidance": "node scripts/smoke-adventure-guidance.mjs",
     "ui:smoke-sounds": "node scripts/smoke-sounds.mjs",
     "start": "npm start -w desktop",

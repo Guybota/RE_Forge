@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { DeckCards } from './DeckCards';
-import { fileToDecklist, replaceUnknownLine } from './decklistFiles';
+import { fileToDecklist, isCentralLibrary, replaceUnknownLine } from './decklistFiles';
 import { useT } from './i18n';
+import type { CentralImport } from './engine';
 import type { Engine } from './useEngine';
 
 const LINK_ERRORS = ['linkUnsupported', 'linkNotFound', 'linkUnavailable'] as const;
@@ -16,6 +17,7 @@ export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedN
   const [name, setName] = useState('');
   const [link, setLink] = useState('');
   const [fetching, setFetching] = useState(false);
+  const [centralSent, setCentralSent] = useState<typeof engine.centralImport | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -57,7 +59,14 @@ export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedN
 
   const openFile = async (file: File | undefined) => {
     if (!file) return;
-    const list = fileToDecklist(file.name, await file.text());
+    const content = await file.text();
+    // A whole Central library: the engine brings every deck in (names never replace a deck).
+    if (isCentralLibrary(content)) {
+      setCentralSent(engine.centralImport);
+      send({ type: 'importCentral', json: content });
+      return;
+    }
+    const list = fileToDecklist(file.name, content);
     load(list.text, list.name);
   };
 
@@ -94,9 +103,11 @@ export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedN
             </label>
             <button type="submit" className="btn" disabled={!link.trim() || fetching}>{fetching ? t('fetchingLink') : t('fetchLink')}</button>
             <button type="button" className="btn btn--ghost" title={t('openFileHint')} onClick={() => fileInput.current?.click()}>{t('openFile')}</button>
-            <input ref={fileInput} type="file" accept=".txt,.dek,.dck,.dec,text/plain" hidden
+            <input ref={fileInput} type="file" accept=".txt,.dek,.dck,.dec,.json,text/plain,application/json" hidden
               onChange={(e) => { void openFile(e.target.files?.[0]); e.target.value = ''; }} />
             {linkError && <p className="error" role="alert">{t(linkError)}</p>}
+            {centralSent !== undefined && engine.centralImport && engine.centralImport !== centralSent && <CentralImportResult result={engine.centralImport}
+              onOpen={(name) => onDone(name)} />}
           </form>
           <label className={`field-label import__paste${dragging ? ' import__drop' : ''}`}
             onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
@@ -139,5 +150,23 @@ export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedN
           onReplace={(requested, card) => setText(replaceUnknownLine(text, requested, card))} />}
       </div>
     </main>
+  );
+}
+
+/** What a Central library import brought in: renamed decks, cards Forge did not know, decks that failed. */
+export function CentralImportResult({ result, onOpen }: { result: CentralImport; onOpen?: (name: string) => void }) {
+  const t = useT();
+  return (
+    <div className="central-import" role="status">
+      <p>{result.imported.length ? t(result.imported.length === 1 ? 'centralImportedOne' : 'centralImported', { n: result.imported.length }) : t('centralImportNone')}</p>
+      <ul>
+        {result.imported.map((d) => <li key={d.name}>
+          {onOpen ? <button type="button" className="btn btn--ghost" onClick={() => onOpen(d.name)}>{d.name}</button> : <span>{d.name}</span>}
+          {d.from && d.from !== d.name && <span className="muted"> {t('centralImportRenamed', { from: d.from })}</span>}
+          {d.unknown > 0 && <span className="deck-analysis__warn"> {t(d.unknown === 1 ? 'centralImportUnknownOne' : 'centralImportUnknown', { n: d.unknown })}</span>}
+        </li>)}
+        {result.failed.map((d, i) => <li key={`f${i}`} className="deck-analysis__warn" title={d.reason}>{t('centralImportFailed', { name: d.name || '—' })}</li>)}
+      </ul>
+    </div>
   );
 }

@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import forge.deck.Deck;
@@ -269,6 +270,90 @@ final class DeckImporter {
         deck.setComment(comment.isEmpty() ? null : comment);
         mine().add(deck);
         return null;
+    }
+
+    /**
+     * Brings decks from the old Central library into the player's Forge decks: a library export
+     * ({@code {version, decks}}), a list of decks or one deck. Names never replace a deck (a suffix is added),
+     * tags/notes/intended bracket come along, printings are left to Forge (Central's set codes are Scryfall's).
+     * Returns {@code imported: [{from, name, unknown}]} and {@code failed: [{name, reason}]}.
+     */
+    static JsonObject importCentral(String json) {
+        JsonElement root;
+        try { root = com.google.gson.JsonParser.parseString(json == null ? "" : json); }
+        catch (com.google.gson.JsonParseException e) { throw new IllegalArgumentException("Not a Central library"); }
+        JsonArray decks = root.isJsonArray() ? root.getAsJsonArray()
+                : root.isJsonObject() && root.getAsJsonObject().has("decks") ? root.getAsJsonObject().getAsJsonArray("decks")
+                : root.isJsonObject() && root.getAsJsonObject().has("cards") ? single(root) : null;
+        if (decks == null) throw new IllegalArgumentException("Not a Central library");
+        JsonArray imported = new JsonArray(), failed = new JsonArray();
+        for (JsonElement e : decks) {
+            JsonObject d = e.isJsonObject() ? e.getAsJsonObject() : new JsonObject();
+            String from = text(d, "name").trim();
+            try {
+                StringBuilder list = new StringBuilder();
+                section(list, "Commander", d, "commanders");
+                section(list, "Deck", d, "cards");
+                section(list, "Sideboard", d, "sideboard");
+                String name = freeName(from.isEmpty() ? "Central" : from.replaceAll("[\\\\/:*?\"<>|]", "-"));
+                String problem = save(list.toString(), name, null);
+                if (problem != null) throw new IllegalArgumentException(problem);
+                List<String> tags = new ArrayList<>();
+                if (d.has("tags") && d.get("tags").isJsonArray()) for (JsonElement t : d.getAsJsonArray("tags")) {
+                    String tag = t.isJsonPrimitive() ? t.getAsString().replace(",", " ").trim() : "";
+                    if (!tag.isEmpty() && tag.length() <= 40 && !tag.toLowerCase(Locale.ROOT).startsWith("reforge-") && tags.size() < 20) tags.add(tag);
+                }
+                int bracket = d.has("bracketIntent") && d.get("bracketIntent").isJsonPrimitive() ? d.get("bracketIntent").getAsInt() : 0;
+                String notes = text(d, "notes");
+                setMeta(name, tags, notes.length() > 4000 ? notes.substring(0, 4000) : notes, bracket >= 1 && bracket <= 5 ? bracket : 0);
+                JsonObject done = new JsonObject();
+                done.addProperty("from", from);
+                done.addProperty("name", name);
+                done.addProperty("unknown", preview(list.toString(), name).json().get("unknown").getAsInt());
+                imported.add(done);
+            } catch (RuntimeException ex) {
+                JsonObject fail = new JsonObject();
+                fail.addProperty("name", from);
+                fail.addProperty("reason", String.valueOf(ex.getMessage()));
+                failed.add(fail);
+            }
+        }
+        JsonObject o = new JsonObject();
+        o.add("imported", imported);
+        o.add("failed", failed);
+        return o;
+    }
+
+    private static JsonArray single(JsonElement deck) {
+        JsonArray a = new JsonArray();
+        a.add(deck);
+        return a;
+    }
+
+    private static String text(JsonObject o, String key) {
+        JsonElement e = o.get(key);
+        return e == null || !e.isJsonPrimitive() ? "" : e.getAsString();
+    }
+
+    private static void section(StringBuilder list, String title, JsonObject deck, String key) {
+        if (!deck.has(key) || !deck.get(key).isJsonArray() || deck.getAsJsonArray(key).isEmpty()) return;
+        if (list.length() > 0) list.append('\n');
+        list.append(title).append('\n');
+        for (JsonElement c : deck.getAsJsonArray(key)) {
+            JsonObject card = c.getAsJsonObject();
+            String name = text(card, "name").replaceAll("[\\r\\n]", " ").trim();
+            int qty = card.has("quantity") && card.get("quantity").isJsonPrimitive() ? Math.max(1, card.get("quantity").getAsInt()) : 1;
+            if (!name.isEmpty()) list.append(qty).append(' ').append(name).append('\n');
+        }
+    }
+
+    /** The name itself, or "name (Central)", "name (Central 2)"… when a deck already has it. */
+    private static String freeName(String name) {
+        if (!mine().contains(name)) return name;
+        for (int i = 1; ; i++) {
+            String candidate = name + (i == 1 ? " (Central)" : " (Central " + i + ")");
+            if (!mine().contains(candidate)) return candidate;
+        }
     }
 
     private static String invalidName(String name) {

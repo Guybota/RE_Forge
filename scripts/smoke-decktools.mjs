@@ -302,6 +302,28 @@ async function run(port) {
     'a cached commander page answers while EDHREC is down');
   const down = await ask({ type: 'comboDetail', requestId: 10, href: group.combos[0].href }, 'servicesError', 'comboDetail');
   assert.deepEqual([down.type, down.unavailable], ['servicesError', true], 'a failing service is unavailable');
+
+  // The old Central library: names never replace a deck, metadata comes along, unknown cards are counted.
+  assert.equal((await ask({ type: 'hello' }, 'engineInfo')).centralMigrated, false);
+  const card = (name, quantity = 1) => ({ name, quantity });
+  const centralLibrary = { version: 1, decks: [
+    { id: '1', name: 'Rohan', format: 'commander', commanders: [card('Éowyn, Shieldmaiden')], cards: [card('Sol Ring'), card('Plains', 98)],
+      tags: ['angels', 'a,b', 'reforge-won-1'], notes: 'Linha 1\nLinha 2', bracketIntent: 2, createdAt: '', updatedAt: '' },
+    { id: '2', name: 'Bad/Name', format: 'commander', commanders: [card("Atraxa, Praetors' Voice")], cards: [card('Sol Ring'), card('Not A Real Card')],
+      createdAt: '', updatedAt: '' },
+    { id: '3', name: 'Empty', format: 'commander', commanders: [], cards: [], createdAt: '', updatedAt: '' },
+  ] };
+  const migrated = await ask({ type: 'importCentral', json: JSON.stringify(centralLibrary), migration: true }, 'centralImport');
+  assert.deepEqual(migrated.imported.map((d) => [d.from, d.name, d.unknown]), [['Rohan', 'Rohan (Central)', 0], ['Bad/Name', 'Bad-Name', 1]]);
+  assert.deepEqual(migrated.failed.map((d) => d.name), ['Empty'], 'a deck without cards is reported, not saved');
+  const kept = await ask({ type: 'getDeck', name: 'Rohan' }, 'deckDetail');
+  assert.ok(kept.lines.some((l) => l.nameEn === 'Arcane Signet'), 'the existing Rohan is untouched');
+  const brought = await ask({ type: 'getDeck', name: 'Rohan (Central)' }, 'deckDetail');
+  assert.deepEqual([brought.tags, brought.notes, brought.bracketIntent, brought.cards], [['a b', 'angels'], 'Linha 1\nLinha 2', 2, 100]);
+  assert.equal((await ask({ type: 'hello' }, 'engineInfo')).centralMigrated, true, 'the migration is remembered');
+  const again = await ask({ type: 'importCentral', json: JSON.stringify(centralLibrary.decks[0]) }, 'centralImport');
+  assert.deepEqual([again.migration, again.imported[0].name], [false, 'Rohan (Central 2)'], 'one deck by hand, another free name');
+  assert.match((await ask({ type: 'importCentral', json: 'not json' }, 'error')).message, /Not a Central library/);
   engine.kill();
 
   let live = 'skipped (SMOKE_OFFLINE)';
@@ -321,6 +343,6 @@ async function run(port) {
 
   clearTimeout(timeout);
   fixture.close();
-  console.log(`OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket, text edits, prices, cheaper printings, combos, complete combos, other decks, cards by name, rulings; live: ${live}`);
+  console.log(`OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket, text edits, prices, cheaper printings, combos, complete combos, other decks, cards by name, rulings, Central library import; live: ${live}`);
   process.exit(0);
 }

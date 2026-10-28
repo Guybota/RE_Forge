@@ -112,6 +112,12 @@ Cada fase: ramo `feat/deck-tools-<fase>`, compila, testes de fumo, verificado no
   substituir), com etiquetas/notas/bracket. Marca feita em `reforge.properties` para não repetir.
 - Alternativa manual: `ImportDeck` aceita o JSON exportado pela Central.
 - Testado só com perfis temporários, nunca com `%APPDATA%\RE-Forge`.
+- **Feito** (28/10/2026, `feat/deck-tools-migrate`): o motor importa (`importCentral`) e guarda a marca no
+  `reforge.properties`; o desktop lê a origem antiga com uma página em branco (o código da Central não corre, por isso
+  uma biblioteca vazia não é semeada com exemplos); a UI pede-o uma vez e mostra o resultado no início. Importar aceita
+  o JSON exportado (biblioteca, lista ou um deck). Os decks semente entram se estiverem na biblioteca, como decidido.
+  Testes: Electron real com perfil temporário, motor com nomes repetidos/inválidos, cartas desconhecidas e deck vazio.
+  Nota: `engine:smoke-settings` já falhava na `main` antes deste trabalho (o turno fica no UPKEEP).
 
 ### 7. Remoção da Central
 - Apagar `central/`, `desktop/central-launcher.cjs`, `central-server.cjs`, IPC `reforge:open-central`,

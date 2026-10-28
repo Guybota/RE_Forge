@@ -7,6 +7,7 @@ import { HOME_MODES, ModeIcon } from './homeModes';
 import { cardImage } from './images';
 import './home.css';
 import { centralUrl } from './centralBridge';
+import { CentralImportResult } from './ImportDeck';
 
 export type HomeDestination = PlayableMode | 'decks' | 'rules' | 'skin' | 'language';
 
@@ -23,6 +24,9 @@ export function Home({ engine, onPick }: { engine: Engine; onPick: (destination:
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [centralBusy, setCentralBusy] = useState(false);
   const [centralFailed, setCentralFailed] = useState(false);
+  const [migrationSeen, setMigrationSeen] = useState(false);
+  const migration = engine.centralImport?.migration && engine.centralImport.imported.length + engine.centralImport.failed.length > 0 && !migrationSeen
+    ? engine.centralImport : null;
   const central = centralUrl();
   const openCentral = async () => {
     setCentralBusy(true); setCentralFailed(false);
@@ -52,6 +56,13 @@ export function Home({ engine, onPick }: { engine: Engine; onPick: (destination:
         <button className="btn btn--ghost library-home__settings" type="button" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>{t('settings')}</button>
       </header>
       {centralFailed && <p role="alert" className="error">{t('centralUnavailable')}</p>}
+      {migration && <section className="library-home__migration" aria-label={t('centralTools')}>
+        <CentralImportResult result={migration} />
+        <span className="decks__new">
+          <button type="button" className="btn btn--primary" onClick={() => { setMigrationSeen(true); onPick('decks'); }}>{t('decks')}</button>
+          <button type="button" className="btn btn--ghost" onClick={() => setMigrationSeen(true)}>{t('close')}</button>
+        </span>
+      </section>}
       <div className="library-home__body">
         <nav className="library-home__rail" aria-label={t('gameModes')}>
           {HOME_MODES.filter(mode => mode.id !== 'online').map(mode => (

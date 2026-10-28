@@ -1,7 +1,7 @@
 // Decklist files (MTGO .dek, Forge .dck, text) and suggestion line fixes. Pure, no engine needed.
 // Run with: npm run ui:smoke-import
 import assert from 'node:assert/strict';
-import { fileToDecklist, replaceUnknownLine } from '../ui/src/decklistFiles.ts';
+import { fileToDecklist, isCentralLibrary, replaceUnknownLine } from '../ui/src/decklistFiles.ts';
 
 const dek = `<?xml version="1.0" encoding="utf-8"?>
 <Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -40,4 +40,13 @@ assert.equal(replaceUnknownLine(list, 'Swords to Plowshare', 'Swords to Plowshar
 assert.equal(replaceUnknownLine('Atraxa\r\n', 'Atraxa', "Atraxa, Praetors' Voice"), "1 Atraxa, Praetors' Voice\r\n", 'no count means one, CRLF kept');
 assert.equal(replaceUnknownLine(list, 'Missing', 'X'), list, 'unmatched text unchanged');
 
-console.log('OK: MTGO .dek, Forge .dck, text files and suggestion line fixes');
+// Central library exports (JSON): the whole library, a list of decks or one deck; anything else is not one.
+const deck = { id: 'a', name: 'A', commanders: [], cards: [{ name: 'Sol Ring', quantity: 1 }] };
+assert.ok(isCentralLibrary(JSON.stringify({ version: 1, decks: [deck] })));
+assert.ok(isCentralLibrary(JSON.stringify([deck, deck])));
+assert.ok(isCentralLibrary(JSON.stringify(deck)));
+assert.ok(!isCentralLibrary('1 Sol Ring'));
+assert.ok(!isCentralLibrary('[]'), 'an empty list is not a library');
+assert.ok(!isCentralLibrary(JSON.stringify({ decks: [{ name: 'no cards' }] })));
+
+console.log('OK: MTGO .dek, Forge .dck, text files, Central library JSON and suggestion line fixes');

@@ -56,6 +56,8 @@ export type CampaignRequest = { type: 'campaign'; action: 'list' | 'create' | 'o
 
 export type EngineInfo = {
   type: 'engineInfo';
+  /** The old Central library was already brought into the Forge decks (desktop migration). */
+  centralMigrated?: boolean;
   version: string;
   relayAvailable: boolean;
   cards: number;
@@ -318,6 +320,9 @@ export type DeckServicesReply =
   | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'deckSpellbook' | 'cardRulings';
       unavailable: boolean; message: string };
 
+/** Decks brought in from a Central library (the desktop migration, or a JSON export opened by hand). */
+export type CentralImport = { type: 'centralImport'; migration: boolean; imported: { from: string; name: string; unknown: number }[]; failed: { name: string; reason: string }[] };
+
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
 type EngineMessage =
@@ -339,6 +344,7 @@ type EngineMessage =
   | DeckText
   | DeckDetail
   | DeckServicesReply
+  | CentralImport
   | CardResults
   | Printings
   | { type: 'error'; message: string; code?: string };
@@ -369,6 +375,7 @@ export type ClientMessage =
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }
   | { type: 'cardRulings'; requestId: number; name: string }
+  | { type: 'importCentral'; json: string; migration?: boolean }
   | { type: 'comboDetail'; requestId: number; href: string }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number;
       /** Advanced: words of the rules text / type line (English or translated) and one compared number. */
@@ -399,6 +406,7 @@ export type EngineHandlers = {
   onDeckText: (text: DeckText) => void;
   onDeckDetail: (detail: DeckDetail) => void;
   onDeckServices: (reply: DeckServicesReply) => void;
+  onCentralImport: (result: CentralImport) => void;
   onCardResults: (results: CardResults) => void;
   onPrintings: (printings: Printings) => void;
   onState: (state: GameState) => void;
@@ -459,6 +467,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckPreview': h.onDeckPreview(msg); break;
       case 'deckText': h.onDeckText(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;
+      case 'centralImport': h.onCentralImport(msg); break;
       case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
       case 'deckLines': case 'cardsByName': case 'deckSpellbook': case 'cardRulings':
         h.onDeckServices(msg); break;

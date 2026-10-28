@@ -1,10 +1,6 @@
 /** The Central iframe bridge carries a list, never a request to save/replace a deck. */
 export type CentralDeck = { id: string; name: string; text: string };
 
-declare global {
-  interface Window { reforge?: { openCentral: () => Promise<string> } }
-}
-
 export function parseCentralDeck(value: unknown): CentralDeck | null {
   if (!value || typeof value !== 'object' || !('type' in value) || value.type !== 'central:deck' || !('deck' in value)) return null;
   const deck = value.deck;

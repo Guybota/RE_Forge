@@ -185,6 +185,19 @@ public final class EngineServer extends WebSocketServer {
                 c.session.send(problem == null ? decks() : error(problem));
             });
             case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings" -> services(c, msg);
+            case "importCentral" -> c.actions.execute(() -> {
+                // The old Central library: once automatically on desktop ("migration"), or a JSON export by hand.
+                try {
+                    JsonObject result = DeckImporter.importCentral(string(msg, "json"));
+                    result.addProperty("type", "centralImport");
+                    result.addProperty("migration", msg.has("migration") && msg.get("migration").getAsBoolean());
+                    if (result.get("migration").getAsBoolean()) settings.markCentralMigrated();
+                    c.session.send(result);
+                    c.session.send(decks());
+                } catch (IllegalArgumentException | java.io.IOException e) {
+                    c.session.send(error(e.getMessage()));
+                }
+            });
             case "setDeckMeta" -> c.actions.execute(() -> {
                 List<String> tags = new ArrayList<>();
                 if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
@@ -479,6 +492,7 @@ public final class EngineServer extends WebSocketServer {
         o.addProperty("imageBase", imageBase);
         o.addProperty("language", settings.language());
         o.addProperty("skin", settings.skin());
+        o.addProperty("centralMigrated", settings.centralMigrated());
         o.add("phaseStops", settings.phaseStopsJson());
         JsonArray phaseOptions = new JsonArray();
         Settings.PHASES.forEach(phaseOptions::add);

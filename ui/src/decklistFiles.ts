@@ -3,6 +3,16 @@
 const ENTITIES: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' };
 const decode = (s: string) => s.replace(/&(amp|quot|apos|lt|gt);/g, (_, e: string) => ENTITIES[e]);
 
+/** A deck library exported by the old MTG Central (JSON: {version, decks}, a list of decks, or one deck). */
+export function isCentralLibrary(content: string): boolean {
+  let value: unknown;
+  try { value = JSON.parse(content); } catch { return false; }
+  const isDeck = (d: unknown) => !!d && typeof d === 'object' && Array.isArray((d as { cards?: unknown }).cards);
+  if (Array.isArray(value)) return value.length > 0 && value.every(isDeck);
+  if (value && typeof value === 'object' && Array.isArray((value as { decks?: unknown }).decks)) return (value as { decks: unknown[] }).decks.every(isDeck);
+  return isDeck(value);
+}
+
 /**
  * MTGO's .dek is XML (sideboard cards flagged; Commander puts the commander there), Forge's .dck has
  * [Commander] / [Main] / [Sideboard] sections with "qty Name|SET|art" lines. Anything else is read as text.

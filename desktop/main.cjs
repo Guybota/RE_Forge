@@ -145,6 +145,12 @@ async function createWindow() {
     }
     return central.open();
   });
+  // Once: the old Central library for the UI to bring into the Forge decks (the engine remembers it was done).
+  if (ipcMain) ipcMain.handle('reforge:central-library', async event => {
+    if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('Invalid caller.');
+    const centralPort = Number(process.env.RE_FORGE_CENTRAL_PORT ?? 4317);
+    return require('./central-library.cjs').readCentralLibrary({ BrowserWindow, http: require('node:http'), port: centralPort });
+  });
   if (isDev) {
     await win.loadURL(`http://localhost:5173/?enginePort=${port}`);
   } else {
