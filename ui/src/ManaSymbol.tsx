@@ -8,7 +8,7 @@ export function manaClassOf(symbol: string): string {
   const special: Record<string, string> = {
     T: 'tap', Q: 'untap', E: 'e', S: 's', CHAOS: 'chaos',
     PW: 'loyalty-up', D: 'd', H: 'h', L: 'l',
-    INFINITY: 'infinity', ∞: 'infinity',
+    INFINITY: 'infinity', '∞': 'infinity',
   };
   if (special[s.toUpperCase()]) return special[s.toUpperCase()];
   if (special[s]) return special[s];
