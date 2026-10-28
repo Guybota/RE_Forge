@@ -19,6 +19,13 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 
 ## Estado (feito)
 
+Inspeção durante a partida (28/10/2026, `feat/game-card-description`): secção Mostrar/Ocultar texto da carta,
+fechada inicialmente, com nome, custo, tipo e regras no idioma escolhido (texto já traduzido pelo Forge;
+inglês quando não existe tradução). Mantém marcadores e explicações das habilidades. Clicar/selecionar o texto
+não fecha a inspeção; expansão nativa acessível por teclado. Build UI e `ui:smoke-design` passaram.
+Verificado no browser com partida nativa e dados temporários: Anjo Serra e Raio em português, abrir/ocultar,
+Escape, 1280×720 e 844×390, incluindo texto a 200% sem overflow horizontal.
+
 Integração completa de `central/deck-tools` (28/10/2026, `feat/integrate-central-deck-tools`):
 - Os 18 commits posteriores ao PR #2, até `2d8a14d`, foram integrados sem conflitos: pesquisa de cartas,
   navegação nos decks, análise com bracket guardado, combos ilustrados, inspeção de cartas e símbolos de mana.

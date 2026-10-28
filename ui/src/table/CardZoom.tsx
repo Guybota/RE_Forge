@@ -73,14 +73,26 @@ export function CardZoomProvider({ children, engine }: { children: ReactNode; en
 const costLike = (detail: string) => /^[{\d]/.test(detail);
 const WITH_COST = new Set(['WARD', 'EQUIP']);
 
-/** What the card has right now: its counters, and its keywords with a short explanation (Forge's reminder text otherwise). */
+/** Localized rules and what the card has right now: counters and keyword explanations. */
 function CardInfo({ card }: { card: CardState }) {
   const t = useT();
   const counters = Object.entries(card.counters ?? {});
   const keywords = card.keywords ?? [];
-  if (!counters.length && !keywords.length) return null;
   return (
-    <aside className="zoom__info">
+    <aside className="zoom__info" onClick={(e) => e.stopPropagation()}>
+      <details className="zoom__description">
+        <summary>
+          <span className="zoom__show-text">{t('zoomShowText')}</span>
+          <span className="zoom__hide-text">{t('zoomHideText')}</span>
+        </summary>
+        <div className="zoom__description-body">
+          <h2>{card.name}</h2>
+          {card.cost && <p><ManaCost cost={card.cost} /></p>}
+          {card.type && <p className="zoom__type">{card.type}</p>}
+          {card.text && <p className="zoom__text"><SymbolText text={card.text} /></p>}
+          {card.power !== undefined && <p>{card.power}/{card.toughness}</p>}
+        </div>
+      </details>
       {counters.length > 0 && <ul className="zoom__counters" aria-label={t('zoomCounters')}>
         {counters.map(([name, n]) => {
           const key = `counter_${name}`;
@@ -118,7 +130,7 @@ function ZoomDialog({ card, onClose }: { card: CardState; onClose: () => void })
       onContextMenu={(e) => { e.preventDefault(); onClose(); }} onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <div className="zoom__body">
         <div className="zoom__card"><Preview key={card.id} card={card} /></div>
-        <CardInfo card={card} />
+        <CardInfo key={card.id} card={card} />
       </div>
     </dialog>
   );
