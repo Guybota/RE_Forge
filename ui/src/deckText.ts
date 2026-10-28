@@ -138,6 +138,49 @@ function parseSections(text: string): Record<Section, Parsed[]> {
   return out;
 }
 
+function writeSections(sections: Record<Section, Parsed[]>): string {
+  const parts: string[] = [];
+  for (const [title, cards] of [
+    ['Commander', sections.commander],
+    ['Deck', sections.deck],
+    ['Sideboard', sections.sideboard],
+    ['Maybeboard', sections.maybeboard],
+  ] as const) {
+    const stacked = stackCards(cards);
+    if (!stacked.length) continue;
+    if (parts.length) parts.push('');
+    parts.push(title, ...stacked.map(written));
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Makes one copy the commander. Existing commanders move into the deck first unless `join` is set
+ * (a compatible partner). The printing stays the same.
+ */
+export function promoteCommander(
+  text: string,
+  nameEn: string,
+  from: { set?: string; number?: string },
+  only: string,
+  join = false,
+): string {
+  const fromSec: Section = only === 'commander' || only === 'sideboard' || only === 'maybeboard' ? only : 'deck';
+  const sections = parseSections(text);
+  const src = sections[fromSec];
+  const i = src.findIndex((p) => p.name === nameEn && p.set === from.set && p.number === from.number);
+  if (i < 0) return text;
+  const card: Parsed = { ...src[i], qty: 1 };
+  if (src[i].qty > 1) src[i] = { ...src[i], qty: src[i].qty - 1 };
+  else src.splice(i, 1);
+  if (!join && sections.commander.length) {
+    sections.deck.push(...sections.commander);
+    sections.commander = [];
+  }
+  sections.commander.push(card);
+  return writeSections(sections);
+}
+
 function stackCards(cards: Parsed[]) {
   const map = new Map<string, Parsed>();
   for (const p of cards) {
@@ -161,19 +204,7 @@ export function mergeDecklists(current: string, incoming: string): string {
   for (const section of ['deck', 'sideboard', 'maybeboard'] as const) {
     for (const p of add[section]) base[section].push(p);
   }
-  const parts: string[] = [];
-  for (const [title, cards] of [
-    ['Commander', base.commander],
-    ['Deck', base.deck],
-    ['Sideboard', base.sideboard],
-    ['Maybeboard', base.maybeboard],
-  ] as const) {
-    const stacked = stackCards(cards);
-    if (!stacked.length) continue;
-    if (parts.length) parts.push('');
-    parts.push(title, ...stacked.map(written));
-  }
-  return parts.join('\n');
+  return writeSections(base);
 }
 
 /** Adds one copy of each card to the main deck and takes one copy of each cut out of it. */

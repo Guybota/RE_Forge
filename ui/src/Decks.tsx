@@ -3,7 +3,7 @@ import { DeckCards, type BestPrice, type FacePrice } from './DeckCards';
 import { DeckIntoImport } from './DeckIntoImport';
 import { reply, useRequest } from './deckRequests';
 import { deckKey } from './deckSelection';
-import { demoteCommander, moveCopy, removeCopy, swapPrinting } from './deckText';
+import { demoteCommander, moveCopy, promoteCommander, removeCopy, swapPrinting } from './deckText';
 import type { DeckDetail, DeckLists, DeckPreview, DeckSummary } from './engine';
 import { PrintingsDialog } from './PrintingsDialog';
 import { useT, type MessageKey } from './i18n';
@@ -204,6 +204,12 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                 onChangePrinting={owned ? setPrintingOf : undefined}
                 onRemove={owned ? (line) => line.nameEn && saveList(removeCopy(detail.text, line.nameEn, line, sectionOf(line))) : undefined}
                 onDemote={owned ? (line) => line.nameEn && saveList(demoteCommander(detail.text, line.nameEn, line)) : undefined}
+                onPromote={owned ? (line) => {
+                  if (!line.nameEn) return;
+                  const cmds = detail.lines.filter((l) => l.group === 'commander');
+                  const join = cmds.length === 1 && !!cmds[0].canPartner && !!line.canPartner;
+                  saveList(promoteCommander(detail.text, line.nameEn, line, sectionOf(line), join));
+                } : undefined}
                 onMove={owned ? (line, to) => line.nameEn && saveList(moveCopy(detail.text, line.nameEn, line, sectionOf(line), to)) : undefined} />}
               {printingOf?.nameEn && <PrintingsDialog title={printingOf.name ?? printingOf.nameEn} printings={engine.printings?.name === printingOf.nameEn ? engine.printings.printings : null}
                 current={printingOf.imageKey ?? ''} onClose={() => setPrintingOf(null)} onRetry={() => send({ type: 'getPrintings', name: printingOf.nameEn! })}

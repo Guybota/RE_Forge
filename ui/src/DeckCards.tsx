@@ -68,7 +68,7 @@ const BOARDS: { id: 'sideboard' | 'maybeboard'; label: MessageKey }[] = [
 ];
 const zoneOf = (l: Line) => l.maybeboard ? 'maybeboard' : l.sideboard ? 'sideboard' : null;
 
-export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onMove }: {
+export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onPromote, onMove }: {
   preview: Omit<DeckPreview, 'type'>;
   onCommander?: (nameEn: string) => void;
   onReplace?: (requested: string, nameEn: string) => void;
@@ -76,11 +76,12 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
   faces?: boolean;
   prices?: Map<string, FacePrice>;
   best?: Map<string, BestPrice>;
-  /** Owned decks can change a printing, drop a card, move it, or stop it being the commander. */
+  /** Owned decks can change a printing, drop a card, move it, or set / clear the commander. */
   editable?: boolean;
   onChangePrinting?: (line: Line) => void;
   onRemove?: (line: Line) => void;
   onDemote?: (line: Line) => void;
+  onPromote?: (line: Line) => void;
   onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
 }) {
   const t = useT();
@@ -191,13 +192,13 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
       {picture && anchor && faces && !menu && <CardBeside anchor={anchor} src={picture} />}
       {picture && !faces && <img className="import__picture" src={picture} alt="" aria-hidden="true" />}
       {menu && <CardMenu line={menu.line} x={menu.x} y={menu.y} editable={editable} onClose={() => setMenu(null)}
-        onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onMove={onMove}
+        onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onPromote={onPromote} onMove={onMove}
         onView={() => { if (menu.line.imageKey) zoom(cardForInspection(menu.line)); }} />}
     </section>
   );
 }
 
-function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, onDemote, onMove, onView }: {
+function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, onDemote, onPromote, onMove, onView }: {
   line: Line;
   x: number;
   y: number;
@@ -206,12 +207,15 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
   onChangePrinting?: (line: Line) => void;
   onRemove?: (line: Line) => void;
   onDemote?: (line: Line) => void;
+  onPromote?: (line: Line) => void;
   onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
   onView: () => void;
 }) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const canLead = editable && !!onPromote && line.canCommand && line.group !== 'commander' && !!line.nameEn;
+  const canDemote = editable && !!onDemote && line.group === 'commander';
   useEffect(() => {
     const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
     const onKey = (e: KeyboardEvent) => {
@@ -223,7 +227,8 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
       if (editable && key === 'p' && line.nameEn) { e.preventDefault(); done(() => onChangePrinting?.(line)); }
       else if (key === 'n') { e.preventDefault(); void navigator.clipboard.writeText(line.name ?? line.nameEn ?? '').then(() => setCopied(true)).catch(() => {}); }
       else if (editable && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); done(() => onRemove?.(line)); }
-      else if (editable && key === 'd' && line.group === 'commander') { e.preventDefault(); done(() => onDemote?.(line)); }
+      else if (canDemote && key === 'd') { e.preventDefault(); done(() => onDemote?.(line)); }
+      else if (canLead && key === 'c') { e.preventDefault(); done(() => onPromote?.(line)); }
       else if (movable && key === 's' && zone !== 'sideboard') { e.preventDefault(); done(() => onMove?.(line, 'sideboard')); }
       else if (movable && key === 'm' && zone !== 'maybeboard') { e.preventDefault(); done(() => onMove?.(line, 'maybeboard')); }
       else if (movable && key === 'b' && zone !== 'deck') { e.preventDefault(); done(() => onMove?.(line, 'deck')); }
@@ -232,7 +237,7 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
     window.addEventListener('mousedown', close);
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', onKey); };
-  }, [editable, line, onChangePrinting, onClose, onDemote, onMove, onRemove, onView]);
+  }, [canDemote, canLead, editable, line, onChangePrinting, onClose, onDemote, onMove, onPromote, onRemove, onView]);
   useEffect(() => {
     const place = () => {
       const el = ref.current;
@@ -255,11 +260,12 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
     <div ref={ref} className="deck-face__options" role="menu" style={{ left: x, top: y }}>
       {editable && line.nameEn && <button type="button" role="menuitem" onClick={() => act(() => onChangePrinting?.(line))}>{t('menuChangePrinting')}<kbd>P</kbd></button>}
       <button type="button" role="menuitem" onClick={copy}>{t(copied ? 'copied' : 'menuCopyName')}<kbd>N</kbd></button>
+      {canLead && <button type="button" role="menuitem" title={t('makeCommanderHint')} onClick={() => act(() => onPromote?.(line))}>{t('menuMakeCommander')}<kbd>C</kbd></button>}
+      {canDemote && <button type="button" role="menuitem" onClick={() => act(() => onDemote?.(line))}>{t('menuRemoveCommander')}<kbd>D</kbd></button>}
       {editable && line.group !== 'commander' && line.nameEn && zone !== 'sideboard' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'sideboard'))}>{t('menuToSideboard')}<kbd>S</kbd></button>}
       {editable && line.group !== 'commander' && line.nameEn && zone !== 'maybeboard' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'maybeboard'))}>{t('menuToMaybeboard')}<kbd>M</kbd></button>}
       {editable && line.group !== 'commander' && line.nameEn && zone !== 'deck' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'deck'))}>{t('menuToDeck')}<kbd>B</kbd></button>}
       {editable && <button type="button" role="menuitem" className="is-danger" onClick={() => act(() => onRemove?.(line))}>{t('menuRemove')}<kbd>DEL</kbd></button>}
-      {editable && line.group === 'commander' && <button type="button" role="menuitem" onClick={() => act(() => onDemote?.(line))}>{t('menuRemoveCommander')}<kbd>D</kbd></button>}
       <button type="button" role="menuitem" onClick={() => act(onView)}>{t('menuViewCard')}<kbd>I</kbd></button>
       {buy && <a role="menuitem" href={buy} target="_blank" rel="noreferrer" onClick={onClose}>{t('menuBuy')}</a>}
     </div>
