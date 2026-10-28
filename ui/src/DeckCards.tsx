@@ -110,12 +110,13 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
   const filtering = faces && (cardQuery.trim() !== '' || filterColors !== 0 || filterType.trim() !== '' || filterText.trim() !== '' || filterCmc >= 0);
   const visible = filtering ? preview.lines.filter((l) => matchesDeckCard(l, cardQuery, filterColors, filterType, filterText, filterCmc)) : preview.lines;
   const loose = visible.filter((l) => !l.group && !zoneOf(l));
+  const inspectSequence = visible.filter((l) => l.imageKey || l.nameEn).map(inspect);
   const picture = hovered?.imageKey ? cardImage(hovered.imageKey, 'full') : null;
   const line = (l: Line, i: number) => {
     const lead = onCommander && l.canCommand && l.group !== 'commander' && l.nameEn;
     const fixes = onReplace && l.requested && l.suggestions?.length ? l.suggestions : null;
     return (
-      <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} key={i}
+      <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} sequence={inspectSequence} key={i}
         className={`import__line import__line--${l.status}${lead || fixes ? ' import__line--actions' : ''}`} title={l.message ?? l.text}
         onMouseEnter={(e) => show(l, e.currentTarget)} onMouseLeave={hide} onFocus={(e) => show(l, e.currentTarget)} onBlur={hide}>
         <span className="import__text">{l.group ? <><span className="import__qty">{l.qty}</span> {l.name}</> : l.text}</span>
@@ -169,7 +170,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
                   const cheaper = key ? best?.get(key) : undefined;
                   const id = `${g.id}:${key}:${i}`;
                   return (
-                    <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} key={id} className="deck-face-wrap"
+                    <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} sequence={inspectSequence} key={id} className="deck-face-wrap"
                       onMouseEnter={(e) => show(l, e.currentTarget)} onMouseLeave={hide}>
                       <button type="button" className="deck-face" aria-label={l.name ?? l.text}
                         onFocus={(e) => show(l, e.currentTarget)} onBlur={hide}>
@@ -200,7 +201,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
       {picture && !faces && <img className="import__picture" src={picture} alt="" aria-hidden="true" />}
       {menu && <CardMenu line={menu.line} x={menu.x} y={menu.y} editable={editable} onClose={() => setMenu(null)}
         onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onPromote={onPromote} onMove={onMove}
-        onView={() => { if (menu.line.imageKey || menu.line.nameEn) zoom(inspect(menu.line)); }} />}
+        onView={() => { if (menu.line.imageKey || menu.line.nameEn) zoom(inspect(menu.line), inspectSequence); }} />}
     </section>
   );
 }

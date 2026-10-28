@@ -134,7 +134,6 @@ export function RulesScreen({ engine, onBack }: { engine: Engine; onBack: () => 
       </div>
       {picked && open != null && (
         <CardInspectDialog
-          key={picked.nameEn}
           card={{ ...cardForInspection(picked), nameEn: picked.nameEn }}
           engine={engine}
           index={open}

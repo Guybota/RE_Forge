@@ -5,13 +5,15 @@ import './inspection.css';
 type InspectableProps = HTMLAttributes<HTMLElement> & {
   as?: 'li' | 'article' | 'button' | 'div' | 'span';
   card: CardState | null | undefined;
+  /** When set, the inspect modal can step through these cards. */
+  sequence?: CardState[];
   disabled?: boolean;
   type?: 'button';
 };
 
 /** Keep existing list/article semantics; add a keyboard inspection stop without nesting buttons. */
-export function InspectableCard({ as = 'article', card, children, title, onKeyDown, ...props }: InspectableProps) {
-  const inspection = useCardInspection(card);
+export function InspectableCard({ as = 'article', card, sequence, children, title, onKeyDown, ...props }: InspectableProps) {
+  const inspection = useCardInspection(card, sequence);
   const available = card && !card.hidden;
   return createElement(as, {
     ...props,

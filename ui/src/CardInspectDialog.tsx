@@ -50,10 +50,19 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   const [combosOpen, setCombosOpen] = useState(false);
   const [rulingsOpen, setRulingsOpen] = useState(false);
   const nameEn = card.nameEn;
+  const panelRef = useRef<HTMLDivElement>(null);
   const tags = useMemo(() => cardThemeLabels(nameEn), [nameEn, lang]);
   const picture = card.imageKey ? cardImage(card.imageKey, 'full') : card.imageUrl ?? null;
   const buy = `https://www.cardmarket.com/en/Magic/Products/Search?searchString=${encodeURIComponent(nameEn)}`;
   const canStep = onStep != null && index != null && total != null && total > 1;
+
+  useEffect(() => {
+    setPriceOpen(false);
+    setVersionsOpen(false);
+    setCombosOpen(false);
+    setRulingsOpen(false);
+    if (panelRef.current) panelRef.current.scrollTop = 0;
+  }, [nameEn, card.set, card.number]);
 
   // Translated oracle text ships with rulings; load once so the panel is not English-only.
   const rulingsReq = useRequest((requestId) => {
@@ -110,16 +119,16 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}>
       {canStep && <>
-        <button type="button" className="btn btn--ghost rules-card__step rules-card__step--prev" aria-label={t('previousCard')}
+        <button type="button" className="btn btn--ghost card-inspect__step card-inspect__step--prev" aria-label={t('previousCard')}
           disabled={index! <= 0} onClick={() => onStep!(-1)} />
-        <button type="button" className="btn btn--ghost rules-card__step rules-card__step--next" aria-label={t('nextCard')}
+        <button type="button" className="btn btn--ghost card-inspect__step card-inspect__step--next" aria-label={t('nextCard')}
           disabled={index! >= total! - 1} onClick={() => onStep!(1)} />
       </>}
       <div className="card-inspect__body" onClick={(e) => e.stopPropagation()}>
         <div className="card-inspect__art">
-          {picture ? <img src={picture} alt={card.name ?? nameEn} /> : <div className="card-inspect__blank"><span>{card.name ?? nameEn}</span></div>}
+          {picture ? <img key={picture} src={picture} alt={card.name ?? nameEn} /> : <div className="card-inspect__blank"><span>{card.name ?? nameEn}</span></div>}
         </div>
-        <div className="card-inspect__panel">
+        <div className="card-inspect__panel" ref={panelRef}>
           <header className="card-inspect__head">
             <h2 id="card-inspect-title">{card.name ?? nameEn}</h2>
             <button type="button" className="btn btn--ghost" onClick={onClose}>{t('close')}</button>

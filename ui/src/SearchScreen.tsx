@@ -266,7 +266,6 @@ export function SearchScreen({ engine, onBack }: { engine: Engine; onBack: () =>
       {hover && <CardBeside anchor={hover.anchor} src={hover.src} />}
       {picked && open != null && (
         <CardInspectDialog
-          key={`${picked.nameEn}:${picked.set}:${picked.number}`}
           card={{ ...cardForInspection(picked), nameEn: picked.nameEn }}
           engine={engine}
           index={open}

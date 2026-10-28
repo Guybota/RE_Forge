@@ -33,7 +33,7 @@ export function cardForInspection(card: {
 }
 
 /** Gestures shared by the table, catalog, deck lists and shops. Never calls the card's primary action. */
-export function useCardInspection(card: CardState | null | undefined) {
+export function useCardInspection(card: CardState | null | undefined, sequence?: CardState[]) {
   const zoom = useContext(CardZoom);
   const t = useT();
   const press = useRef<{ timer: number; x: number; y: number; pointer: number } | null>(null);
@@ -68,7 +68,7 @@ export function useCardInspection(card: CardState | null | undefined) {
   const inspect = (source: HTMLElement) => {
     if (!card || card.hidden) return;
     source.focus({ preventScroll: true });
-    zoom(card);
+    zoom(card, sequence);
   };
   return {
     'aria-description': t('inspectCardHint'),

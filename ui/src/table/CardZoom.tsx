@@ -24,17 +24,47 @@ export function Preview({ card }: { card: CardState }) {
   );
 }
 
+const sameInspect = (a: CardState, b: CardState) =>
+  (a.nameEn && b.nameEn && a.nameEn === b.nameEn && (a.set ?? '') === (b.set ?? '') && (a.number ?? '') === (b.number ?? ''))
+  || (!!a.imageKey && a.imageKey === b.imageKey)
+  || (a.id >= 0 && a.id === b.id);
+
 /** Shows a card big: right click on desktop, long press on touch. Catalog cards open the rich inspect modal. */
-export const CardZoom = createContext<(card: CardState) => void>(() => {});
+export type CardZoomOpen = (card: CardState, sequence?: CardState[]) => void;
+export const CardZoom = createContext<CardZoomOpen>(() => {});
+
+type ZoomState = { card: CardState; sequence: CardState[]; index: number };
 
 export function CardZoomProvider({ children, engine }: { children: ReactNode; engine?: Engine | null }) {
-  const [card, setCard] = useState<CardState | null>(null);
-  const rich = card?.nameEn && engine;
+  const [zoom, setZoom] = useState<ZoomState | null>(null);
+  const open: CardZoomOpen = (card, sequence) => {
+    const seq = (sequence ?? [card]).filter((c) => c && !c.hidden);
+    const index = Math.max(0, seq.findIndex((c) => sameInspect(c, card)));
+    setZoom({ card: seq[index] ?? card, sequence: seq, index });
+  };
+  const rich = zoom?.card.nameEn && engine;
+  const step = (delta: number) => {
+    setZoom((current) => {
+      if (!current || current.sequence.length < 2) return current;
+      const next = Math.min(current.sequence.length - 1, Math.max(0, current.index + delta));
+      const card = current.sequence[next];
+      return card ? { ...current, card, index: next } : current;
+    });
+  };
   return (
-    <CardZoom.Provider value={setCard}>
+    <CardZoom.Provider value={open}>
       {children}
-      {rich && <CardInspectDialog card={card as CardState & { nameEn: string }} engine={engine} onClose={() => setCard(null)} />}
-      {card && !rich && <ZoomDialog card={card} onClose={() => setCard(null)} />}
+      {rich && zoom && (
+        <CardInspectDialog
+          card={zoom.card as CardState & { nameEn: string }}
+          engine={engine}
+          index={zoom.sequence.length > 1 ? zoom.index : undefined}
+          total={zoom.sequence.length > 1 ? zoom.sequence.length : undefined}
+          onStep={zoom.sequence.length > 1 ? step : undefined}
+          onClose={() => setZoom(null)}
+        />
+      )}
+      {zoom && !rich && <ZoomDialog card={zoom.card} onClose={() => setZoom(null)} />}
     </CardZoom.Provider>
   );
 }

@@ -226,7 +226,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
           <ul className="builder__results">
             {shownResults.map((c) => (
               <li key={c.nameEn}>
-                <InspectableCard as="button" card={cardForInspection(c)} className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
+                <InspectableCard as="button" card={cardForInspection(c)} sequence={shownResults.map(cardForInspection)} className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
                   onClick={() => add(c)} onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(c)}>
                   <img src={cardImage(c.imageKey, 'full') ?? undefined} alt="" loading="lazy" decoding="async" />
                   <span>{c.name}</span>
@@ -267,7 +267,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
                 </div>
                 {lines.length > 0 && <ul className="import__lines builder__lines">
                   {lines.map((e) => (
-                    <InspectableCard as="li" card={cardForInspection(e)} key={`${e.imageKey}:${e.commander}:${e.board}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(e)}>
+                    <InspectableCard as="li" card={cardForInspection(e)} sequence={filteredEntries.map(cardForInspection)} key={`${e.imageKey}:${e.commander}:${e.board}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(e)}>
                       <button type="button" className="builder__step" aria-label={t('removeCard', { name: e.name })} onClick={() => setQty(e, -1)}>−</button>
                       <span className="import__qty">{e.qty}</span>
                       <span className="builder__name" title={`${e.name} · ${e.set} #${e.number}`}>{e.name}</span>
