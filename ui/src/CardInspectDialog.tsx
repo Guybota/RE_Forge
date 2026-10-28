@@ -98,8 +98,15 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   useEffect(() => {
     const dialog = ref.current;
     const source = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const html = document.documentElement;
+    const previousOverflow = html.style.overflow;
+    html.style.overflow = 'hidden';
     dialog?.showModal();
-    return () => { dialog?.close(); if (source?.isConnected) source.focus({ preventScroll: true }); };
+    return () => {
+      html.style.overflow = previousOverflow;
+      dialog?.close();
+      if (source?.isConnected) source.focus({ preventScroll: true });
+    };
   }, []);
 
   useEffect(() => {

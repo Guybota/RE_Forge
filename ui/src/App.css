@@ -635,29 +635,39 @@
 .deck-poster:focus-visible { outline: 2px solid var(--focus-table); outline-offset: 3px; }
 .decks__detail { flex: 1; min-height: 0; }
 
+/* Full-viewport shell so the dialog stays in the top layer and never scrolls the page behind. */
 .card-inspect {
-  position: relative;
   box-sizing: border-box;
-  width: min(1040px, calc(100vw - 24px));
-  height: min(680px, calc(100vh - 24px));
-  max-width: none;
-  max-height: calc(100vh - 24px);
-  margin: auto;
-  padding: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  background: none;
+  color: var(--panel-ink);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.card-inspect::backdrop { background: color-mix(in srgb, var(--table) 75%, transparent); }
+.card-inspect__body {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr);
+  gap: 0;
+  width: min(1040px, 100%);
+  height: min(680px, 100%);
+  max-height: calc(100dvh - 24px);
+  min-height: 0;
   border: 1px solid var(--panel-line);
   border-radius: var(--panel-radius);
   background: var(--panel);
   color: var(--panel-ink);
   overflow: hidden;
-}
-.card-inspect::backdrop { background: color-mix(in srgb, var(--table) 75%, transparent); }
-.card-inspect__body {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.1fr);
-  gap: 0;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  overscroll-behavior: contain;
 }
 .card-inspect__art-col {
   display: flex;
@@ -748,6 +758,7 @@
   padding: 16px 18px 20px;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .card-inspect__head { display: flex; align-items: center; gap: 12px; min-height: 44px; }
 .card-inspect__head .mana-cost { flex: 1; }
@@ -816,8 +827,13 @@
 .card-inspect__combos li { padding: 8px 10px; border: 1px solid var(--panel-line); border-radius: var(--radius-control); }
 .card-inspect__combos p { margin: 0 0 6px; }
 @media (max-width: 720px) {
-  .card-inspect { height: min(780px, calc(100vh - 16px)); }
-  .card-inspect__body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .card-inspect { padding: 8px; }
+  .card-inspect__body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: min(780px, calc(100dvh - 16px));
+    max-height: calc(100dvh - 16px);
+  }
   .card-inspect__art-col { padding-bottom: 8px; }
   .card-inspect__art { max-height: 34vh; }
   .card-inspect__art img { width: min(200px, 55vw); }
