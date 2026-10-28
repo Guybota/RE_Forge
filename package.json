@@ -5,8 +5,7 @@
   "workspaces": [
     "ui",
     "desktop",
-    "relay",
-    "central"
+    "relay"
   ],
   "scripts": {
     "engine:build": "node scripts/mvn.mjs -q -pl engine -am -DskipTests package",
@@ -15,16 +14,9 @@
     "engine:smoke-deck-selection": "node scripts/smoke-deck-selection.mjs",
     "engine:smoke-deck-language": "node scripts/smoke-deck-language.mjs",
     "engine:smoke-look": "node scripts/smoke-look-choices.mjs",
-    "engine:smoke-central": "node scripts/smoke-central-engine.mjs",
     "dev": "concurrently -k -n ui,app \"npm run dev -w ui\" \"wait-on http://localhost:5173 && cross-env RE_FORGE_DEV=1 npm start -w desktop\"",
-    "build": "node scripts/build-all.mjs",
+    "build": "npm run build:ui",
     "build:ui": "npm run build -w ui",
-    "central:dev": "npm run dev -w mtg-central",
-    "central:build": "node scripts/build-central.mjs",
-    "central:test": "npm run test:e2e -w mtg-central",
-    "central:smoke": "node scripts/smoke-central.mjs",
-    "central:smoke-package": "node scripts/smoke-central-package.mjs",
-    "desktop:smoke-central": "node scripts/smoke-central-electron.mjs",
     "ui:smoke-builder": "node scripts/smoke-builder-stats.mjs",
     "ui:smoke-import": "node scripts/smoke-import-files.mjs",
     "ui:smoke-improve": "node scripts/smoke-improve.mjs",

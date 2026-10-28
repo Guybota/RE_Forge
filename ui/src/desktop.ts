@@ -4,7 +4,6 @@ export type CentralLibraryRead = { status: 'ok'; json: string | null } | { statu
 declare global {
   interface Window {
     reforge?: {
-      openCentral: () => Promise<string>;
       /** The old Central library from the desktop's storage, read once for the migration. */
       centralLibrary?: () => Promise<CentralLibraryRead>;
     };

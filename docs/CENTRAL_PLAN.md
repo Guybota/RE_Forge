@@ -125,6 +125,9 @@ Cada fase: ramo `feat/deck-tools-<fase>`, compila, testes de fumo, verificado no
   `previewDeck` se ficarem sem uso, `scripts/prepare-central-ui.mjs`, `start-central.mjs`, os smoke `central:*`,
   passos de empacotamento e workspace.
 - Atualizar `CLAUDE.md`, `README.md`, `PLAN.md`; `package:smoke` sem Central.
+- **Feito** (28/10/2026, `feat/remove-central`): removido tudo o que está acima, incluindo `startDeckMatch`/`forPlay`;
+  `previewDeck` fica (serve o Importar). O `package-lock.json` perdeu 529 pacotes, sem versões alteradas.
+  Corrigido também o instalador, que não incluía `central-library.cjs` (fase 6).
 
 ## Riscos
 

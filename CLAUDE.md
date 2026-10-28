@@ -12,7 +12,6 @@ The project owner writes in Portuguese (Portugal). Reply in Portuguese unless as
 forge/      Forge source, git submodule. Treat as upstream: do not edit it.
 engine/     Java bridge (package reforge.engine). Loads Forge headless, serves the UI over a local WebSocket.
 ui/         React + TypeScript + Vite. Everything the player sees.
-central/    Next.js deck tools workspace. Hosts the current built UI in an iframe; no copied gameplay code.
 desktop/    Electron shell: starts the engine, opens the UI (main.cjs).
 relay/      Cloudflare Worker + SQLite Durable Object rooms; tunnels Forge netplay over outbound WebSockets.
 scripts/    mvn.mjs (Maven launcher), smoke tests, Windows package script.
@@ -176,12 +175,8 @@ fixtures in `scripts/fixtures`). It exercises choices and real multi-block comba
 
 ```bash
 npm run engine:build          # Forge modules + bridge → engine/target/re-forge-engine.jar (1–2 min)
-npm run build                 # UI + Central builds; stages standalone Central server in build/central
+npm run build                 # UI build (same as build:ui)
 npm run build:ui              # UI type-check + build → ui/dist
-npm run central:dev           # browser Central on 127.0.0.1:4317 (build:ui first)
-npm run central:smoke         # launcher concurrency/retry, Java paths and bounded same-origin deck bridge
-npm run engine:smoke-central  # native external-list games without replacing saved decks
-npm run central:smoke-package # staged production server/assets and reuse of Electron's engine
 npm run ui:smoke-builder      # deterministic deck statistics: quantities, curve, colours, sources, draw odds, printings
 npm run ui:smoke-import       # decklist files (.dek, .dck, text) and suggestion line fixes
 npm run desktop:smoke-migration # real Electron, temporary profile: old Central localStorage read back, busy port, empty origin
@@ -235,11 +230,8 @@ Leave `reforge.properties` out to see the first-run screens. Never test against 
 - **Text:** every new UI string goes in `i18n.ts` in both `pt` and `en`. Card logic must use `typeEn`, never `type`.
 - **Skins:** never hard-code a colour, font or radius in component CSS; add or reuse a token and define it in all four skins.
 - **Ids:** card, player and stack ids are separate number spaces. Keep them in separate fields/lists.
-- **Central:** `scripts/prepare-central-ui.mjs` copies the actual `ui/dist` to `central/public/reforge`.
-  `startDeckMatch` plays an external list in memory; never implement this by calling `saveDeck`.
-  The iframe bridge accepts only messages from its same-origin parent and correlates native preview replies.
-  Desktop opens Central lazily through its preload/IPC and reuses its engine. Keep the production loopback port
-  stable (4317 by default): Central's localStorage library is scoped to its origin. Tests explicitly use port 0.
+- **Central:** the old Next.js MTG Central was removed (28/10/2026); its tools live in `ui/src/deckTools` and the deck
+  views. Only its desktop library migration remains (`desktop/central-library.cjs`, origin `127.0.0.1:4317`).
 - **Threads (engine):** never block the WebSocket thread — actions go through the `ui-actions` executor because Forge may ask
   a question back. Things that mutate game state from outside the game thread (e.g. concede) go through
   `WebGuiGame.runWhenAwaitingInput`. `ask()` blocks the game thread until the UI answers; a closed session answers `null`.

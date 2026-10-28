@@ -383,7 +383,6 @@ export type ClientMessage =
   | { type: 'getPrintings'; name: string }
   | { type: 'renameDeck'; name: string; to: string }
   | { type: 'startMatch'; deck: string | null; deckSource?: 'mine' | 'precon'; opponents: number; aiProfiles: string[] }
-  | { type: 'startDeckMatch'; text: string; name: string; opponents: number; aiProfiles?: string[] }
   | { type: 'hostGame'; name: string; port: number; upnp: boolean; transport?: 'direct' }
   | { type: 'joinGame'; name: string; address: string; transport?: 'direct' }
   | { type: 'hostGame'; name: string; transport: 'relay' }

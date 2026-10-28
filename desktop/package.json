@@ -19,12 +19,9 @@
     "productName": "RE-Forge",
     "electronVersion": "45.0.0",
     "directories": { "output": "../dist-app" },
-    "files": ["main.cjs", "engine-assets.cjs", "startup.cjs", "central-launcher.cjs", "central-server.cjs", "preload.cjs", "package.json", "icon.ico"],
+    "files": ["main.cjs", "engine-assets.cjs", "startup.cjs", "central-library.cjs", "preload.cjs", "package.json", "icon.ico"],
     "extraResources": [
       { "from": "../ui/dist", "to": "ui" },
-      { "from": "../build/central", "to": "central" },
-      { "from": "../build/central/node_modules", "to": "central/node_modules" },
-      { "from": "central-server.cjs", "to": "central-server.cjs" },
       { "from": "../engine/target/re-forge-engine.jar", "to": "engine/re-forge-engine.jar" },
       { "from": "../build/runtime", "to": "runtime" },
       { "from": "../forge/forge-gui/res", "to": "forge-gui/res", "filter": ["**/*", "!adventure/**", "!music/**", "!cardsfolder/**", "!tokenscripts/**"] },

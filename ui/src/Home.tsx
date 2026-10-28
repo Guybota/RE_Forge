@@ -6,7 +6,6 @@ import { getModeHistory, popularModes, subscribeModeHistory, type PlayableMode }
 import { HOME_MODES, ModeIcon } from './homeModes';
 import { cardImage } from './images';
 import './home.css';
-import { centralUrl } from './centralBridge';
 import { CentralImportResult } from './ImportDeck';
 
 export type HomeDestination = PlayableMode | 'decks' | 'rules' | 'skin' | 'language';
@@ -22,22 +21,9 @@ function ModeArtwork({ mode, imageKey }: { mode: PlayableMode; imageKey?: string
 export function Home({ engine, onPick }: { engine: Engine; onPick: (destination: HomeDestination) => void }) {
   const t = useT(); const info = engine.info;
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [centralBusy, setCentralBusy] = useState(false);
-  const [centralFailed, setCentralFailed] = useState(false);
   const [migrationSeen, setMigrationSeen] = useState(false);
   const migration = engine.centralImport?.migration && engine.centralImport.imported.length + engine.centralImport.failed.length > 0 && !migrationSeen
     ? engine.centralImport : null;
-  const central = centralUrl();
-  const openCentral = async () => {
-    setCentralBusy(true); setCentralFailed(false);
-    try {
-      const url = central ?? await window.reforge?.openCentral();
-      if (!url) throw new Error('Central unavailable');
-      // Inside Central's iframe this leaves the frame, rather than nesting another Central.
-      if (window.parent !== window && central) window.parent.location.assign(url);
-      else window.location.assign(url);
-    } catch { setCentralBusy(false); setCentralFailed(true); }
-  };
   const history = useSyncExternalStore(subscribeModeHistory, getModeHistory);
   const popular = popularModes(history);
   const featured = HOME_MODES.find(mode => mode.id === popular[0]) ?? HOME_MODES[0];
@@ -50,12 +36,10 @@ export function Home({ engine, onPick }: { engine: Engine; onPick: (destination:
           <button className="btn btn--ghost" type="button" aria-current="page">{t('home')}</button>
           <button className="btn btn--ghost" type="button" onClick={() => onPick('decks')}>{t('decks')}</button>
           <button className="btn btn--ghost" type="button" onClick={() => onPick('rules')}>{t('rules')}</button>
-          {(central || window.reforge) && <button className="btn btn--ghost" type="button" disabled={centralBusy} onClick={() => { void openCentral(); }}>{t('centralTools')}</button>}
           <button className="btn btn--ghost" type="button" onClick={() => onPick('online')}>{t('online')}</button>
         </nav>
         <button className="btn btn--ghost library-home__settings" type="button" aria-haspopup="dialog" onClick={() => setSettingsOpen(true)}>{t('settings')}</button>
       </header>
-      {centralFailed && <p role="alert" className="error">{t('centralUnavailable')}</p>}
       {migration && <section className="library-home__migration" aria-label={t('centralTools')}>
         <CentralImportResult result={migration} />
         <span className="decks__new">

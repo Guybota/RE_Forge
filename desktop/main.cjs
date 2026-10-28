@@ -1,5 +1,5 @@
 // Electron shell: starts the Forge engine bridge (Java) and opens the UI.
-const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -51,7 +51,6 @@ const engineLog = openEngineLog();
 
 let engine = null;
 let quitting = false;
-let central = null;
 
 // Starts the Java bridge and resolves with the port it printed on its READY line.
 function startEngine(onProgress) {
@@ -133,18 +132,6 @@ async function createWindow() {
   }
 
   if (quitting) return;
-  // Start Central only when requested. Its server reuses the engine this window already owns.
-  if (ipcMain) ipcMain.handle('reforge:open-central', async event => {
-    if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('Invalid Central caller.');
-    if (!central) {
-      const serverRoot = app.isPackaged ? path.join(process.resourcesPath, 'central', 'central') : path.join(paths.cwd, 'build', 'central', 'central');
-      central = require('./central-launcher.cjs').createCentralLauncher({
-        serverRoot, enginePort: port,
-        fork: env => utilityProcess.fork(app.isPackaged ? path.join(process.resourcesPath, 'central-server.cjs') : path.join(__dirname, 'central-server.cjs'), [], { cwd: serverRoot, env, stdio: 'pipe', serviceName: 'MTG Central' }),
-      });
-    }
-    return central.open();
-  });
   // Once: the old Central library for the UI to bring into the Forge decks (the engine remembers it was done).
   if (ipcMain) ipcMain.handle('reforge:central-library', async event => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('Invalid caller.');
@@ -182,6 +169,5 @@ if (!app.requestSingleInstanceLock()) {
 app.on('window-all-closed', () => app.quit());
 app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => {
-  if (central) central.close();
   if (engine) engine.kill();
 });

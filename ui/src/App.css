@@ -176,12 +176,6 @@
   font-weight: var(--display-weight);
   font-size: 32px;
 }
-.central-deck { max-width: 1200px; margin: 0 auto; }
-.central-deck .import__head { flex-wrap: wrap; min-width: 0; }
-.central-deck .import__head h1 { min-width: 0; overflow-wrap: anywhere; }
-.central-deck__actions { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
-.central-deck__actions .segmented { flex: 1 1 180px; max-width: 420px; }
-.central-deck .import__text { overflow-wrap: anywhere; }
 .import__body {
   flex: 1;
   min-height: 0;

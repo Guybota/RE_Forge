@@ -214,7 +214,7 @@ public final class EngineServer extends WebSocketServer {
             case "setSkin" -> setSkin(c, msg);
             case "setPhaseStops" -> c.actions.execute(() -> setPhaseStops(c, msg));
             case "setAiOptions" -> c.actions.execute(() -> setAiOptions(c, msg));
-            case "startMatch", "startDeckMatch" -> c.actions.execute(() -> startMatch(c, msg));
+            case "startMatch" -> c.actions.execute(() -> startMatch(c, msg));
             case "campaign" -> c.actions.execute(() -> campaignAction(c, msg));
             case "hostGame", "joinGame" -> c.actions.execute(() -> openOnline(c, msg));
             case "setSlot", "setReady", "addSlot", "removeSlot", "kickPlayer", "startOnlineMatch", "chat", "leaveLobby" ->
@@ -292,9 +292,7 @@ public final class EngineServer extends WebSocketServer {
         WebGuiGame gui = new WebGuiGame(c.session, settings);
         try {
             c.gui = gui;
-            c.match = "startDeckMatch".equals(string(msg, "type"))
-                    ? MatchStarter.startCommander(gui, DeckImporter.forPlay(string(msg, "text"), string(msg, "name")), opponents, aiProfiles)
-                    : matches.start(gui, deck, string(msg, "deckSource"), opponents, aiProfiles);
+            c.match = matches.start(gui, deck, string(msg, "deckSource"), opponents, aiProfiles);
         } catch (RuntimeException e) {
             c.gui = null;
             gui.dispose();

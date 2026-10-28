@@ -216,18 +216,6 @@ final class DeckImporter {
     }
 
     /** Resolve an external list without writing it into the user's Commander library. */
-    static Deck forPlay(String text, String name) {
-        if (text == null || text.isBlank() || text.length() > 1_000_000) throw new IllegalArgumentException("Invalid external decklist");
-        Preview p = preview(text, name);
-        if (p.json().get("unknown").getAsInt() != 0) throw new IllegalArgumentException("Some cards were not recognised");
-        if (p.deck() == null || p.deck().getMain().isEmpty()) throw new IllegalArgumentException("No cards recognised");
-        if (!p.deck().has(DeckSection.Commander) || p.deck().get(DeckSection.Commander).isEmpty()) {
-            throw new IllegalArgumentException("No commander recognised");
-        }
-        return p.deck();
-    }
-
-    /** Saves under the given name (replacing a deck of the same name). Returns an error message or null. */
     /** Saves a decklist; tags and notes come from {@code from} (the deck being edited) or the deck it replaces. */
     static String save(String text, String name, String from) {
         String invalid = invalidName(name);
