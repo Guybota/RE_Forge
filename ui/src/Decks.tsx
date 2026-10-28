@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { DeckCards } from './DeckCards';
+import { DeckCards, type BestPrice, type FacePrice } from './DeckCards';
 import { reply, useRequest } from './deckRequests';
 import { deckKey } from './deckSelection';
-import type { DeckDetail, DeckLists, DeckSummary } from './engine';
+import { demoteCommander, removeCopy, swapPrinting } from './deckText';
+import type { DeckDetail, DeckLists, DeckPreview, DeckSummary } from './engine';
+import { PrintingsDialog } from './PrintingsDialog';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
 import { InspectableCard } from './table/CardInspection';
@@ -66,10 +68,27 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
   }, [detail?.name, library, view, send]);
   const priceReply = reply(engine, 'deckPrices', priceRequest.id.current);
   const prices = useMemo(() => {
-    const map = new Map<string, number>();
-    if (priceReply?.type === 'deckPrices') for (const p of priceReply.prices) if (p.eur != null) map.set(`${p.set}/${p.number}`, p.eur);
+    const map = new Map<string, FacePrice>();
+    if (priceReply?.type === 'deckPrices') for (const p of priceReply.prices) if (p.eur != null) map.set(`${p.set}/${p.number}`, { eur: p.eur, exact: p.exact });
     return map;
   }, [priceReply]);
+  const cheaperRequest = useRequest((requestId) => {
+    if (detail && view === 'list') send({ type: 'cheaperPrintings', requestId, name: detail.name, source: library });
+  }, [detail?.name, library, view, send]);
+  const cheaperReply = reply(engine, 'cheaperPrintings', cheaperRequest.id.current);
+  const best = useMemo(() => {
+    const map = new Map<string, BestPrice>();
+    if (cheaperReply?.type === 'cheaperPrintings') for (const offer of cheaperReply.offers) map.set(`${offer.from.set}/${offer.from.number}`, { set: offer.to.set, eur: offer.to.eur });
+    return map;
+  }, [cheaperReply]);
+  const [printingOf, setPrintingOf] = useState<DeckPreview['lines'][number] | null>(null);
+  useEffect(() => { if (printingOf?.nameEn) send({ type: 'getPrintings', name: printingOf.nameEn }); }, [printingOf, send]);
+  const saveList = (text: string) => {
+    if (!detail || !owned) return;
+    send({ type: 'saveDeck', text, name: detail.name, from: detail.name });
+    send({ type: 'getDeck', name: detail.name });
+  };
+  const sectionOf = (line: DeckPreview['lines'][number]) => line.sideboard ? 'sideboard' : line.group === 'commander' ? 'commander' : 'deck';
 
   useEffect(() => {
     if (appliedInitial.current || !initialDeck) return;
@@ -146,7 +165,16 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
               <nav className="builder__views" aria-label={t('deckViews')}>
                 {VIEWS.filter((v) => owned || v.id !== 'notes').map((v) => <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id} onClick={() => setView(v.id)}>{t(v.label)}</button>)}
               </nav>
-              {detail && view === 'list' && <DeckCards preview={detail} faces prices={prices} />}
+              {detail && view === 'list' && <DeckCards preview={detail} faces prices={prices} best={best} editable={owned}
+                onChangePrinting={owned ? setPrintingOf : undefined}
+                onRemove={owned ? (line) => line.nameEn && saveList(removeCopy(detail.text, line.nameEn, line, sectionOf(line))) : undefined}
+                onDemote={owned ? (line) => line.nameEn && saveList(demoteCommander(detail.text, line.nameEn, line)) : undefined} />}
+              {printingOf?.nameEn && <PrintingsDialog title={printingOf.name ?? printingOf.nameEn} printings={engine.printings?.name === printingOf.nameEn ? engine.printings.printings : null}
+                current={printingOf.imageKey ?? ''} onClose={() => setPrintingOf(null)} onRetry={() => send({ type: 'getPrintings', name: printingOf.nameEn! })}
+                onPick={(p) => {
+                  if (detail && printingOf.set && printingOf.number) saveList(swapPrinting(detail.text, printingOf.nameEn!, { set: printingOf.set, number: printingOf.number }, p));
+                  setPrintingOf(null);
+                }} />}
               <Suspense fallback={<p className="muted" role="status">{t('connecting')}</p>}>
               {detail && view === 'analysis' && <DeckAnalysis detail={detail} />}
               {detail && view === 'prices' && <DeckPrices key={detail.name} detail={detail} engine={engine} source={library} />}

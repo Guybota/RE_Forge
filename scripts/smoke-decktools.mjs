@@ -9,7 +9,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addAndCut, swapPrinting } from '../ui/src/deckText.ts';
+import { addAndCut, demoteCommander, removeCopy, swapPrinting } from '../ui/src/deckText.ts';
 import { deckFromLines, visualFromCatalog } from '../ui/src/deckTools/cardVisual.ts';
 import { estimateBracket } from '../ui/src/deckTools/bracket.ts';
 import { checkCommanderDeck } from '../ui/src/deckTools/commander-check.ts';
@@ -224,6 +224,14 @@ async function run(port) {
   assert.equal(addAndCut(sample, ['Rhystic Study'], ['Arcane Signet', 'Sol Ring']),
     'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n1 Rhystic Study\n1 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269',
     'adds to the deck, cuts one copy from the deck only');
+  assert.equal(removeCopy(sample, 'Sol Ring', { set: 'LEA', number: '269' }, 'deck'),
+    'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269',
+    'one copy leaves the deck, the sideboard copy stays');
+  assert.equal(removeCopy(sample, 'Arcane Signet', { set: 'ELD', number: '331' }, 'deck'),
+    sample.replace('2 Arcane Signet (ELD) 331', '1 Arcane Signet (ELD) 331'), 'a second copy stays');
+  assert.equal(demoteCommander(sample, 'Éowyn, Shieldmaiden', { set: 'LTC', number: '1' }),
+    'Deck\n1 Éowyn, Shieldmaiden (LTC) 1\n2 Arcane Signet (ELD) 331\n1 Sol Ring (LEA) 269\n\nSideboard\n1 Sol Ring (LEA) 269',
+    'a commander moves into the deck');
 
   // Prices: exact printings, unknown printing priced by name, a card without a price, cached afterwards.
   await ask({ type: 'saveDeck', text: rohanText, name: 'Rohan' }, 'decks');
