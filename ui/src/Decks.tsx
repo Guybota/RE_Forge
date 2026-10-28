@@ -130,15 +130,15 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
       <header className="import__head">
         <button type="button" className="btn btn--ghost" onClick={() => opened ? setOpened(null) : onBack()}>{t('back')}</button>
         <h1>{t('decks')}</h1>
-        {decks.mine.length > 0 && <span className="decks__new">
+        {!opened && decks.mine.length > 0 && <span className="decks__new">
           <button type="button" className="btn btn--ghost" onClick={onImport}>{t('import')}</button>
           <button type="button" className="btn btn--primary" onClick={() => onBuild()}>{t('newDeck')}</button>
         </span>}
       </header>
-      <div className="decks__sources" role="group" aria-label={t('deckSource')}>
+      {!opened && <div className="decks__sources" role="group" aria-label={t('deckSource')}>
         <button type="button" className="btn btn--ghost" aria-pressed={owned} onClick={() => showShelf('mine')}>{t('myDecks')}</button>
         <button type="button" className="btn btn--ghost" aria-pressed={!owned} onClick={() => showShelf('precon')}>{t('precons')}</button>
-      </div>
+      </div>}
       {owned && decks.mine.length === 0 ? (
         <div className="decks__empty">
           <button type="button" className="btn btn--primary btn--big" onClick={() => onBuild()}>{t('newDeck')}</button>
