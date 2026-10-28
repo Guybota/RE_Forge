@@ -26,10 +26,10 @@ export function Unavailable({ onRetry }: { onRetry: () => void }) {
 }
 
 /** Cardmarket EUR for the deck's exact printings, and cheaper printings Forge also has. */
-export function DeckPrices({ detail, engine }: { detail: DeckDetail; engine: Engine }) {
+export function DeckPrices({ detail, engine, source = 'mine' }: { detail: DeckDetail; engine: Engine; source?: 'mine' | 'precon' }) {
   const t = useT();
   const { send } = engine;
-  const prices = useRequest((requestId) => send({ type: 'deckPrices', requestId, name: detail.name }), [detail, send]);
+  const prices = useRequest((requestId) => send({ type: 'deckPrices', requestId, name: detail.name, source }), [detail, source, send]);
   const answer = reply(engine, 'deckPrices', prices.id.current);
 
   const rows = useMemo(() => {
@@ -38,7 +38,7 @@ export function DeckPrices({ detail, engine }: { detail: DeckDetail; engine: Eng
     return detail.lines.filter((l) => l.nameEn && l.qty && l.set).map((l) => ({ line: l, price: byPrinting.get(`${l.set}/${l.number}`) }))
       .sort((a, b) => (b.price?.eur ?? -1) * (b.line.qty ?? 1) - (a.price?.eur ?? -1) * (a.line.qty ?? 1));
   }, [answer, detail]);
-  const counted = rows?.filter((r) => !r.line.sideboard) ?? [];
+  const counted = rows?.filter((r) => !r.line.sideboard && !r.line.maybeboard) ?? [];
   const total = counted.reduce((sum, r) => sum + (r.price?.eur ?? 0) * (r.line.qty ?? 1), 0);
   const unpriced = counted.filter((r) => r.price?.eur == null).reduce((n, r) => n + (r.line.qty ?? 1), 0);
   const approximate = counted.filter((r) => r.price && !r.price.exact && r.price.eur != null).length;
@@ -55,7 +55,7 @@ export function DeckPrices({ detail, engine }: { detail: DeckDetail; engine: Eng
             {approximate > 0 && <p className="muted">{t('pricesApprox', { n: approximate })}</p>}
           </>}
       </section>
-      <CheaperPrintings detail={detail} engine={engine} />
+      <CheaperPrintings detail={detail} engine={engine} source={source} />
       {rows && rows.length > 0 && (
         <section className="deck-analysis__panel deck-analysis__hand" aria-labelledby="deck-price-list">
           <h2 id="deck-price-list">{t('pricesByCard')}</h2>
@@ -64,7 +64,7 @@ export function DeckPrices({ detail, engine }: { detail: DeckDetail; engine: Eng
             <tbody>{rows.map(({ line, price }, i) => (
               <tr key={i}>
                 <td>{line.qty}</td>
-                <td><InspectableCard as="span" card={line.imageKey ? cardForInspection(line) : null}>{line.name}{line.sideboard ? ` · ${t('groupSideboard')}` : ''}</InspectableCard></td>
+                <td><InspectableCard as="span" card={line.imageKey ? cardForInspection(line) : null}>{line.name}{line.maybeboard ? ` · ${t('groupMaybeboard')}` : line.sideboard ? ` · ${t('groupSideboard')}` : ''}</InspectableCard></td>
                 <td>{line.set} {line.number}</td>
                 <td title={price && !price.exact ? t('priceApproxHint') : undefined}>{price?.eur == null ? '—' : `${euros(price.eur)}${price.exact ? '' : ' *'}`}</td>
               </tr>
@@ -76,7 +76,7 @@ export function DeckPrices({ detail, engine }: { detail: DeckDetail; engine: Eng
   );
 }
 
-function CheaperPrintings({ detail, engine }: { detail: DeckDetail; engine: Engine }) {
+function CheaperPrintings({ detail, engine, source }: { detail: DeckDetail; engine: Engine; source: 'mine' | 'precon' }) {
   const t = useT();
   const [id, setId] = useState(0);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -94,7 +94,7 @@ function CheaperPrintings({ detail, engine }: { detail: DeckDetail; engine: Engi
     const requestId = nextRequestId();
     setId(requestId);
     setPicked(new Set());
-    engine.send({ type: 'cheaperPrintings', requestId, name: detail.name });
+    engine.send({ type: 'cheaperPrintings', requestId, name: detail.name, source });
   };
   const apply = () => {
     const text = chosen.reduce((text, o) => swapPrinting(text, o.nameEn, o.from, o.to), detail.text);
@@ -117,7 +117,7 @@ function CheaperPrintings({ detail, engine }: { detail: DeckDetail; engine: Engi
         <div className="deck-analysis__head">
           <button type="button" className="btn btn--ghost" onClick={() => setPicked(new Set(offers.map(offerKey)))}>{t('cheaperSelectAll')}</button>
           <button type="button" className="btn btn--ghost" onClick={() => setPicked(new Set())}>{t('cheaperSelectNone')}</button>
-          <button type="button" className="btn btn--primary" disabled={!chosen.length} onClick={apply}>{t('cheaperApply', { n: chosen.length })}</button>
+          {source === 'mine' && <button type="button" className="btn btn--primary" disabled={!chosen.length} onClick={apply}>{t('cheaperApply', { n: chosen.length })}</button>}
         </div>
         {chosen.length > 0 && <p>{t('cheaperSaving', { amount: euros(chosen.reduce((s, o) => s + saving(o), 0)) })}</p>}
         <ul className="deck-online__offers">{offers.map((o) => {
@@ -141,15 +141,15 @@ function CheaperPrintings({ detail, engine }: { detail: DeckDetail; engine: Engi
 }
 
 /** The commanders' combos from EDHREC, which of their cards the deck has, how they play, and adding one. */
-export function DeckCombos({ detail, engine }: { detail: DeckDetail; engine: Engine }) {
+export function DeckCombos({ detail, engine, source = 'mine' }: { detail: DeckDetail; engine: Engine; source?: 'mine' | 'precon' }) {
   const t = useT();
   const { send } = engine;
   const hasCommander = detail.lines.some((l) => l.group === 'commander');
-  const combos = useRequest((requestId) => { if (hasCommander) send({ type: 'deckCombos', requestId, name: detail.name }); }, [detail.name, hasCommander, send]);
+  const combos = useRequest((requestId) => { if (hasCommander) send({ type: 'deckCombos', requestId, name: detail.name, source }); }, [detail.name, source, hasCommander, send]);
   const answer = reply(engine, 'deckCombos', combos.id.current);
   const lines = useMemo(() => {
     const map = new Map<string, Line>();
-    for (const l of detail.lines) if (l.nameEn && !l.sideboard) { map.set(key(l.nameEn), l); map.set(front(l.nameEn), l); }
+    for (const l of detail.lines) if (l.nameEn && !l.sideboard && !l.maybeboard) { map.set(key(l.nameEn), l); map.set(front(l.nameEn), l); }
     return map;
   }, [detail]);
   const has = (n: string) => lines.has(key(n)) || lines.has(front(n));
@@ -189,7 +189,7 @@ export function DeckCombos({ detail, engine }: { detail: DeckDetail; engine: Eng
                     <span className="muted">{missing.length ? t('comboMissing', { n: missing.length }) : t('comboInDeck')}
                       {combo.decks > 0 && ` · ${t('comboDecks', { n: combo.decks.toLocaleString(document.documentElement.lang || undefined) })}`}</span>
                     <button type="button" className="btn btn--ghost" aria-expanded={open} onClick={() => setExplained(open ? null : combo.href)}>{t('comboExplain')}</button>
-                    <button type="button" className="btn btn--ghost" disabled={!missing.length} onClick={() => setAdding(combo)}>{t('comboAdd')}</button>
+                    {source === 'mine' && <button type="button" className="btn btn--ghost" disabled={!missing.length} onClick={() => setAdding(combo)}>{t('comboAdd')}</button>}
                   </div>
                   {open && <ComboExplanation href={combo.href} engine={engine} />}
                 </li>;

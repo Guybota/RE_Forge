@@ -1,0 +1,18 @@
+---
+description: Commit and push every task on central/deck-tools as geca3
+alwaysApply: true
+---
+
+# RE:Forge branch
+
+At the end of every task, commit the work on `central/deck-tools` and push that branch to `reforge` (`https://github.com/Guybota/RE_Forge.git`).
+
+- Sign the push in as GitHub user **geca3**. Never use **gotosantiago**. For that one command, override the credential helper with `gh auth git-credential`. Do not change git config.
+- Do not commit or push `main`. This checkout stays on `central/deck-tools`. It already matches RE:Forge `main` at release 0.1.8 (`c602fad`) plus later work.
+- Deck tools live in `ui/src/deckTools` and the Decks screens (`ui/src/Deck*.tsx`, `ui/src/Decks.tsx`, `ui/src/RulesScreen.tsx`). Do not recreate the Next.js app under `central/`.
+- Leave `forge/` and `relay/` untouched unless the task is about them.
+- Do not commit secrets (`.env`, credentials, keys).
+
+```bash
+git -c credential.helper= -c 'credential.helper=!/Users/Geraldo/.local/bin/gh auth git-credential' push reforge central/deck-tools
+```

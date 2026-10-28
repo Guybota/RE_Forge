@@ -57,6 +57,23 @@ async function run(port) {
   const labelled = await preview(`Deck\n${body}\n\nSideboard\n1 Tymna the Weaver\n1 Thrasios, Triton Hero\n`);
   assert.equal(labelled.commanders.length, 2, 'labelled sideboard partners lead');
 
+  const boards = await preview(`Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n${body}\n\nSideboard\n1 Lightning Bolt\n\nMaybeboard:\n1 Counterspell\n`);
+  assert.equal(boards.lines.find((l) => l.nameEn === 'Lightning Bolt')?.sideboard, true, 'sideboard stays a sideboard');
+  const counter = boards.lines.find((l) => l.nameEn === 'Counterspell');
+  assert.equal(counter?.maybeboard, true, 'maybeboard is its own section');
+  assert.ok(!counter?.sideboard, 'maybeboard is not absorbed by the sideboard');
+  assert.equal(boards.cards, 65, 'sideboard and maybeboard stay outside the 100');
+  await ask({ type: 'saveDeck', text: boards.text ?? `Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n${body}\n\nSideboard\n1 Lightning Bolt\n\nMaybeboard\n1 Counterspell`, name: 'Boards' }, 'decks');
+  const savedBoards = await ask({ type: 'getDeck', name: 'Boards' }, 'deckDetail');
+  assert.ok(savedBoards.lines.some((l) => l.maybeboard && l.nameEn === 'Counterspell'), 'saved maybeboard comes back');
+  assert.ok(savedBoards.lines.some((l) => l.sideboard && l.nameEn === 'Lightning Bolt'), 'saved sideboard comes back');
+  assert.match(savedBoards.text, /Maybeboard\n1 Counterspell/);
+  await ask({ type: 'setDeckMeta', name: 'Boards', tags: [], notes: 'nota', bracketIntent: 2 }, 'deckDetail');
+  const keptBoards = await ask({ type: 'getDeck', name: 'Boards' }, 'deckDetail');
+  assert.equal(keptBoards.notes, 'nota');
+  assert.ok(keptBoards.lines.some((l) => l.maybeboard && l.nameEn === 'Counterspell'), 'notes keep the maybeboard');
+  await ask({ type: 'deleteDeck', name: 'Boards' }, 'decks');
+
   // Several legendary candidates inside the deck: Forge only warns; the player picks one. (Legends on top of a
   // list without sections are Forge's commanders.)
   const loose = `${body}\n1 Atraxa, Praetors' Voice\n1 Krenko, Mob Boss\n`;

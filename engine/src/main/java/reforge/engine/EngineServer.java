@@ -580,7 +580,8 @@ public final class EngineServer extends WebSocketServer {
                     if (reply == null) throw new IllegalArgumentException("Unknown deck: " + name);
                     reply.addProperty("source", string(msg, "source"));
                 } else {
-                    forge.deck.Deck deck = DeckImporter.mine().get(name);
+                    String source = string(msg, "source");
+                    forge.deck.Deck deck = source == null ? DeckImporter.mine().get(name) : DeckSelection.find(name, source);
                     if (deck == null) throw new IllegalArgumentException("Unknown deck: " + name);
                     reply = switch (type) {
                         case "deckPrices" -> DeckServices.prices(deck);

@@ -65,7 +65,7 @@ export function DeckAnalysis({ detail }: { detail: DeckDetail }) {
   const check = useMemo(() => checkCommanderDeck(deck, (n) => visuals.get(n)), [deck, visuals]);
   const roles = useMemo(() => readDeckRoles(deck, (n) => visuals.get(n)), [deck, visuals]);
   const companions = (deck.sideboard ?? []).filter((c) => commanderFlags(get(c.name)).companion).map((c) => c.name);
-  const entries: DeckEntry[] = useMemo(() => detail.lines.filter((l) => l.nameEn && l.qty && !l.sideboard)
+  const entries: DeckEntry[] = useMemo(() => detail.lines.filter((l) => l.nameEn && l.qty && !l.sideboard && !l.maybeboard)
     .map((l) => ({ ...(l as CatalogCard), group: l.typeGroup ?? l.group ?? 'other', qty: l.qty ?? 1, commander: l.group === 'commander' })), [detail]);
   const [filter, setFilter] = useState<DeckFilter>(null);
   const [includeCommanders, setIncludeCommanders] = useState(false);

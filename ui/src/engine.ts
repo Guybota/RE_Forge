@@ -232,7 +232,9 @@ export type Choice = {
   preselected?: number[];
 };
 
-export type DeckSummary = { name: string; source: 'mine' | 'precon'; commanders?: CatalogCard[]; identity?: number; cards?: number };
+export type DeckSummary = { name: string; source: 'mine' | 'precon'; commanders?: CatalogCard[]; identity?: number; cards?: number;
+  /** Precons: edition code, name, release instant and the year printed in the deck name. */
+  set?: string; setName?: string; released?: number; year?: number };
 export type DeckLists = { mine: string[]; precons: string[]; summaries?: DeckSummary[]; loaded?: boolean };
 export type DeckLanguage = { type: 'deckLanguage'; requestId: number; name: string; source: string; language: string;
   total: number; checked: number; available: number; missing: number; unknown: number; done: boolean };
@@ -251,7 +253,7 @@ export type DeckPreview = {
   requestId?: string;
   type: 'deckPreview';
   /** Card lines also carry the card as the catalog describes it, its quantity and ("commander" group) its section. */
-  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string; sideboard?: boolean;
+  lines: ({ text: string; status: 'ok' | 'warning' | 'error'; message?: string; qty?: number; typeGroup?: string; sideboard?: boolean; maybeboard?: boolean;
     /** Unknown lines: the name as typed and the closest real cards. */
     requested?: string; suggestions?: { nameEn: string; name: string }[] } & Partial<CatalogCard>)[];
   /** The commanders' combined colour identity (bits W 1, U 2, B 4, R 8, G 16). */
@@ -371,7 +373,7 @@ export type ClientMessage =
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
   | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
-  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string }
+  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string; source?: 'mine' | 'precon' }
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }
   | { type: 'cardRulings'; requestId: number; name: string }
