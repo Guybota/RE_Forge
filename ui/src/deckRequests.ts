@@ -24,3 +24,19 @@ export function useRequest(send: (requestId: number) => void, deps: unknown[]) {
   return { id, retry: () => setAttempt((n) => n + 1) };
 }
 
+/**
+ * Like useRequest, but only allocates an id and sends while `enabled`. Closing the gate must not bump the
+ * id (that orphaned in-flight replies and left the UI on "connecting" forever).
+ */
+export function useGatedRequest(enabled: boolean, send: (requestId: number) => void, deps: unknown[]) {
+  const id = useRef(0);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    id.current = nextRequestId();
+    send(id.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, ...deps, attempt]);
+  return { id, retry: () => setAttempt((n) => n + 1) };
+}
+

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cardThemeLabels } from './cardThemes';
-import { reply, useRequest } from './deckRequests';
+import { reply, useGatedRequest, useRequest } from './deckRequests';
 import { Unavailable } from './DeckOnline';
 import pt from './deckTools/pt.json';
 import { setDeckToolsLanguage } from './deckTools/say';
@@ -72,11 +72,13 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   const rulings = rulingsAnswer?.type === 'cardRulings' && rulingsAnswer.name === nameEn ? rulingsAnswer : null;
   const oracle = rulings?.text || card.text || card.textEn;
 
+  // Price is fetched with the card (not when the section opens): gating used to bump the request id on
+  // close without sending, so a late reply never matched and the section stayed on "connecting".
   const priceReq = useRequest((requestId) => {
-    if (!priceOpen) return;
     send({ type: 'cardPrice', requestId, name: nameEn, set: card.set, number: card.number });
-  }, [priceOpen, nameEn, card.set, card.number, send]);
-  const price = reply(engine, 'cardPrice', priceReq.id.current);
+  }, [nameEn, card.set, card.number, send]);
+  const priceRaw = reply(engine, 'cardPrice', priceReq.id.current);
+  const price = priceRaw && (priceRaw.type === 'servicesError' || priceRaw.name === nameEn) ? priceRaw : null;
 
   useEffect(() => {
     if (!versionsOpen) return;
@@ -84,10 +86,9 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   }, [versionsOpen, nameEn, send]);
   const printings = engine.printings?.name === nameEn ? engine.printings.printings : null;
 
-  const combosReq = useRequest((requestId) => {
-    if (!combosOpen || !card.deckName) return;
-    send({ type: 'deckCombos', requestId, name: card.deckName, source: card.deckSource ?? 'mine' });
-  }, [combosOpen, card.deckName, card.deckSource, send]);
+  const combosReq = useGatedRequest(!!(combosOpen && card.deckName), (requestId) => {
+    send({ type: 'deckCombos', requestId, name: card.deckName!, source: card.deckSource ?? 'mine' });
+  }, [card.deckName, card.deckSource, send]);
   const combosAnswer = reply(engine, 'deckCombos', combosReq.id.current);
   const cardCombos = useMemo(() => {
     if (combosAnswer?.type !== 'deckCombos') return null;
@@ -160,7 +161,7 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
             <summary>{t('inspectPrice')}</summary>
             {!priceOpen ? null
               : price?.type === 'servicesError' ? <Unavailable onRetry={priceReq.retry} />
-              : price?.type !== 'cardPrice' ? <p className="muted" role="status">{t('connecting')}</p>
+              : price?.type !== 'cardPrice' ? <p className="muted" role="status">{t('pricesLoading')}</p>
               : <p className="card-inspect__price">
                   {price.eur != null ? <strong>{euros(price.eur)}</strong> : <span className="muted">{t('inspectPriceUnknown')}</span>}
                   {price.eur != null && !price.exact && <span className="muted"> · {t('priceApproxHint')}</span>}
@@ -218,7 +219,7 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
             <summary title={t('rulesRulingsHint')}>{t('rulesRulings')}</summary>
             {!rulingsOpen ? null
               : rulingsAnswer?.type === 'servicesError' ? <Unavailable onRetry={rulingsReq.retry} />
-              : !rulings ? <p className="muted" role="status">{t('connecting')}</p>
+              : !rulings ? <p className="muted" role="status">{t('rulesLoading')}</p>
               : rulings.rulings.length === 0 ? <p className="muted">{t('rulesNoRulings')}</p>
               : <ul className="rules__rulings" lang="en">{rulings.rulings.map((r, i) => (
                   <li key={i}><span className="muted">{dateLabel(r.date)}{r.source === 'wotc' ? ' · Wizards of the Coast' : ''}</span><p><SymbolText text={r.comment} /></p></li>
