@@ -232,7 +232,9 @@ export type Choice = {
   preselected?: number[];
 };
 
-export type DeckSummary = { name: string; source: 'mine' | 'precon'; commanders?: CatalogCard[]; identity?: number; cards?: number };
+export type DeckSummary = { name: string; source: 'mine' | 'precon'; commanders?: CatalogCard[]; identity?: number; cards?: number;
+  /** Precons: edition code, name, release instant and the year printed in the deck name. */
+  set?: string; setName?: string; released?: number; year?: number };
 export type DeckLists = { mine: string[]; precons: string[]; summaries?: DeckSummary[]; loaded?: boolean };
 export type DeckLanguage = { type: 'deckLanguage'; requestId: number; name: string; source: string; language: string;
   total: number; checked: number; available: number; missing: number; unknown: number; done: boolean };
