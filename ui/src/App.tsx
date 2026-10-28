@@ -97,5 +97,5 @@ export default function App() {
     screen = <Home engine={engine} onPick={setPicking} />;
   }
 
-  return <I18n.Provider value={t}><CardZoomProvider>{screen}</CardZoomProvider></I18n.Provider>;
+  return <I18n.Provider value={t}><CardZoomProvider engine={engine.status === 'ready' ? engine : null}>{screen}</CardZoomProvider></I18n.Provider>;
 }

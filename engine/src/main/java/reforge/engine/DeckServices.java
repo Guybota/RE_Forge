@@ -119,6 +119,56 @@ final class DeckServices {
     }
 
     /**
+     * EUR for one printing (or by English name when set/number are blank): {@code eur}, {@code exact}, plus
+     * the Forge {@code set}/{@code number} used. Uses the same Scryfall cache as deck prices.
+     */
+    static JsonObject cardPrice(String name, String set, String number) {
+        String setCode = set == null ? "" : set;
+        String num = number == null ? "" : number;
+        Printing p = setCode.isBlank() || num.isBlank()
+                ? new Printing(name, "", "")
+                : new Printing(name, setCode, num);
+        priceOne(p);
+        JsonElement cached = setCode.isBlank() || num.isBlank()
+                ? fresh("n:" + name.toLowerCase(Locale.ROOT))
+                : fresh("p:" + p.key());
+        JsonObject o = cached != null && cached.isJsonObject() ? cached.getAsJsonObject().deepCopy() : price(null, false);
+        o.addProperty("name", name);
+        if (!setCode.isBlank()) o.addProperty("set", setCode);
+        if (!num.isBlank()) o.addProperty("number", num);
+        return o;
+    }
+
+    private static void priceOne(Printing p) {
+        if (!p.set().isBlank() && !p.number().isBlank() && fresh("p:" + p.key()) != null) return;
+        if ((p.set().isBlank() || p.number().isBlank()) && fresh("n:" + p.name().toLowerCase(Locale.ROOT)) != null) return;
+        JsonArray ids = new JsonArray();
+        JsonObject id = new JsonObject();
+        if (!p.set().isBlank() && !p.number().isBlank()) {
+            id.addProperty("set", scryfallSet(p.set()));
+            id.addProperty("collector_number", p.number());
+        } else {
+            id.addProperty("name", p.name());
+        }
+        ids.add(id);
+        List<JsonObject> found = collection(ids);
+        if (found.isEmpty()) {
+            if (!p.set().isBlank() && !p.number().isBlank()) store("p:" + p.key(), price(null, false));
+            else store("n:" + p.name().toLowerCase(Locale.ROOT), price(null, false));
+            save();
+            return;
+        }
+        JsonObject card = found.get(0);
+        Double eur = eur(card);
+        if (!p.set().isBlank() && !p.number().isBlank()) {
+            store("p:" + p.key(), price(eur, true));
+        } else {
+            store("n:" + p.name().toLowerCase(Locale.ROOT), price(eur, false));
+        }
+        save();
+    }
+
+    /**
      * EUR of every printing in the deck: {@code prices: [{set, number, eur, exact}]} with Forge's set codes.
      * {@code exact} is false when Scryfall did not know the printing and the card's default printing priced it;
      * {@code eur} is null when Scryfall has no Cardmarket price.

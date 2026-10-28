@@ -320,6 +320,14 @@ async function run(port) {
   const unruled = await ask({ type: 'cardRulings', requestId: 16, name: 'Grizzly Bears' }, 'cardRulings', 'servicesError');
   assert.deepEqual(unruled.rulings, [], 'unknown to Scryfall: no rulings, not an error');
   assert.equal((await ask({ type: 'cardRulings', requestId: 17, name: 'Not A Card' }, 'cardRulings', 'servicesError')).type, 'servicesError');
+  const priced = await ask({ type: 'cardPrice', requestId: 18, name: 'Sol Ring', set: 'c21', number: '263' }, 'cardPrice', 'servicesError');
+  assert.equal(priced.type, 'cardPrice');
+  assert.equal(priced.eur, 10);
+  assert.equal(priced.exact, true);
+  const byName = await ask({ type: 'cardPrice', requestId: 19, name: 'Arcane Signet' }, 'cardPrice', 'servicesError');
+  assert.equal(byName.type, 'cardPrice');
+  assert.equal(byName.eur, 3);
+  assert.equal(byName.exact, false);
   const noTab = await ask({ type: 'deckCombos', requestId: 7, name: 'Crafted' }, 'deckCombos', 'servicesError');
   assert.equal(noTab.type, 'servicesError', 'Crafted is not saved');
   await ask({ type: 'saveDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring", name: 'Atraxa' }, 'decks');

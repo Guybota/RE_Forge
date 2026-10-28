@@ -1,8 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { commanderThemeLabels, deckThemeKeys } from './cardThemes';
+import { say } from './deckTools/say';
 import { DeckCards, type BestPrice, type FacePrice } from './DeckCards';
 import { DeckIntoImport } from './DeckIntoImport';
-import { reply, useRequest } from './deckRequests';
+import { nextRequestId, reply, useRequest } from './deckRequests';
 import { deckKey } from './deckSelection';
+import { deckFromLines } from './deckTools/cardVisual';
+import pt from './deckTools/pt.json';
+import { setDeckToolsLanguage } from './deckTools/say';
 import { demoteCommander, moveCopy, promoteCommander, removeCopy, swapPrinting } from './deckText';
 import type { DeckDetail, DeckLists, DeckPreview, DeckSummary } from './engine';
 import { PrintingsDialog } from './PrintingsDialog';
@@ -42,6 +47,8 @@ type Props = {
 export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }: Props) {
   const t = useT();
   const { send, decks } = engine;
+  const toolsLang = engine.info?.language ?? document.documentElement.lang;
+  setDeckToolsLanguage(toolsLang.startsWith('pt') ? pt : null);
   const start = openedFrom(initialDeck, decks);
   const [library, setLibrary] = useState<'mine' | 'precon'>(start.library);
   const names = library === 'mine' ? decks.mine : decks.precons;
@@ -87,6 +94,9 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
     return map;
   }, [cheaperReply]);
   const [printingOf, setPrintingOf] = useState<DeckPreview['lines'][number] | null>(null);
+  const [themeByDeck, setThemeByDeck] = useState<Record<string, string[]>>({});
+  const themeJob = useRef<{ id: number; name: string; cards: number } | null>(null);
+  const themeQueue = useRef<DeckSummary[]>([]);
   useEffect(() => { if (printingOf?.nameEn) send({ type: 'getPrintings', name: printingOf.nameEn }); }, [printingOf, send]);
   const saveList = (text: string) => {
     if (!detail || !owned) return;
@@ -110,6 +120,57 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
     setConfirmingDelete(false);
     if (owned && opened) send({ type: 'getDeck', name: opened });
   }, [opened, owned, send]);
+
+  // Cache theme chips for the shelf: session first, then one owned deck at a time via deckLines.
+  useEffect(() => {
+    if (!owned || opened) { themeQueue.current = []; themeJob.current = null; return; }
+    const mine = listed(decks, 'mine');
+    const fromCache: Record<string, string[]> = {};
+    const pending: DeckSummary[] = [];
+    for (const deck of mine) {
+      const cacheKey = `reforge-theme-keys:${deck.name}:${deck.cards ?? 0}`;
+      const hit = sessionStorage.getItem(cacheKey);
+      if (hit) {
+        try { fromCache[deck.name] = JSON.parse(hit) as string[]; continue; } catch { /* queue */ }
+      }
+      pending.push(deck);
+    }
+    if (Object.keys(fromCache).length) setThemeByDeck((map) => ({ ...fromCache, ...map }));
+    themeQueue.current = pending;
+    if (!themeJob.current && pending.length) {
+      const deck = themeQueue.current.shift()!;
+      const id = nextRequestId();
+      themeJob.current = { id, name: deck.name, cards: deck.cards ?? 0 };
+      send({ type: 'deckLines', requestId: id, name: deck.name, source: 'mine' });
+    }
+  }, [owned, opened, decks.mine.join('|'), decks.summaries, send]);
+
+  useEffect(() => {
+    const job = themeJob.current;
+    const answer = engine.deckServices.deckLines;
+    if (!owned || opened || !job || !answer || answer.requestId !== job.id) return;
+    themeJob.current = null;
+    if (answer.type === 'deckLines') {
+      const { deck } = deckFromLines(answer.name, answer.lines, answer.identity);
+      const tags = deckThemeKeys(deck);
+      sessionStorage.setItem(`reforge-theme-keys:${job.name}:${job.cards}`, JSON.stringify(tags));
+      setThemeByDeck((map) => ({ ...map, [job.name]: tags }));
+    }
+    if (themeQueue.current.length) {
+      const deck = themeQueue.current.shift()!;
+      const id = nextRequestId();
+      themeJob.current = { id, name: deck.name, cards: deck.cards ?? 0 };
+      send({ type: 'deckLines', requestId: id, name: deck.name, source: 'mine' });
+    }
+  }, [engine.deckServices.deckLines, owned, opened, send]);
+
+  useEffect(() => {
+    if (!detail || !owned) return;
+    const { deck } = deckFromLines(detail.name, detail.lines, detail.identity);
+    const tags = deckThemeKeys(deck);
+    sessionStorage.setItem(`reforge-theme-keys:${detail.name}:${detail.cards ?? 0}`, JSON.stringify(tags));
+    setThemeByDeck((map) => ({ ...map, [detail.name]: tags }));
+  }, [detail, owned]);
 
   // A renamed deck stays open. A deleted one returns to the shelf.
   useEffect(() => {
@@ -201,6 +262,7 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                 })}
               </nav>
               {detail && view === 'list' && <DeckCards preview={detail} faces prices={prices} best={best} editable={owned}
+                inspectFrom={{ name: detail.name, source: library }}
                 onChangePrinting={owned ? setPrintingOf : undefined}
                 onRemove={owned ? (line) => line.nameEn && saveList(removeCopy(detail.text, line.nameEn, line, sectionOf(line))) : undefined}
                 onDemote={owned ? (line) => line.nameEn && saveList(demoteCommander(detail.text, line.nameEn, line)) : undefined}
@@ -256,7 +318,14 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                 <div className="deck-shelf__set" key={set.key}>
                   {set.name && <header className="deck-shelf__edition"><h3>{set.name}</h3>{set.code && <span>{set.code}</span>}</header>}
                   <ul className="deck-exhibits">
-                    {set.decks.map((deck) => <Poster key={deck.name} deck={deck} onOpen={() => { setOpened(deck.name); setView('list'); }} />)}
+                    {set.decks.map((deck) => {
+                      const keys = themeByDeck[deck.name];
+                      const themes = keys?.length
+                        ? keys.map((key) => say(key))
+                        : commanderThemeLabels((deck.commanders ?? []).map((c) => c.nameEn).filter(Boolean));
+                      return <Poster key={deck.name} deck={deck} themes={themes}
+                        onOpen={() => { setOpened(deck.name); setView('list'); }} />;
+                    })}
                   </ul>
                 </div>
               ))}
@@ -360,7 +429,7 @@ function openedFrom(initial: string | undefined, decks: DeckLists): { library: '
   return named('mine', initial) ?? named('precon', initial) ?? { library: 'mine', opened: null };
 }
 
-function Poster({ deck, onOpen }: { deck: DeckSummary; onOpen: () => void }) {
+function Poster({ deck, themes, onOpen }: { deck: DeckSummary; themes: string[]; onOpen: () => void }) {
   const t = useT();
   const main = deck.commanders?.[0];
   const src = main?.imageKey ? cardImage(main.imageKey, 'crop') : null;
@@ -383,6 +452,7 @@ function Poster({ deck, onOpen }: { deck: DeckSummary; onOpen: () => void }) {
         <span className="deck-poster__copy">
           <strong>{deckTitle(deck.name)}</strong>
           {commanders && <span>{commanders}</span>}
+          {themes.length > 0 && <span className="deck-poster__tags">{themes.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</span>}
           {footer && <span className="deck-poster__meta">{footer}</span>}
         </span>
       </InspectableCard>

@@ -1,6 +1,8 @@
 import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { CardInspectDialog } from '../CardInspectDialog';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
+import type { Engine } from '../useEngine';
 import { manaSymbols } from './cards';
 import { isMessageKey, useT } from '../i18n';
 
@@ -22,15 +24,17 @@ export function Preview({ card }: { card: CardState }) {
   );
 }
 
-/** Shows a card big: right click on desktop, long press on touch. Any click, right click or Escape closes it. */
+/** Shows a card big: right click on desktop, long press on touch. Catalog cards open the rich inspect modal. */
 export const CardZoom = createContext<(card: CardState) => void>(() => {});
 
-export function CardZoomProvider({ children }: { children: ReactNode }) {
+export function CardZoomProvider({ children, engine }: { children: ReactNode; engine?: Engine | null }) {
   const [card, setCard] = useState<CardState | null>(null);
+  const rich = card?.nameEn && engine;
   return (
     <CardZoom.Provider value={setCard}>
       {children}
-      {card && <ZoomDialog card={card} onClose={() => setCard(null)} />}
+      {rich && <CardInspectDialog card={card as CardState & { nameEn: string }} engine={engine} onClose={() => setCard(null)} />}
+      {card && !rich && <ZoomDialog card={card} onClose={() => setCard(null)} />}
     </CardZoom.Provider>
   );
 }

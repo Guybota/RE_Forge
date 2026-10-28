@@ -184,7 +184,7 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
-            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings", "cardSearch" -> services(c, msg);
+            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings", "cardSearch", "cardPrice" -> services(c, msg);
             case "importCentral" -> c.actions.execute(() -> {
                 // The old Central library: once automatically on desktop ("migration"), or a JSON export by hand.
                 try {
@@ -579,6 +579,8 @@ public final class EngineServer extends WebSocketServer {
                     }
                     reply = new JsonObject();
                     reply.add("cards", cards);
+                } else if (type.equals("cardPrice")) {
+                    reply = DeckServices.cardPrice(name, string(msg, "set"), string(msg, "number"));
                 } else if (type.equals("deckLines")) {
                     // Another deck's lines (own or precon) without replacing the deck open on screen.
                     reply = DeckImporter.detail(DeckSelection.find(name, string(msg, "source")), name);

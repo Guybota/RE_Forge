@@ -68,7 +68,7 @@ const BOARDS: { id: 'sideboard' | 'maybeboard'; label: MessageKey }[] = [
 ];
 const zoneOf = (l: Line) => l.maybeboard ? 'maybeboard' : l.sideboard ? 'sideboard' : null;
 
-export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onPromote, onMove }: {
+export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onPromote, onMove, inspectFrom }: {
   preview: Omit<DeckPreview, 'type'>;
   onCommander?: (nameEn: string) => void;
   onReplace?: (requested: string, nameEn: string) => void;
@@ -83,9 +83,16 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
   onDemote?: (line: Line) => void;
   onPromote?: (line: Line) => void;
   onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
+  /** Open-deck context so the inspect modal can load that commander's combos. */
+  inspectFrom?: { name: string; source: 'mine' | 'precon' };
 }) {
   const t = useT();
   const zoom = useContext(CardZoom);
+  const inspect = (l: Line) => cardForInspection({
+    ...l,
+    deckName: inspectFrom?.name,
+    deckSource: inspectFrom?.source,
+  });
   const [cardQuery, setCardQuery] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterColors, setFilterColors] = useState(0);
@@ -108,7 +115,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
     const lead = onCommander && l.canCommand && l.group !== 'commander' && l.nameEn;
     const fixes = onReplace && l.requested && l.suggestions?.length ? l.suggestions : null;
     return (
-      <InspectableCard as="li" card={l.imageKey ? cardForInspection(l) : null} key={i}
+      <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} key={i}
         className={`import__line import__line--${l.status}${lead || fixes ? ' import__line--actions' : ''}`} title={l.message ?? l.text}
         onMouseEnter={(e) => show(l, e.currentTarget)} onMouseLeave={hide} onFocus={(e) => show(l, e.currentTarget)} onBlur={hide}>
         <span className="import__text">{l.group ? <><span className="import__qty">{l.qty}</span> {l.name}</> : l.text}</span>
@@ -162,7 +169,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
                   const cheaper = key ? best?.get(key) : undefined;
                   const id = `${g.id}:${key}:${i}`;
                   return (
-                    <InspectableCard as="li" card={l.imageKey ? cardForInspection(l) : null} key={id} className="deck-face-wrap"
+                    <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} key={id} className="deck-face-wrap"
                       onMouseEnter={(e) => show(l, e.currentTarget)} onMouseLeave={hide}>
                       <button type="button" className="deck-face" aria-label={l.name ?? l.text}
                         onFocus={(e) => show(l, e.currentTarget)} onBlur={hide}>
@@ -193,7 +200,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
       {picture && !faces && <img className="import__picture" src={picture} alt="" aria-hidden="true" />}
       {menu && <CardMenu line={menu.line} x={menu.x} y={menu.y} editable={editable} onClose={() => setMenu(null)}
         onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onPromote={onPromote} onMove={onMove}
-        onView={() => { if (menu.line.imageKey) zoom(cardForInspection(menu.line)); }} />}
+        onView={() => { if (menu.line.imageKey || menu.line.nameEn) zoom(inspect(menu.line)); }} />}
     </section>
   );
 }

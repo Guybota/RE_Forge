@@ -4,13 +4,12 @@ import {
   buildCardSearchQuery, emptyCardSearch, hasSearchCriteria, insertSymbol,
   type CardSearchFilters, type ColorLetter, type CompareOp, type LegalityMode, type PriceCurrency, type SearchChip, type StatKind,
 } from './cardSearch';
+import { CardInspectDialog } from './CardInspectDialog';
 import { CardBeside } from './DeckCards';
-import { reply, useRequest } from './deckRequests';
 import { Unavailable } from './DeckOnline';
 import type { CatalogCard, DeckServicesReply } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
-import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
 import type { Engine } from './useEngine';
 
@@ -104,9 +103,6 @@ export function SearchScreen({ engine, onBack }: { engine: Engine; onBack: () =>
   };
 
   const picked = open != null ? cards[open] : null;
-  const rulings = useRequest((requestId) => { if (picked) send({ type: 'cardRulings', requestId, name: picked.nameEn }); }, [picked?.nameEn, send]);
-  const answer = picked ? reply(engine, 'cardRulings', rulings.id.current) : null;
-  const shown = answer?.type === 'cardRulings' && answer.name === picked?.nameEn ? answer : null;
 
   return (
     <main className="import decks search-page">
@@ -269,10 +265,15 @@ export function SearchScreen({ engine, onBack }: { engine: Engine; onBack: () =>
       {hasMore && <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => run(page + 1)}>{t('moreCards')}</button>}
       {hover && <CardBeside anchor={hover.anchor} src={hover.src} />}
       {picked && open != null && (
-        <CardRead card={picked} text={shown?.text || picked.textEn} index={open} total={cards.length}
-          loading={answer?.type !== 'cardRulings' && answer?.type !== 'servicesError'}
-          rulings={shown?.rulings} onClose={() => setOpen(null)}
-          onStep={(delta) => setOpen((index) => index == null ? index : Math.min(cards.length - 1, Math.max(0, index + delta)))} />
+        <CardInspectDialog
+          key={`${picked.nameEn}:${picked.set}:${picked.number}`}
+          card={{ ...cardForInspection(picked), nameEn: picked.nameEn }}
+          engine={engine}
+          index={open}
+          total={cards.length}
+          onClose={() => setOpen(null)}
+          onStep={(delta) => setOpen((index) => index == null ? index : Math.min(cards.length - 1, Math.max(0, index + delta)))}
+        />
       )}
     </main>
   );
@@ -328,48 +329,5 @@ function Chips({ chips, onToggle, onRemove, labelOf }: {
         );
       })}
     </ul>
-  );
-}
-
-function CardRead({ card, text, index, total, loading, rulings, onClose, onStep }: {
-  card: CatalogCard; text?: string; index: number; total: number; loading: boolean;
-  rulings?: { date: string; source?: string; comment: string }[];
-  onClose: () => void; onStep: (delta: number) => void;
-}) {
-  const t = useT();
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    dialog?.showModal();
-    return () => dialog?.close();
-  }, []);
-  const src = pictureOf(card);
-  const date = (iso: string) => {
-    const d = new Date(`${iso}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(document.documentElement.lang || undefined, { dateStyle: 'medium' });
-  };
-  return (
-    <dialog ref={ref} className="choice rules-card" aria-labelledby="search-card" onCancel={(e) => { e.preventDefault(); onClose(); }}
-      onClick={(e) => { if (e.target === ref.current) onClose(); }}>
-      <button type="button" className="btn btn--ghost rules-card__step rules-card__step--prev" aria-label={t('previousCard')} disabled={index <= 0} onClick={() => onStep(-1)} />
-      <button type="button" className="btn btn--ghost rules-card__step rules-card__step--next" aria-label={t('nextCard')} disabled={index >= total - 1} onClick={() => onStep(1)} />
-      <div className="rules-card__body">
-        {src && <InspectableCard as="div" card={card.imageKey ? cardForInspection(card) : null} className="rules__picture"><img src={src} alt={card.name} /></InspectableCard>}
-        <div>
-          <header className="game-menu__head">
-            <h2 id="search-card">{card.name}</h2>
-            <button type="button" className="btn btn--ghost" onClick={onClose}>{t('close')}</button>
-          </header>
-          {card.type && <p>{card.type}</p>}
-          {text && <p className="rules__oracle">{text}</p>}
-          <h3 title={t('rulesRulingsHint')}>{t('rulesRulings')}</h3>
-          {loading ? <p className="muted" role="status">{t('searchLoading')}</p>
-            : !rulings?.length ? <p className="muted">{t('rulesNoRulings')}</p>
-            : <ul className="rules__rulings" lang="en">{rulings.map((r, i) => (
-              <li key={i}><span className="muted">{date(r.date)}{r.source === 'wotc' ? ' · Wizards of the Coast' : ''}</span><p>{r.comment}</p></li>
-            ))}</ul>}
-        </div>
-      </div>
-    </dialog>
   );
 }

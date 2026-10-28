@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { CardInspectDialog } from './CardInspectDialog';
 import { CardBeside } from './DeckCards';
-import { reply, useRequest } from './deckRequests';
-import { Unavailable } from './DeckOnline';
 import type { CatalogCard } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
-import { InspectableCard } from './table/CardInspection';
-import { manaSymbols } from './table/cards';
 import { cardForInspection } from './table/useCardInspection';
 import type { Engine } from './useEngine';
 
@@ -72,37 +69,12 @@ export function RulesScreen({ engine, onBack }: { engine: Engine; onBack: () => 
   }, [engine.cardResults, searchId]);
 
   const picked = open != null ? cards[open] : null;
-  const rulings = useRequest((requestId) => { if (picked) send({ type: 'cardRulings', requestId, name: picked.nameEn }); }, [picked?.nameEn, send]);
-  const answer = picked ? reply(engine, 'cardRulings', rulings.id.current) : null;
-  const shown = answer?.type === 'cardRulings' && answer.name === picked?.nameEn ? answer : null;
-
-  useEffect(() => {
-    if (open == null) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setOpen(null); return; }
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      const target = event.target;
-      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
-      event.preventDefault();
-      setOpen((index) => {
-        if (index == null) return index;
-        const next = index + (event.key === 'ArrowLeft' ? -1 : 1);
-        return next < 0 || next >= cards.length ? index : next;
-      });
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, cards.length]);
 
   const more = () => {
     append.current = true;
     const requestId = 1_000_000 + ++nextSearch;
     setSearchId(requestId);
     send({ type: 'searchCards', requestId, query, rules, typeText, colors, cmc, allCards: true, offset: cards.length, stat, statOp, statValue: statNumber });
-  };
-  const date = (iso: string) => {
-    const d = new Date(`${iso}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(document.documentElement.lang || undefined, { dateStyle: 'medium' });
   };
 
   return (
@@ -161,59 +133,16 @@ export function RulesScreen({ engine, onBack }: { engine: Engine; onBack: () => 
         </section>
       </div>
       {picked && open != null && (
-        <CardDialog card={picked} text={shown?.text} legal={picked.commanderLegal} canCommand={picked.canCommand}
-          index={open} total={cards.length} onClose={() => setOpen(null)}
-          onStep={(delta) => setOpen((index) => index == null ? index : Math.min(cards.length - 1, Math.max(0, index + delta)))}>
-          <h3 title={t('rulesRulingsHint')}>{t('rulesRulings')}</h3>
-          {answer?.type === 'servicesError' ? <Unavailable onRetry={rulings.retry} />
-            : !shown ? <p className="muted" role="status">{t('connecting')}</p>
-            : shown.rulings.length === 0 ? <p className="muted">{t('rulesNoRulings')}</p>
-            : <ul className="rules__rulings" lang="en">{shown.rulings.map((r, i) => (
-              <li key={i}><span className="muted">{date(r.date)}{r.source === 'wotc' ? ' · Wizards of the Coast' : ''}</span><p>{r.comment}</p></li>
-            ))}</ul>}
-        </CardDialog>
+        <CardInspectDialog
+          key={picked.nameEn}
+          card={{ ...cardForInspection(picked), nameEn: picked.nameEn }}
+          engine={engine}
+          index={open}
+          total={cards.length}
+          onClose={() => setOpen(null)}
+          onStep={(delta) => setOpen((index) => index == null ? index : Math.min(cards.length - 1, Math.max(0, index + delta)))}
+        />
       )}
     </main>
-  );
-}
-
-function CardDialog({ card, text, legal, canCommand, index, total, onClose, onStep, children }: {
-  card: CatalogCard; text?: string; legal: boolean; canCommand: boolean; index: number; total: number;
-  onClose: () => void; onStep: (delta: number) => void; children: ReactNode;
-}) {
-  const t = useT();
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    dialog?.showModal();
-    return () => dialog?.close();
-  }, []);
-  const picture = card.imageKey ? cardImage(card.imageKey, 'full') : null;
-  return (
-    <dialog ref={ref} className="choice rules-card" aria-labelledby="rules-card" onCancel={(e) => { e.preventDefault(); onClose(); }}
-      onClick={(e) => { if (e.target === ref.current) onClose(); }}>
-      <button type="button" className="btn btn--ghost rules-card__step rules-card__step--prev" aria-label={t('previousCard')} disabled={index <= 0} onClick={() => onStep(-1)} />
-      <button type="button" className="btn btn--ghost rules-card__step rules-card__step--next" aria-label={t('nextCard')} disabled={index >= total - 1} onClick={() => onStep(1)} />
-      <div className="rules-card__body">
-        {picture && <InspectableCard as="div" card={cardForInspection(card)} className="rules__picture"><img src={picture} alt={card.name} /></InspectableCard>}
-        <div>
-          <header className="game-menu__head">
-            <h2 id="rules-card" className="choice__title">{card.name}</h2>
-            <button type="button" className="btn btn--ghost" onClick={onClose}>{t('close')}</button>
-          </header>
-          <p className="rules-card__type">
-            <span className="builder__cost">{manaSymbols(card.cost).map((s, i) => <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>)}</span>
-            <span className="muted">{card.type}</span>
-          </p>
-          {text && <p className="rules__text">{text}</p>}
-          <p className={legal ? 'muted' : 'deck-analysis__warn'}>
-            {t(legal ? 'rulesCommanderLegal' : 'rulesCommanderBanned')}
-            {canCommand && ` · ${t('rulesCanCommand')}`}
-          </p>
-          <p className="muted">{t('cardOf', { n: index + 1, total })}</p>
-          {children}
-        </div>
-      </div>
-    </dialog>
   );
 }

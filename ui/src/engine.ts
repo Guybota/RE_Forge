@@ -80,6 +80,8 @@ export type CardState = {
   id: number;
   hidden?: boolean;
   name?: string;
+  /** English name; when set, inspection opens the rich catalog modal instead of the in-game zoom. */
+  nameEn?: string;
   cost?: string;
   /** Type line in the chosen language, for display. */
   type?: string;
@@ -87,10 +89,15 @@ export type CardState = {
   typeEn?: string;
   colors?: string;
   set?: string;
+  number?: string;
   /** Forge's CardRarity name, e.g. 'MythicRare'. */
   rarity?: string;
   imageKey?: string;
+  imageUrl?: string;
   text?: string;
+  textEn?: string;
+  commanderLegal?: boolean;
+  canCommand?: boolean;
   power?: number;
   toughness?: number;
   loyalty?: string;
@@ -110,6 +117,9 @@ export type CardState = {
   counters?: Record<string, number>;
   /** Forge's keywords, in English: `id` is the enum name, `detail` what follows the name (e.g. "{2}" of "Ward {2}"). */
   keywords?: { id: string; title: string; detail: string; reminder: string }[];
+  /** When inspecting from an open deck, load that commander's EDHREC combos that include this card. */
+  deckName?: string;
+  deckSource?: 'mine' | 'precon';
 };
 
 export type PlayerState = {
@@ -321,9 +331,10 @@ export type DeckServicesReply =
   | { type: 'comboDetail'; requestId: number; href: string; prerequisites: string[]; steps: string[] }
   | (Omit<DeckDetail, 'type'> & { type: 'deckLines'; requestId: number; source: 'mine' | 'precon' })
   | { type: 'cardsByName'; requestId: number; cards: CatalogCard[] }
+  | { type: 'cardPrice'; requestId: number; name: string; set?: string; number?: string; eur?: number | null; exact: boolean }
   | { type: 'deckSpellbook'; requestId: number; name: string; combos: { id: string; cardNames: string[]; produces: string[] }[] }
   | { type: 'cardRulings'; requestId: number; name: string; card: CatalogCard; text: string; rulings: { date: string; source: string; comment: string }[] }
-  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'deckSpellbook' | 'cardRulings';
+  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'cardPrice' | 'deckSpellbook' | 'cardRulings';
       unavailable: boolean; message: string };
 
 /** Decks brought in from a Central library (the desktop migration, or a JSON export opened by hand). */
@@ -380,6 +391,7 @@ export type ClientMessage =
   | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string; source?: 'mine' | 'precon' }
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }
+  | { type: 'cardPrice'; requestId: number; name: string; set?: string; number?: string }
   | { type: 'cardRulings'; requestId: number; name: string }
   | { type: 'importCentral'; json: string; migration?: boolean }
   | { type: 'comboDetail'; requestId: number; href: string }
@@ -475,7 +487,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckDetail': h.onDeckDetail(msg); break;
       case 'centralImport': h.onCentralImport(msg); break;
       case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
-      case 'deckLines': case 'cardsByName': case 'deckSpellbook': case 'cardRulings':
+      case 'deckLines': case 'cardsByName': case 'cardPrice': case 'deckSpellbook': case 'cardRulings':
         h.onDeckServices(msg); break;
       case 'cardResults': case 'cardSearch': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;
