@@ -403,6 +403,60 @@ final class DeckServices {
         return o.has("name") ? o.get("name").getAsString() : null;
     }
 
+    /**
+     * Combos whose every card is already in the deck, from Commander Spellbook's find-my-combos:
+     * {@code combos: [{id, cardNames, produces}]} (at most 24; {@code produces} in English).
+     */
+    static JsonObject spellbook(Deck deck) {
+        JsonArray main = new JsonArray(), commanders = new JsonArray();
+        List<String> names = new ArrayList<>();
+        for (DeckSection section : List.of(DeckSection.Commander, DeckSection.Main)) {
+            if (!deck.has(section)) continue;
+            for (var entry : deck.get(section)) {
+                JsonObject card = new JsonObject();
+                card.addProperty("card", entry.getKey().getName());
+                card.addProperty("quantity", entry.getValue());
+                (section == DeckSection.Commander ? commanders : main).add(card);
+                names.add(entry.getKey().getName());
+            }
+        }
+        names.sort(null);
+        String key = "f:" + Integer.toHexString(String.join("|", names).hashCode());
+        JsonElement cached = fresh(key);
+        if (cached == null) {
+            JsonObject body = new JsonObject();
+            body.add("main", main);
+            body.add("commanders", commanders);
+            JsonElement answer = request(SPELLBOOK + "/find-my-combos/", body);
+            JsonArray combos = new JsonArray();
+            JsonObject results = answer != null && answer.getAsJsonObject().has("results") ? answer.getAsJsonObject().getAsJsonObject("results") : null;
+            if (results != null && results.has("included")) for (JsonElement e : results.getAsJsonArray("included")) {
+                if (combos.size() >= 24) break;
+                JsonObject variant = e.getAsJsonObject();
+                JsonArray cards = new JsonArray(), produces = new JsonArray();
+                if (variant.has("uses")) for (JsonElement u : variant.getAsJsonArray("uses")) {
+                    JsonObject use = u.getAsJsonObject();
+                    if (use.has("card") && use.get("card").isJsonObject()) cards.add(str(use.getAsJsonObject("card"), "name"));
+                }
+                if (variant.has("produces")) for (JsonElement p : variant.getAsJsonArray("produces")) {
+                    JsonObject feature = p.getAsJsonObject().has("feature") ? p.getAsJsonObject().getAsJsonObject("feature") : null;
+                    if (feature != null && produces.size() < 4) produces.add(str(feature, "name"));
+                }
+                JsonObject combo = new JsonObject();
+                combo.addProperty("id", str(variant, "id"));
+                combo.add("cardNames", cards);
+                combo.add("produces", produces);
+                combos.add(combo);
+            }
+            store(key, combos);
+            save();
+            cached = combos;
+        }
+        JsonObject o = new JsonObject();
+        o.add("combos", cached);
+        return o;
+    }
+
     /** How one EDHREC combo plays: {@code prerequisites} and {@code steps}, in English as EDHREC writes them. */
     static JsonObject comboDetail(String href) {
         String path;

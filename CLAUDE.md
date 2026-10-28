@@ -43,7 +43,7 @@ docs/       PLAN.md (roadmap).
 | `Campaigns` | One open campaign per engine: routes `campaign` actions to `QuestCampaign` (Forge's native Quest) or `AdventureCampaign`; saves through `CampaignStore` (`<data>/user/reforge-campaigns`). |
 | `AdventureCampaign` | Adventure character, deck and battles on `AdventureWorld` (seeded Shandalar: biomes, POIs, wandering enemies), `AdventureMap` (Forge's Tiled maps without libGDX), `AdventureSprites` (libGDX atlases as text) and `AdventureQuests` (side quests from `quests.json`: town offers, Defeat/Hunt/Travel/Clear/Leave stages, rewards from the epilogues). Towns are entered like dungeons: inn, quest giver and `AdventureShops` (shops.json, stock from `AdventureCards`, Forge's reward filters). |
 | `DeckImporter` | Decklist text → Commander deck via Forge's `DeckImportController`; saves to the user's Commander decks. `detail` exports a deck back to text (`qty Name (SET) number`) with the player's tags, notes and intended bracket (`setMeta`: Forge deck tags and comment, line breaks escaped; `reforge-bracket-N`; other `reforge-` tags stay hidden), `rename` copies then deletes; `save` carries tags/notes over from `from` or the deck it replaces. Without a Commander section, two sideboard partners or 1–2 commanders after the last blank line (MTGO/Moxfield text) lead; `chooseCommander` rewrites the text (a compatible partner joins, others replace). Unknown lines carry `CardCatalog.similar` suggestions (typos, partial and translated names). |
-| `DeckServices` | Deck tools' online lookups (from Central): Cardmarket EUR via Scryfall for exact printings (`/cards/collection`, unknown printing → by name, `exact: false`), cheaper printings Forge also has (searches of 10 names, basics alone), EDHREC commander combo tabs with Commander Spellbook template pieces, and EDHREC combo explanations (`https://edhrec.com/combos/...` only). Runs on its own pool, never the action queue; one-day cache in `<cache>/reforge-services.json`; failures answer `servicesError` (`unavailable`). `RE_FORGE_SERVICES_URL` (loopback only) points all three hosts at a test server. |
+| `DeckServices` | Deck tools' online lookups (from Central): Cardmarket EUR via Scryfall for exact printings (`/cards/collection`, unknown printing → by name, `exact: false`), cheaper printings Forge also has (searches of 10 names, basics alone), EDHREC commander combo tabs with Commander Spellbook template pieces, EDHREC combo explanations (`https://edhrec.com/combos/...` only) and Spellbook find-my-combos (combos already complete). `EngineServer` also answers `deckLines` (another deck's lines, own or precon) and `cardsByName` on the same path. Runs on its own pool, never the action queue; one-day cache in `<cache>/reforge-services.json`; failures answer `servicesError` (`unavailable`). `RE_FORGE_SERVICES_URL` (loopback only) points all three hosts at a test server. |
 | `DeckLinks` | Public Archidekt/Moxfield deck → decklist text through their JSON APIs; any other host is refused before a request. A printing goes along only if Forge knows that set and number (promos, Secret Lair flavour names otherwise fail). |
 
 ### UI (ui/src)
@@ -53,9 +53,12 @@ docs/       PLAN.md (roadmap).
 - `modes/LimitedScreen.tsx` — Draft/Sealed: saved events, the draft (pack, picks), deck building from the pool with free basic
   lands, AI opponents with the last result. `modes/PuzzleScreen.tsx` — puzzles by difficulty, situation, goal, start.
   Starting a puzzle or a limited game must reset `useEngine`'s "left the match" guard like any new match.
-- `Decks.tsx` — the player's own decks: views List (`DeckCards`, sideboard apart), Analysis, Prices, Combos and Notes (`DeckInsights.tsx`:
+- `Decks.tsx` — the player's own decks: views List (`DeckCards`, sideboard apart), Analysis, Prices, Combos, Improve, Compare and Notes, the
+  tool views lazy-loaded (`DeckInsights.tsx`:
   Central's bracket, Commander check, card jobs, sample hand plus `DeckStatistics`; tags, notes, intended bracket; `DeckOnline.tsx`: prices, cheaper printings, combos, add combo with suggested cuts,
-  edits through `deckText.ts` + `saveDeck.from`; `useEngine.deckServices` keeps the newest reply per kind), rename,
+  edits through `deckText.ts` + `saveDeck.from`; `useEngine.deckServices` keeps the newest reply per kind, `deckRequests.ts`;
+  `DeckImprove.tsx`: Central's switches, bracket adjustment and pasted-list differences, held ideas → a new deck copy;
+  `DeckCompare.tsx`: against own decks or precons), rename,
   edit or new (opens `DeckBuilder`), import, export to the clipboard, delete, play. `DeckCards.tsx` is shared with the import.
 - `ImportDeck.tsx` — paste, open/drop a file (`decklistFiles.ts`: MTGO `.dek` XML, Forge `.dck`, text) or fetch a link;
   `DeckCards` there offers "Commander" on possible commanders and suggested cards on unknown lines.
@@ -67,7 +70,9 @@ docs/       PLAN.md (roadmap).
 - `deckTools/` — Central's deck logic, copied as plain TypeScript (bracket, Game Changers, Commander check, partners,
   roles, card groups, compare, combo cuts, improve plans/adapt/diff, `card-tags.json`). `cardVisual.ts` is the only
   adapter: Forge deck lines (`deckDetail`/`deckPreview`, sideboard flagged) → the tools' `Deck` and `CardVisual`.
-  Change the heuristics there, not the adapter. Plan: `docs/CENTRAL_PLAN.md`.
+  Change the heuristics there, not the adapter. Plan: `docs/CENTRAL_PLAN.md`. Their sentences go through `say.ts`: the
+  English text is the key of `pt.json`; values inside use `say("… {name} …", { name })`. A new sentence needs a pt entry
+  (`ui:smoke-improve` fails otherwise). Card and creature-type names stay English inside sentences.
 - `table/CardZoom.tsx` — right click (long press on touch) on any card or deck line shows it big, in a modal `<dialog>`
   so it sits above other dialogs, with its counters and keywords (`kw_*`/`kwHelp_*` in `i18n.ts`, else Forge's English
   reminder text); also exports the shared `Preview`.
@@ -174,6 +179,7 @@ npm run engine:smoke-central  # native external-list games without replacing sav
 npm run central:smoke-package # staged production server/assets and reuse of Electron's engine
 npm run ui:smoke-builder      # deterministic deck statistics: quantities, curve, colours, sources, draw odds, printings
 npm run ui:smoke-import       # decklist files (.dek, .dck, text) and suggestion line fixes
+npm run ui:smoke-improve      # every Improve sentence translated (same placeholders); a real plan in Portuguese without English
 npm run ui:smoke-sounds       # deterministic cue routing, waveform bounds, mute/volume, autoplay and audio failures
 npm run ui:smoke-animations   # deterministic animation plans: cast, enter/ring, counters, equip, discard, mill, coin
 npm run engine:smoke-quests   # Adventure side quests (an offer in every town of 3 worlds, each driven to its reward), town maps and shop stock

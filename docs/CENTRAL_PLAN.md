@@ -87,6 +87,12 @@ Cada fase: ramo `feat/deck-tools-<fase>`, compila, testes de fumo, verificado no
 - `ImproveDeck.tsx`: lista de referência colada, planos de jogo, cortes/adições/trocas com preço,
   ideias guardadas; aplicar uma troca grava o deck. O texto gerado por `improve-adapt` (inglês) passa a chaves
   de `i18n.ts` com parâmetros — é a maior parte do trabalho de tradução.
+- **Feito** (28/10/2026, `feat/deck-tools-improve`): vistas Melhorar e Comparar no ecrã de Decks (carregadas só
+  quando abertas). Tradução completa das ~890 frases do Melhorar em `deckTools/pt.json` através de `say.ts`
+  (decisão do dono: traduzir tudo; nomes de cartas e tipos de criatura ficam em inglês dentro das frases).
+  As ideias guardadas geram sempre um deck novo (decisão do dono), com etiqueta "ideias" e notas.
+  Motor: `deckLines` (outro deck, próprio ou pré-construído), `cardsByName`, Spellbook find-my-combos.
+  Os "sinais" da Central (etiquetas por ideia) não entram.
 
 ### 5. Sage e pesquisa avançada
 - Ecrã "Regras": consulta de carta (catálogo do Forge, em qualquer língua), rulings, verificação Commander de

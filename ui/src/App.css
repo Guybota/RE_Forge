@@ -444,6 +444,26 @@
 .deck-online__dialog-body { padding: 12px 20px 20px; max-height: 70vh; overflow-y: auto; }
 .deck-online__dialog-body h3 { margin: 12px 0 6px; font-size: 15px; }
 .deck-online__cuts label { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+/* Improve and Compare. */
+.deck-compare__pick { max-width: 520px; }
+.deck-improve h3 { margin: 12px 0 6px; font-size: 15px; }
+.deck-improve__combos, .deck-improve__plans, .deck-improve__ideas, .deck-improve__held { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.deck-improve__plan { width: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.deck-improve__plan strong { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 18px; }
+.deck-improve__plan > span:last-child { flex-basis: 100%; }
+.deck-improve__plan:focus-visible { outline: 2px solid var(--focus-table); outline-offset: 4px; }
+.deck-improve__idea { padding: 10px 12px; border: 1px solid var(--table-line); border-radius: var(--radius-control); }
+.deck-improve__idea.is-on { border-color: var(--accent); }
+.deck-improve__idea p { margin: 8px 0 0; }
+.deck-improve__switch { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.deck-improve__side ul { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
+.deck-improve__side li { width: 96px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; text-align: center; }
+.deck-improve__side li.is-owned img { outline: 2px solid var(--accent); }
+.deck-improve__side img { width: 100%; border-radius: var(--card-radius); }
+.deck-improve__side p { margin: 8px 0 0; }
+.deck-improve__held li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--table-line); }
+.deck-improve__reference { width: 100%; min-height: 120px; resize: vertical; }
 @media (max-height: 560px) { .deck-online { max-height: none; overflow: visible; } }
 @media (max-width: 800px) {
   .deck-online { max-height: none; overflow: visible; }

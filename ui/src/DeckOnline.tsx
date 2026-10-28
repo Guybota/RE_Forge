@@ -2,45 +2,27 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { deckFromLines } from './deckTools/cardVisual';
 import { rankComboCuts } from './deckTools/combo-cuts';
 import { addAndCut, swapPrinting } from './deckText';
-import type { CheaperOffer, DeckDetail, DeckPreview, DeckServicesReply, EdhrecCombo } from './engine';
+import type { CheaperOffer, DeckDetail, DeckPreview, EdhrecCombo } from './engine';
 import { useT } from './i18n';
 import { cardImage } from './images';
 import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
 import type { Engine } from './useEngine';
+import { nextRequestId, reply, useRequest } from './deckRequests';
 
 type Line = DeckPreview['lines'][number];
-let nextRequest = 0;
 
 const euros = (n: number) => new Intl.NumberFormat(document.documentElement.lang || undefined, { style: 'currency', currency: 'EUR' }).format(n);
 const key = (n: string) => n.toLowerCase();
 /** EDHREC writes two-faced cards in full ("A // B"); Forge names them by the front face. */
 const front = (n: string) => key(n.split(' // ')[0]);
 
-/** The reply to the latest request of this kind, or the error for it. */
-function reply<T extends DeckServicesReply['type']>(engine: Engine, type: Exclude<T, 'servicesError'>, id: number) {
-  const r = engine.deckServices[type];
-  return r && r.requestId === id ? r as Extract<DeckServicesReply, { type: T | 'servicesError' }> : null;
-}
-
-function Unavailable({ onRetry }: { onRetry: () => void }) {
+export function Unavailable({ onRetry }: { onRetry: () => void }) {
   const t = useT();
   return <p className="deck-online__status" role="alert">
     <span className="deck-analysis__warn">{t('servicesUnavailable')}</span>
     <button type="button" className="btn btn--ghost" onClick={onRetry}>{t('servicesRetry')}</button>
   </p>;
-}
-
-/** Sends a request with a fresh id whenever `deps` change or on retry; replies with another id are stale. */
-function useRequest(send: (requestId: number) => void, deps: unknown[]) {
-  const id = useRef(0);
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    id.current = ++nextRequest;
-    send(id.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, attempt]);
-  return { id, retry: () => setAttempt((n) => n + 1) };
 }
 
 /** Cardmarket EUR for the deck's exact printings, and cheaper printings Forge also has. */
@@ -109,7 +91,7 @@ function CheaperPrintings({ detail, engine }: { detail: DeckDetail; engine: Engi
   const offers = found && [...found].sort((a, b) => saving(b) - saving(a));
   const chosen = offers?.filter((o) => picked.has(offerKey(o))) ?? [];
   const find = () => {
-    const requestId = ++nextRequest;
+    const requestId = nextRequestId();
     setId(requestId);
     setPicked(new Set());
     engine.send({ type: 'cheaperPrintings', requestId, name: detail.name });

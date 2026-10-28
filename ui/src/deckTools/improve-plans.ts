@@ -10,6 +10,7 @@ import {
 import { estimateBracket } from "./bracket.ts";
 import { isGameChanger } from "./game-changers.ts";
 import { canonicalizeName } from "./parse-decklist.ts";
+import { joinList, say } from "./say.ts";
 import type { ColorIdentity, Deck, SignalTag, Suggestion } from "./types.ts";
 
 export type GamePlan = {
@@ -533,13 +534,18 @@ function packagePlan(
   for (const name of cuts) usedCuts.add(canonicalizeName(name));
   for (const name of missing) usedAdds.add(canonicalizeName(name));
   const ownedLine = owned.length
-    ? ` ${joinList(owned)} ${owned.length === 1 ? "is" : "are"} already in this deck, shown with the switch, and ${owned.length === 1 ? "stays" : "stay"}. The switch is the only change.`
+    ? say(
+        owned.length === 1
+          ? " {cards} is already in this deck, shown with the switch, and stays. The switch is the only change."
+          : " {cards} are already in this deck, shown with the switch, and stay. The switch is the only change.",
+        { cards: joinList(owned) },
+      )
     : "";
   return {
     id: pkg.id,
     title: pkg.title,
-    summary: owned.length ? `Finish this with ${joinList(missing)}.` : pkg.summary,
-    play: `${pkg.play}${ownedLine}`,
+    summary: owned.length ? say("Finish this with {cards}.", { cards: joinList(missing) }) : pkg.summary,
+    play: `${say(pkg.play)}${ownedLine}`,
     suggestions: [
       {
         id: pkg.id,
@@ -578,7 +584,7 @@ const PROFILES: Profile[] = [
       const from = lifeAlreadyLine(deck);
       const spend =
         "These switches spend that life on cards or damage instead of leaving it as a higher total. They do not add a new way to gain life.";
-      return from ? `${from} ${spend}` : spend;
+      return from ? `${from} ${say(spend)}` : spend;
     },
     limit: 3,
     detect: (deck) => countMatching(deck, LIFE) >= 2,
@@ -699,15 +705,20 @@ export function bracketAdjustments(
       if (!addName) continue;
       rememberAdd(addName);
       const job = sameJob
-        ? `${addName} keeps a similar job and does not count as one.`
-        : `${addName} supports this plan and does not count as one.`;
+        ? say("{card} keeps a similar job and does not count as one.", { card: addName })
+        : say("{card} supports this plan and does not count as one.", { card: addName });
       toward.push({
         id: `bracket-${target}-ease-${canonicalizeName(card.name)}`,
         type: "swap",
         title: "Ease a Game Changer",
         cut: { name: card.name, quantity: 1 },
         add: { name: addName, quantity: 1 },
-        reason: `${card.name} is an official Game Changer. ${job} Bracket ${target} usually stays at ${cap === 0 ? "no Game Changers" : `${cap} or fewer`}.`,
+        reason: say(
+          cap === 0
+            ? "{card} is an official Game Changer. {job} Bracket {target} usually stays at no Game Changers."
+            : "{card} is an official Game Changer. {job} Bracket {target} usually stays at {cap} or fewer.",
+          { card: card.name, job, target, cap },
+        ),
         signals: ["bracket-down", "game-changer"],
       });
     }
@@ -733,7 +744,7 @@ export function bracketAdjustments(
         title: "Add a Game Changer",
         cut: { name: preferred, quantity: 1 },
         add: { name: offer.name, quantity: 1 },
-        reason: `${offer.reason} Optional, and only if you want the list to read closer to Bracket ${target}.`,
+        reason: say("{reason} Optional, and only if you want the list to read closer to Bracket {target}.", { reason: say(offer.reason), target }),
         signals: ["bracket-up", "game-changer"],
       });
     }
@@ -813,12 +824,6 @@ export type DeckReading = {
   threads: string[];
 };
 
-function joinList(items: string[]): string {
-  if (items.length <= 1) return items[0] ?? "";
-  if (items.length === 2) return `${items[0]} and ${items[1]}`;
-  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
-}
-
 /** A short reading of the deck as it is, before any suggestions. */
 export function readDeck(deck: Deck): DeckReading {
   const commanders = deck.commanders.map((card) => card.name);
@@ -844,21 +849,27 @@ export function readDeck(deck: Deck): DeckReading {
 
   const colors = (deck.colorIdentity ?? [])
     .map((color) => COLOR_WORDS[color])
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((color) => say(color));
+  // Threads stay English above (the checks read them); shown translated.
+  const shown = threads.map((thread) => {
+    const count = /^(\d+) Game Changers$/.exec(thread);
+    return count ? say("{n} Game Changers", { n: count[1] }) : say(thread);
+  });
   const who = commanders.length ? joinList(commanders) : "";
-  const lean = threads.length
-    ? `The list already leans on ${joinList(threads)}.`
-    : "The list does not lean on one package yet, so there is room to look around.";
-  const colorLine = colors.length ? ` The colors are ${joinList(colors)}.` : "";
+  const lean = shown.length
+    ? say("The list already leans on {threads}.", { threads: joinList(shown) })
+    : say("The list does not lean on one package yet, so there is room to look around.");
+  const colorLine = colors.length ? say(" The colors are {colors}.", { colors: joinList(colors) }) : "";
 
   const body = who
-    ? `${who} is the card the rest of this list is built around.${colorLine} ${lean}`
-    : "This list has no commander yet. Add one on the deck page, then come back.";
+    ? say("{who} is the card the rest of this list is built around.{colorLine} {lean}", { who, colorLine, lean })
+    : say("This list has no commander yet. Add one on the deck page, then come back.");
 
   return {
     headline: who || deck.name,
     body,
-    threads,
+    threads: shown,
   };
 }
 

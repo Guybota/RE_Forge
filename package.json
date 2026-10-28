@@ -27,6 +27,7 @@
     "desktop:smoke-central": "node scripts/smoke-central-electron.mjs",
     "ui:smoke-builder": "node scripts/smoke-builder-stats.mjs",
     "ui:smoke-import": "node scripts/smoke-import-files.mjs",
+    "ui:smoke-improve": "node scripts/smoke-improve.mjs",
     "ui:smoke-design": "node scripts/smoke-design-contrast.mjs",
     "ui:smoke-appearance": "node scripts/smoke-appearance.mjs",
     "ui:smoke-home": "node scripts/smoke-home.mjs",

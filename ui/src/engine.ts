@@ -311,7 +311,11 @@ export type DeckServicesReply =
   | { type: 'cheaperPrintings'; requestId: number; name: string; offers: CheaperOffer[] }
   | { type: 'deckCombos'; requestId: number; name: string; groups: ComboGroup[]; missing: string[] }
   | { type: 'comboDetail'; requestId: number; href: string; prerequisites: string[]; steps: string[] }
-  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail'; unavailable: boolean; message: string };
+  | (Omit<DeckDetail, 'type'> & { type: 'deckLines'; requestId: number; source: 'mine' | 'precon' })
+  | { type: 'cardsByName'; requestId: number; cards: CatalogCard[] }
+  | { type: 'deckSpellbook'; requestId: number; name: string; combos: { id: string; cardNames: string[]; produces: string[] }[] }
+  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'deckSpellbook';
+      unavailable: boolean; message: string };
 
 export type Notice ={ type: 'notice'; kind: 'incorrectAction' | 'alert' | 'message' | 'error'; text: string | null };
 
@@ -360,7 +364,9 @@ export type ClientMessage =
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
   | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
-  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos'; requestId: number; name: string }
+  | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string }
+  | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
+  | { type: 'cardsByName'; requestId: number; names: string[] }
   | { type: 'comboDetail'; requestId: number; href: string }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number }
   | { type: 'getPrintings'; name: string }
@@ -450,6 +456,7 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckText': h.onDeckText(msg); break;
       case 'deckDetail': h.onDeckDetail(msg); break;
       case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
+      case 'deckLines': case 'cardsByName': case 'deckSpellbook':
         h.onDeckServices(msg); break;
       case 'cardResults': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;

@@ -1,14 +1,21 @@
-import { useEffect, useState } from 'react';
-import { DeckAnalysis, DeckNotes } from './DeckInsights';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { DeckCards } from './DeckCards';
-import { DeckCombos, DeckPrices } from './DeckOnline';
 import type { DeckDetail } from './engine';
 import { useT, type MessageKey } from './i18n';
 import type { Engine } from './useEngine';
 
-const VIEWS: { id: 'list' | 'analysis' | 'prices' | 'combos' | 'notes'; label: MessageKey }[] = [
+// The deck tools (heuristics, card tags, translations) load only when one of their views opens.
+const DeckAnalysis = lazy(() => import('./DeckInsights').then((m) => ({ default: m.DeckAnalysis })));
+const DeckNotes = lazy(() => import('./DeckInsights').then((m) => ({ default: m.DeckNotes })));
+const DeckPrices = lazy(() => import('./DeckOnline').then((m) => ({ default: m.DeckPrices })));
+const DeckCombos = lazy(() => import('./DeckOnline').then((m) => ({ default: m.DeckCombos })));
+const DeckImprove = lazy(() => import('./DeckImprove').then((m) => ({ default: m.DeckImprove })));
+const DeckCompare = lazy(() => import('./DeckCompare').then((m) => ({ default: m.DeckCompare })));
+
+const VIEWS: { id: 'list' | 'analysis' | 'prices' | 'combos' | 'improve' | 'compare' | 'notes'; label: MessageKey }[] = [
   { id: 'list', label: 'deckViewList' }, { id: 'analysis', label: 'deckViewAnalysis' }, { id: 'prices', label: 'deckViewPrices' },
-  { id: 'combos', label: 'deckViewCombos' }, { id: 'notes', label: 'deckViewNotes' },
+  { id: 'combos', label: 'deckViewCombos' }, { id: 'improve', label: 'deckViewImprove' }, { id: 'compare', label: 'deckViewCompare' },
+  { id: 'notes', label: 'deckViewNotes' },
 ];
 
 type Props = {
@@ -103,10 +110,14 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                 {VIEWS.map((v) => <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id} onClick={() => setView(v.id)}>{t(v.label)}</button>)}
               </nav>
               {detail && view === 'list' && <DeckCards preview={detail} />}
+              <Suspense fallback={<p className="muted" role="status">{t('connecting')}</p>}>
               {detail && view === 'analysis' && <DeckAnalysis detail={detail} />}
               {detail && view === 'prices' && <DeckPrices key={detail.name} detail={detail} engine={engine} />}
               {detail && view === 'combos' && <DeckCombos key={detail.name} detail={detail} engine={engine} />}
+              {detail && view === 'improve' && <DeckImprove key={detail.name} detail={detail} engine={engine} onCreated={(name) => { setRenaming(name); setView('list'); }} />}
+              {detail && view === 'compare' && <DeckCompare key={detail.name} detail={detail} engine={engine} />}
               {detail && view === 'notes' && <DeckNotes key={[detail.name, detail.tags.join(','), detail.bracketIntent, detail.notes].join('\n')} detail={detail} engine={engine} />}
+              </Suspense>
             </section>
           )}
         </div>

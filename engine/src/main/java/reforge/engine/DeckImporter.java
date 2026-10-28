@@ -282,7 +282,11 @@ final class DeckImporter {
      * the exact printings survive an edit) plus the same grouped preview the import screen shows.
      */
     static JsonObject detail(String name) {
-        Deck deck = mine().get(name);
+        return detail(mine().get(name), name);
+    }
+
+    /** {@link #detail(String)} for any deck, such as a precon (no tags or notes of the player's then). */
+    static JsonObject detail(Deck deck, String name) {
         if (deck == null) return null;
         StringBuilder text = new StringBuilder();
         for (DeckSection section : List.of(DeckSection.Commander, DeckSection.Main, DeckSection.Sideboard)) {

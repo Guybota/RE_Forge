@@ -44,6 +44,7 @@ import {
 } from "./card-tag-bits.ts";
 import { isGameChanger } from "./game-changers.ts";
 import { canonicalizeName } from "./parse-decklist.ts";
+import { joinList, say, translating } from "./say.ts";
 import type { ColorIdentity, Deck, Suggestion } from "./types.ts";
 
 export type AdaptPlan = {
@@ -179,7 +180,7 @@ function pluralType(type: string, count: number): string {
 }
 
 function fill(text: string, tribe: string, plural: string, count: number): string {
-  return text
+  return say(text)
     .replaceAll("{tribe}", tribe)
     .replaceAll("{plural}", plural)
     .replaceAll("{count}", String(count));
@@ -1537,11 +1538,8 @@ function scanDeck(deck: Deck): Scan {
   return { tribe, anchor, themes };
 }
 
-function joinNames(names: string[]): string {
-  if (names.length <= 1) return names[0] ?? "";
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
-}
+const joinNames = joinList;
+const andMore = (n: number) => (n > 0 ? say(", and {n} more", { n }) : "");
 
 function cardsWithTheme(deck: Deck, bit: number): string[] {
   const out: string[] = [];
@@ -1580,8 +1578,7 @@ export function lifeAlreadyLine(deck: Deck): string {
   const names = cardsWithTheme(deck, THEME_LIFE);
   const named = joinNames(names.slice(0, 3));
   if (!named) return "";
-  const extra = names.length > 3 ? `, and ${names.length - 3} more` : "";
-  return `Life already comes from ${named}${extra}.`;
+  return say("Life already comes from {named}{extra}.", { named, extra: andMore(names.length - 3) });
 }
 
 function lifeOffers(deck: Deck, count: number): Offer[] {
@@ -1716,7 +1713,7 @@ export function adaptPlans(
     const tribe = scan.tribe.type;
     const plural = pluralType(tribe, scan.tribe.count);
     const tribeReason = (cut: string, offer: Offer) =>
-      `${cut} is not ${article(tribe)} ${tribe}. ${fill(offer.because, tribe, plural, scan.tribe?.count ?? 0)}`;
+      say("{cut} is not {a} {tribe}. {because}", { cut, a: article(tribe), tribe, because: fill(offer.because, tribe, plural, scan.tribe?.count ?? 0) });
     const tribeArgs = [
       `adapt-${tribe.toLowerCase()}`,
       tribalOfferList(tribe),
@@ -1733,9 +1730,10 @@ export function adaptPlans(
     }
     const plan = asAdapt(
       `adapt-${tribe.toLowerCase()}`,
-      `${tribe} switches`,
-      `Trade a card that is not ${article(tribe)} ${tribe} for one that helps the ${plural}.`,
-      `This list has ${scan.tribe.count} ${plural}. Each switch takes out a card that is not ${article(tribe)} ${tribe} and brings in a card that makes that type better.`,
+      say("{tribe} switches", { tribe }),
+      say("Trade a card that is not {a} {tribe} for one that helps the {plural}.", { a: article(tribe), tribe, plural }),
+      say("This list has {count} {plural}. Each switch takes out a card that is not {a} {tribe} and brings in a card that makes that type better.",
+        { count: scan.tribe.count, plural, a: article(tribe), tribe }),
       offers,
     );
     if (plan) plans.push(plan);
@@ -1747,16 +1745,17 @@ export function adaptPlans(
     const anchor = scan.anchor;
     const sources = hit.def.bit ? cardsWithTheme(deck, hit.def.bit) : [];
     const named = joinNames(sources.slice(0, 3));
-    const extra = sources.length > 3 ? `, and ${sources.length - 3} more` : "";
-    let playText = (hit.forced && hit.def.commanderPlay ? hit.def.commanderPlay : hit.def.play).replaceAll(
+    const extra = andMore(sources.length - 3);
+    let playText = say(hit.forced && hit.def.commanderPlay ? hit.def.commanderPlay : hit.def.play).replaceAll(
       "{count}",
       String(hit.count),
     );
     if (hit.def.id === "life" && named) {
-      const spare = anchor ? ` It does not take out ${article(anchor.type)} ${anchor.type}.` : "";
-      playText = `Life already comes from ${named}${extra}. A switch has to spend that life. It does not add a new way to gain it.${spare}`;
+      const spare = anchor ? say(" It does not take out {a} {type}.", { a: article(anchor.type), type: anchor.type }) : "";
+      playText = say("Life already comes from {named}{extra}. A switch has to spend that life. It does not add a new way to gain it.{spare}",
+        { named, extra, spare });
     } else if (named) {
-      playText = `${playText} Already in the list: ${named}${extra}.`;
+      playText = say("{play} Already in the list: {named}{extra}.", { play: playText, named, extra });
     }
     const pool = hit.def.id === "life" ? lifeOffers(deck, hit.count) : hit.def.offers;
     const offers = takeOffers(
@@ -1774,12 +1773,12 @@ export function adaptPlans(
       3,
       (cut, offer) => {
         if (hit.def.id === "life") {
-          const typeNote = anchor ? `, and it is not ${article(anchor.type)} ${anchor.type}` : "";
-          const from = named ? ` Life already comes from ${named}${extra}.` : "";
-          return `${cut} does not gain or spend that life${typeNote}. ${offer.because}${from}`;
+          const typeNote = anchor ? say(", and it is not {a} {type}", { a: article(anchor.type), type: anchor.type }) : "";
+          const from = named ? say(" Life already comes from {named}{extra}.", { named, extra }) : "";
+          return say("{cut} does not gain or spend that life{typeNote}. {because}{from}", { cut, typeNote, because: say(offer.because), from });
         }
-        const typeNote = anchor ? ` It is also not ${article(anchor.type)} ${anchor.type}.` : "";
-        return `${cut} does not support this direction.${typeNote} ${offer.because}`;
+        const typeNote = anchor ? say(" It is also not {a} {type}.", { a: article(anchor.type), type: anchor.type }) : "";
+        return say("{cut} does not support this direction.{typeNote} {because}", { cut, typeNote, because: say(offer.because) });
       },
     );
     const plan = asAdapt(`adapt-${hit.def.id}`, hit.def.title, hit.def.summary, playText, offers);
@@ -1830,10 +1829,10 @@ export function offersForPlan(planId: string, deck?: Deck): Offer[] {
     const plural = pluralType(tribe, 2);
     return [...(TRIBE_OFFERS[tribe] ?? []), ...UNIVERSAL, ...COLOR_TRIBAL].map((offer) => ({
       ...offer,
-      because: fill(offer.because, tribe, plural, 0).replaceAll(
-        `a ${tribe}`,
-        `${article(tribe)} ${tribe}`,
-      ),
+      // English articles only; translations do not use "a {tribe}".
+      because: translating()
+        ? fill(offer.because, tribe, plural, 0)
+        : fill(offer.because, tribe, plural, 0).replaceAll(`a ${tribe}`, `${article(tribe)} ${tribe}`),
     }));
   }
   const theme = THEMES.find((item) => item.id === planId);

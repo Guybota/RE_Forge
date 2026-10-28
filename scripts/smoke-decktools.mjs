@@ -94,6 +94,12 @@ const fixture = createServer((req, res) => {
         { href: '/combos/mono-white/3-4--7', combo: { comboId: '3-4--7', count: 9, results: ['Infinite tokens'] }, cardviews: [{ name: 'Rhystic Study' }] },
       ] } } });
     }
+    if (url.pathname === '/spellbook/find-my-combos/') {
+      const sent = JSON.parse(body);
+      services.spellbookBody = sent;
+      return json(200, { results: { included: [{ id: '1-2', uses: [{ card: { name: 'Sol Ring' } }, { card: { name: 'Arcane Signet' } }],
+        produces: [{ feature: { name: 'Infinite colorless mana' } }] }] } });
+    }
     if (url.pathname === '/spellbook/templates/7/') return json(200, { name: 'Persist Creature', scryfallQuery: 't:creature o:persist' });
     if (url.pathname === '/edhrec/pages/combos/mono-white/3-4--7.json') {
       return json(200, { combo: { prerequisites: [{ description: 'A creature with persist.\nRhystic Study.' }], steps: ['Step one.', 'Step two.'] } });
@@ -261,6 +267,18 @@ async function run(port) {
   assert.deepEqual([explained.prerequisites, explained.steps], [['A creature with persist.', 'Rhystic Study.'], ['Step one.', 'Step two.']]);
   const refused = await ask({ type: 'comboDetail', requestId: 6, href: 'https://example.com/combos/x/1-2' }, 'servicesError', 'comboDetail');
   assert.deepEqual([refused.type, refused.unavailable], ['servicesError', false], 'only EDHREC combo paths');
+  // Combos already complete in the deck (Spellbook), another deck's lines and catalog cards by name.
+  const complete = await ask({ type: 'deckSpellbook', requestId: 11, name: 'Rohan' }, 'deckSpellbook', 'servicesError');
+  assert.deepEqual(complete.combos, [{ id: '1-2', cardNames: ['Sol Ring', 'Arcane Signet'], produces: ['Infinite colorless mana'] }]);
+  assert.deepEqual(services.spellbookBody.commanders, [{ card: 'Éowyn, Shieldmaiden', quantity: 1 }], 'commanders apart from the main deck');
+  assert.ok(services.spellbookBody.main.some((c) => c.card === 'Plains' && c.quantity > 1), 'quantities sent');
+  const decks = await ask({ type: 'listDecks' }, 'decks');
+  const precon = decks.commander[0];
+  const theirs = await ask({ type: 'deckLines', requestId: 12, name: precon, source: 'precon' }, 'deckLines', 'servicesError');
+  assert.deepEqual([theirs.type, theirs.name, theirs.source, theirs.cards], ['deckLines', precon, 'precon', 100], 'a precon read as lines');
+  assert.equal((await ask({ type: 'deckLines', requestId: 13, name: 'Rohan', source: 'nowhere' }, 'deckLines', 'servicesError')).type, 'servicesError');
+  const named = await ask({ type: 'cardsByName', requestId: 14, names: ['Rhystic Study', 'Not A Card'] }, 'cardsByName', 'servicesError');
+  assert.deepEqual(named.cards.map((c) => [c.nameEn, c.name]), [['Rhystic Study', 'Estudo Rístico']], 'translated, unknown names left out');
   const noTab = await ask({ type: 'deckCombos', requestId: 7, name: 'Crafted' }, 'deckCombos', 'servicesError');
   assert.equal(noTab.type, 'servicesError', 'Crafted is not saved');
   await ask({ type: 'saveDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring", name: 'Atraxa' }, 'decks');
@@ -290,6 +308,6 @@ async function run(port) {
 
   clearTimeout(timeout);
   fixture.close();
-  console.log(`OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket, text edits, prices, cheaper printings, combos; live: ${live}`);
+  console.log(`OK deck tools: real lists, bracket, Commander check, roles, groups, compare, cuts, plans, tags/notes/bracket, text edits, prices, cheaper printings, combos, complete combos, other decks, cards by name; live: ${live}`);
   process.exit(0);
 }

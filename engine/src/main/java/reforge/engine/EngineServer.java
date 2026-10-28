@@ -184,7 +184,7 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
-            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail" -> services(c, msg);
+            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook" -> services(c, msg);
             case "setDeckMeta" -> c.actions.execute(() -> {
                 List<String> tags = new ArrayList<>();
                 if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
@@ -545,11 +545,25 @@ public final class EngineServer extends WebSocketServer {
                 if (type.equals("comboDetail")) {
                     reply = DeckServices.comboDetail(string(msg, "href"));
                     reply.addProperty("href", string(msg, "href"));
+                } else if (type.equals("cardsByName")) {
+                    JsonArray cards = new JsonArray();
+                    for (JsonElement n : msg.getAsJsonArray("names")) {
+                        forge.item.PaperCard pc = forge.model.FModel.getMagicDb().getCommonCards().getCard(n.getAsString());
+                        if (pc != null) cards.add(CardCatalog.card(pc));
+                    }
+                    reply = new JsonObject();
+                    reply.add("cards", cards);
+                } else if (type.equals("deckLines")) {
+                    // Another deck's lines (own or precon) without replacing the deck open on screen.
+                    reply = DeckImporter.detail(DeckSelection.find(name, string(msg, "source")), name);
+                    if (reply == null) throw new IllegalArgumentException("Unknown deck: " + name);
+                    reply.addProperty("source", string(msg, "source"));
                 } else {
                     forge.deck.Deck deck = DeckImporter.mine().get(name);
                     if (deck == null) throw new IllegalArgumentException("Unknown deck: " + name);
                     reply = switch (type) {
                         case "deckPrices" -> DeckServices.prices(deck);
+                        case "deckSpellbook" -> DeckServices.spellbook(deck);
                         case "cheaperPrintings" -> {
                             int[] total = {0};
                             yield DeckServices.cheaper(deck, n -> total[0] = n, done -> {
