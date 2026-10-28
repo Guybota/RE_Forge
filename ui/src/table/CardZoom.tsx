@@ -1,7 +1,9 @@
 import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { CardInspectDialog } from '../CardInspectDialog';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
-import { manaSymbols } from './cards';
+import { ManaCost, SymbolText } from '../ManaSymbol';
+import type { Engine } from '../useEngine';
 import { isMessageKey, useT } from '../i18n';
 
 /** The printed card when there is a picture (it already shows name, cost and text); the text otherwise. */
@@ -14,23 +16,55 @@ export function Preview({ card }: { card: CardState }) {
   return (
     <>
       <h2>{card.name}</h2>
-      <p className="side__cost">{manaSymbols(card.cost).join(' ')}</p>
+      <p className="side__cost"><ManaCost cost={card.cost} /></p>
       <p className="side__type">{card.type}</p>
-      <p className="side__text">{card.text}</p>
+      {card.text && <p className="side__text"><SymbolText text={card.text} /></p>}
       {card.power !== undefined && <p className="side__pt">{card.power}/{card.toughness}</p>}
     </>
   );
 }
 
-/** Shows a card big: right click on desktop, long press on touch. Any click, right click or Escape closes it. */
-export const CardZoom = createContext<(card: CardState) => void>(() => {});
+const sameInspect = (a: CardState, b: CardState) =>
+  (a.nameEn && b.nameEn && a.nameEn === b.nameEn && (a.set ?? '') === (b.set ?? '') && (a.number ?? '') === (b.number ?? ''))
+  || (!!a.imageKey && a.imageKey === b.imageKey)
+  || (a.id >= 0 && a.id === b.id);
 
-export function CardZoomProvider({ children }: { children: ReactNode }) {
-  const [card, setCard] = useState<CardState | null>(null);
+/** Shows a card big: right click on desktop, long press on touch. Catalog cards open the rich inspect modal. */
+export type CardZoomOpen = (card: CardState, sequence?: CardState[]) => void;
+export const CardZoom = createContext<CardZoomOpen>(() => {});
+
+type ZoomState = { card: CardState; sequence: CardState[]; index: number };
+
+export function CardZoomProvider({ children, engine }: { children: ReactNode; engine?: Engine | null }) {
+  const [zoom, setZoom] = useState<ZoomState | null>(null);
+  const open: CardZoomOpen = (card, sequence) => {
+    const seq = (sequence ?? [card]).filter((c) => c && !c.hidden);
+    const index = Math.max(0, seq.findIndex((c) => sameInspect(c, card)));
+    setZoom({ card: seq[index] ?? card, sequence: seq, index });
+  };
+  const rich = zoom?.card.nameEn && engine;
+  const step = (delta: number) => {
+    setZoom((current) => {
+      if (!current || current.sequence.length < 2) return current;
+      const next = Math.min(current.sequence.length - 1, Math.max(0, current.index + delta));
+      const card = current.sequence[next];
+      return card ? { ...current, card, index: next } : current;
+    });
+  };
   return (
-    <CardZoom.Provider value={setCard}>
+    <CardZoom.Provider value={open}>
       {children}
-      {card && <ZoomDialog card={card} onClose={() => setCard(null)} />}
+      {rich && zoom && (
+        <CardInspectDialog
+          card={zoom.card as CardState & { nameEn: string }}
+          engine={engine}
+          index={zoom.sequence.length > 1 ? zoom.index : undefined}
+          total={zoom.sequence.length > 1 ? zoom.sequence.length : undefined}
+          onStep={zoom.sequence.length > 1 ? step : undefined}
+          onClose={() => setZoom(null)}
+        />
+      )}
+      {zoom && !rich && <ZoomDialog card={zoom.card} onClose={() => setZoom(null)} />}
     </CardZoom.Provider>
   );
 }
@@ -58,11 +92,11 @@ function CardInfo({ card }: { card: CardState }) {
           const name = `kw_${k.id}`, help = `kwHelp_${k.id}`;
           // Our texts for Ward and Equip quote the cost, so they need one.
           if (!isMessageKey(name) || !isMessageKey(help) || (WITH_COST.has(k.id) && !costLike(k.detail))) {
-            return <div key={k.title}><dt>{k.title}</dt>{k.reminder && <dd>{k.reminder}</dd>}</div>;
+            return <div key={k.title}><dt>{k.title}</dt>{k.reminder && <dd><SymbolText text={k.reminder} /></dd>}</div>;
           }
           return <div key={k.title}>
-            <dt>{costLike(k.detail) ? `${t(name)} ${k.detail}` : t(name)}</dt>
-            <dd>{t(help, { detail: k.detail })}</dd>
+            <dt>{costLike(k.detail) ? <>{t(name)} <SymbolText text={k.detail} /></> : t(name)}</dt>
+            <dd><SymbolText text={t(help, { detail: k.detail })} /></dd>
           </div>;
         })}
       </dl>}

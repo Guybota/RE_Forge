@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import type { DeckPreview } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
+import { ManaSymbol } from './ManaSymbol';
 import { CardZoom } from './table/CardZoom';
 import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
@@ -33,6 +34,31 @@ export const GROUPS: { id: string; label: MessageKey }[] = [
 ];
 
 const printingKey = (l: Line) => l.set && l.number ? `${l.set}/${l.number}` : '';
+const DECK_COLORS: { bit: number; key: string; label: MessageKey }[] = [
+  { bit: 1, key: 'W', label: 'colorW' }, { bit: 2, key: 'U', label: 'colorU' }, { bit: 4, key: 'B', label: 'colorB' },
+  { bit: 8, key: 'R', label: 'colorR' }, { bit: 16, key: 'G', label: 'colorG' }, { bit: 32, key: 'C', label: 'colorC' },
+];
+
+function matchesDeckCard(line: Line, query: string, colors: number, typeText: string, rules: string, cmc: number) {
+  const q = query.trim().toLocaleLowerCase();
+  if (q && !`${line.name ?? ''} ${line.nameEn ?? ''}`.toLocaleLowerCase().includes(q)) return false;
+  if (colors) {
+    const cardColors = line.colors ?? 0;
+    const colorless = (colors & 32) !== 0 && cardColors === 0;
+    const any = (cardColors & (colors & ~32)) !== 0;
+    if (!colorless && !any) return false;
+  }
+  const words = (value: string) => value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const typeHay = `${line.type ?? ''} ${line.typeEn ?? ''} ${line.group ?? ''}`.toLocaleLowerCase();
+  if (words(typeText).some((word) => !typeHay.includes(word))) return false;
+  const textHay = `${line.textEn ?? ''} ${line.text ?? ''}`.toLocaleLowerCase();
+  if (words(rules).some((word) => !textHay.includes(word))) return false;
+  if (cmc >= 0) {
+    const value = line.cmc ?? 0;
+    if (cmc >= 7 ? value < 7 : value !== cmc) return false;
+  }
+  return true;
+}
 
 /**
  * A checked decklist: summary, then cards grouped by type. Hover shows the card, right click zooms it. On the import
@@ -43,7 +69,7 @@ const BOARDS: { id: 'sideboard' | 'maybeboard'; label: MessageKey }[] = [
 ];
 const zoneOf = (l: Line) => l.maybeboard ? 'maybeboard' : l.sideboard ? 'sideboard' : null;
 
-export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onMove }: {
+export function DeckCards({ preview, onCommander, onReplace, faces = false, prices, best, editable, onChangePrinting, onRemove, onDemote, onPromote, onMove, inspectFrom }: {
   preview: Omit<DeckPreview, 'type'>;
   onCommander?: (nameEn: string) => void;
   onReplace?: (requested: string, nameEn: string) => void;
@@ -51,27 +77,53 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
   faces?: boolean;
   prices?: Map<string, FacePrice>;
   best?: Map<string, BestPrice>;
-  /** Owned decks can change a printing, drop a card, move it, or stop it being the commander. */
+  /** Owned decks can change a printing, drop a card, move it, or set / clear the commander. */
   editable?: boolean;
   onChangePrinting?: (line: Line) => void;
   onRemove?: (line: Line) => void;
   onDemote?: (line: Line) => void;
+  onPromote?: (line: Line) => void;
   onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
+  /** Open-deck context so the inspect modal can load that commander's combos. */
+  inspectFrom?: { name: string; source: 'mine' | 'precon' };
 }) {
   const t = useT();
   const zoom = useContext(CardZoom);
+  const inspect = (l: Line) => {
+    const key = printingKey(l);
+    const price = key ? prices?.get(key) : undefined;
+    return cardForInspection({
+      ...l,
+      deckName: inspectFrom?.name,
+      deckSource: inspectFrom?.source,
+      eur: price?.eur,
+      priceExact: price?.exact,
+    });
+  };
+  const [cardQuery, setCardQuery] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterColors, setFilterColors] = useState(0);
+  const [filterType, setFilterType] = useState('');
+  const [filterText, setFilterText] = useState('');
+  const [filterCmc, setFilterCmc] = useState(-1);
   const [hovered, setHovered] = useState<Line | null>(null);
+  useEffect(() => {
+    setCardQuery(''); setFiltersOpen(false); setFilterColors(0); setFilterType(''); setFilterText(''); setFilterCmc(-1);
+  }, [preview.name]);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const [menu, setMenu] = useState<{ id: string; line: Line; x: number; y: number } | null>(null);
   const show = (l: Line, el: HTMLElement) => { setHovered(l); setAnchor(el.getBoundingClientRect()); };
   const hide = () => { setHovered(null); setAnchor(null); };
-  const loose = preview.lines.filter((l) => !l.group && !zoneOf(l));
+  const filtering = faces && (cardQuery.trim() !== '' || filterColors !== 0 || filterType.trim() !== '' || filterText.trim() !== '' || filterCmc >= 0);
+  const visible = filtering ? preview.lines.filter((l) => matchesDeckCard(l, cardQuery, filterColors, filterType, filterText, filterCmc)) : preview.lines;
+  const loose = visible.filter((l) => !l.group && !zoneOf(l));
+  const inspectSequence = visible.filter((l) => l.imageKey || l.nameEn).map(inspect);
   const picture = hovered?.imageKey ? cardImage(hovered.imageKey, 'full') : null;
   const line = (l: Line, i: number) => {
     const lead = onCommander && l.canCommand && l.group !== 'commander' && l.nameEn;
     const fixes = onReplace && l.requested && l.suggestions?.length ? l.suggestions : null;
     return (
-      <InspectableCard as="li" card={l.imageKey ? cardForInspection(l) : null} key={i}
+      <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} sequence={inspectSequence} key={i}
         className={`import__line import__line--${l.status}${lead || fixes ? ' import__line--actions' : ''}`} title={l.message ?? l.text}
         onMouseEnter={(e) => show(l, e.currentTarget)} onMouseLeave={hide} onFocus={(e) => show(l, e.currentTarget)} onBlur={hide}>
         <span className="import__text">{l.group ? <><span className="import__qty">{l.qty}</span> {l.name}</> : l.text}</span>
@@ -85,6 +137,26 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
 
   return (
     <section className="import__preview" aria-live="polite">
+      {faces && <div className="deck-card-search">
+        <input className="input" type="search" aria-label={t('searchInDeck')} placeholder={t('searchInDeck')} value={cardQuery} onChange={(e) => setCardQuery(e.target.value)} />
+        <button type="button" className="btn btn--ghost" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)}>{t('searchFilters')}</button>
+        {filtersOpen && <div className="deck-card-filters">
+          <span className="search-colors" role="group" aria-label={t('searchColors')}>
+            {DECK_COLORS.map((c) => (
+              <button key={c.key} type="button" className="mana-swatch" aria-pressed={(filterColors & c.bit) !== 0} aria-label={t(c.label)} title={t(c.label)}
+                onClick={() => setFilterColors(filterColors ^ c.bit)}>
+                <ManaSymbol symbol={c.key} cost />
+              </button>
+            ))}
+          </span>
+          <input className="input" type="search" aria-label={t('searchType')} placeholder={t('searchTypePlaceholder')} title={t('searchTypePartialHint')} value={filterType} onChange={(e) => setFilterType(e.target.value)} />
+          <input className="input" type="search" aria-label={t('searchOracle')} placeholder={t('searchOraclePlaceholder')} title={t('searchOracleHint')} value={filterText} onChange={(e) => setFilterText(e.target.value)} />
+          <select className="input" aria-label={t('searchStatMv')} value={filterCmc} onChange={(e) => setFilterCmc(Number(e.target.value))}>
+            <option value={-1}>{t('anyCost')}</option>
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((v) => <option key={v} value={v}>{v === 7 ? '7+' : v}</option>)}
+          </select>
+        </div>}
+      </div>}
       <p className="import__summary">
         <span>{t('cardsCount', { n: preview.cards ?? 0 })}</span>
         {preview.unknown > 0 && <span className="danger">{t('unknownCount', { n: preview.unknown })}</span>}
@@ -93,8 +165,8 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
       <div className={faces ? 'deck-face-groups deck-gallery' : 'import__groups'}>
         {loose.length > 0 && <ul className="import__lines">{loose.map(line)}</ul>}
         {[...GROUPS.map((g) => ({ ...g, zone: null as 'sideboard' | 'maybeboard' | null })), ...BOARDS.map((g) => ({ ...g, zone: g.id }))].map((g) => {
-          const lines = g.zone ? preview.lines.filter((l) => zoneOf(l) === g.zone) : preview.lines.filter((l) => !zoneOf(l) && l.group === g.id);
-          if (!lines.length && !(g.zone && (editable || !faces))) return null;
+          const lines = g.zone ? visible.filter((l) => zoneOf(l) === g.zone) : visible.filter((l) => !zoneOf(l) && l.group === g.id);
+          if (!lines.length && !(g.zone && (editable || !faces) && !filtering)) return null;
           const count = lines.reduce((n, l) => n + (l.qty ?? 0), 0);
           return (
             <section key={g.id} className="import__group">
@@ -107,7 +179,7 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
                   const cheaper = key ? best?.get(key) : undefined;
                   const id = `${g.id}:${key}:${i}`;
                   return (
-                    <InspectableCard as="li" card={l.imageKey ? cardForInspection(l) : null} key={id} className="deck-face-wrap"
+                    <InspectableCard as="li" card={l.imageKey || l.nameEn ? inspect(l) : null} sequence={inspectSequence} key={id} className="deck-face-wrap"
                       onMouseEnter={(e) => show(l, e.currentTarget)} onMouseLeave={hide}>
                       <button type="button" className="deck-face" aria-label={l.name ?? l.text}
                         onFocus={(e) => show(l, e.currentTarget)} onBlur={hide}>
@@ -132,17 +204,18 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
             </section>
           );
         })}
+        {filtering && visible.length === 0 && <p className="muted">{t('searchNoMatch')}</p>}
       </div>
       {picture && anchor && faces && !menu && <CardBeside anchor={anchor} src={picture} />}
       {picture && !faces && <img className="import__picture" src={picture} alt="" aria-hidden="true" />}
       {menu && <CardMenu line={menu.line} x={menu.x} y={menu.y} editable={editable} onClose={() => setMenu(null)}
-        onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onMove={onMove}
-        onView={() => { if (menu.line.imageKey) zoom(cardForInspection(menu.line)); }} />}
+        onChangePrinting={onChangePrinting} onRemove={onRemove} onDemote={onDemote} onPromote={onPromote} onMove={onMove}
+        onView={() => { if (menu.line.imageKey || menu.line.nameEn) zoom(inspect(menu.line), inspectSequence); }} />}
     </section>
   );
 }
 
-function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, onDemote, onMove, onView }: {
+function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, onDemote, onPromote, onMove, onView }: {
   line: Line;
   x: number;
   y: number;
@@ -151,12 +224,15 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
   onChangePrinting?: (line: Line) => void;
   onRemove?: (line: Line) => void;
   onDemote?: (line: Line) => void;
+  onPromote?: (line: Line) => void;
   onMove?: (line: Line, to: 'deck' | 'sideboard' | 'maybeboard') => void;
   onView: () => void;
 }) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const canLead = editable && !!onPromote && line.canCommand && line.group !== 'commander' && !!line.nameEn;
+  const canDemote = editable && !!onDemote && line.group === 'commander';
   useEffect(() => {
     const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) onClose(); };
     const onKey = (e: KeyboardEvent) => {
@@ -168,7 +244,8 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
       if (editable && key === 'p' && line.nameEn) { e.preventDefault(); done(() => onChangePrinting?.(line)); }
       else if (key === 'n') { e.preventDefault(); void navigator.clipboard.writeText(line.name ?? line.nameEn ?? '').then(() => setCopied(true)).catch(() => {}); }
       else if (editable && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); done(() => onRemove?.(line)); }
-      else if (editable && key === 'd' && line.group === 'commander') { e.preventDefault(); done(() => onDemote?.(line)); }
+      else if (canDemote && key === 'd') { e.preventDefault(); done(() => onDemote?.(line)); }
+      else if (canLead && key === 'c') { e.preventDefault(); done(() => onPromote?.(line)); }
       else if (movable && key === 's' && zone !== 'sideboard') { e.preventDefault(); done(() => onMove?.(line, 'sideboard')); }
       else if (movable && key === 'm' && zone !== 'maybeboard') { e.preventDefault(); done(() => onMove?.(line, 'maybeboard')); }
       else if (movable && key === 'b' && zone !== 'deck') { e.preventDefault(); done(() => onMove?.(line, 'deck')); }
@@ -177,7 +254,7 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
     window.addEventListener('mousedown', close);
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', onKey); };
-  }, [editable, line, onChangePrinting, onClose, onDemote, onMove, onRemove, onView]);
+  }, [canDemote, canLead, editable, line, onChangePrinting, onClose, onDemote, onMove, onPromote, onRemove, onView]);
   useEffect(() => {
     const place = () => {
       const el = ref.current;
@@ -200,11 +277,12 @@ function CardMenu({ line, x, y, editable, onClose, onChangePrinting, onRemove, o
     <div ref={ref} className="deck-face__options" role="menu" style={{ left: x, top: y }}>
       {editable && line.nameEn && <button type="button" role="menuitem" onClick={() => act(() => onChangePrinting?.(line))}>{t('menuChangePrinting')}<kbd>P</kbd></button>}
       <button type="button" role="menuitem" onClick={copy}>{t(copied ? 'copied' : 'menuCopyName')}<kbd>N</kbd></button>
+      {canLead && <button type="button" role="menuitem" title={t('makeCommanderHint')} onClick={() => act(() => onPromote?.(line))}>{t('menuMakeCommander')}<kbd>C</kbd></button>}
+      {canDemote && <button type="button" role="menuitem" onClick={() => act(() => onDemote?.(line))}>{t('menuRemoveCommander')}<kbd>D</kbd></button>}
       {editable && line.group !== 'commander' && line.nameEn && zone !== 'sideboard' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'sideboard'))}>{t('menuToSideboard')}<kbd>S</kbd></button>}
       {editable && line.group !== 'commander' && line.nameEn && zone !== 'maybeboard' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'maybeboard'))}>{t('menuToMaybeboard')}<kbd>M</kbd></button>}
       {editable && line.group !== 'commander' && line.nameEn && zone !== 'deck' && <button type="button" role="menuitem" onClick={() => act(() => onMove?.(line, 'deck'))}>{t('menuToDeck')}<kbd>B</kbd></button>}
       {editable && <button type="button" role="menuitem" className="is-danger" onClick={() => act(() => onRemove?.(line))}>{t('menuRemove')}<kbd>DEL</kbd></button>}
-      {editable && line.group === 'commander' && <button type="button" role="menuitem" onClick={() => act(() => onDemote?.(line))}>{t('menuRemoveCommander')}<kbd>D</kbd></button>}
       <button type="button" role="menuitem" onClick={() => act(onView)}>{t('menuViewCard')}<kbd>I</kbd></button>
       {buy && <a role="menuitem" href={buy} target="_blank" rel="noreferrer" onClick={onClose}>{t('menuBuy')}</a>}
     </div>

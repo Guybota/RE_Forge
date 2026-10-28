@@ -6,13 +6,36 @@ const HOLD_MS = 450;
 const MOVE_LIMIT = 10;
 const textField = (target: EventTarget | null) => target instanceof Element && !!target.closest('input, textarea, select, [contenteditable="true"]');
 
-/** Catalog colour identities are numeric; copy only compatible display fields into a game-card preview. */
-export function cardForInspection(card: { name?: string; imageKey?: string; cost?: string; type?: string; typeEn?: string }): CardState {
-  return { id: -1, name: card.name, imageKey: card.imageKey, cost: card.cost, type: card.type, typeEn: card.typeEn };
+/** Catalog colour identities are numeric; copy display fields (and nameEn for the rich inspect modal). */
+export function cardForInspection(card: {
+  name?: string; nameEn?: string; imageKey?: string; imageUrl?: string; cost?: string; type?: string; typeEn?: string;
+  text?: string; textEn?: string; set?: string; number?: string; commanderLegal?: boolean; canCommand?: boolean;
+  deckName?: string; deckSource?: 'mine' | 'precon'; eur?: number | null; priceExact?: boolean;
+}): CardState {
+  return {
+    id: -1,
+    name: card.name,
+    nameEn: card.nameEn,
+    imageKey: card.imageKey,
+    imageUrl: card.imageUrl,
+    cost: card.cost,
+    type: card.type,
+    typeEn: card.typeEn,
+    text: card.text,
+    textEn: card.textEn,
+    set: card.set,
+    number: card.number,
+    commanderLegal: card.commanderLegal,
+    canCommand: card.canCommand,
+    deckName: card.deckName,
+    deckSource: card.deckSource,
+    eur: card.eur,
+    priceExact: card.priceExact,
+  };
 }
 
 /** Gestures shared by the table, catalog, deck lists and shops. Never calls the card's primary action. */
-export function useCardInspection(card: CardState | null | undefined) {
+export function useCardInspection(card: CardState | null | undefined, sequence?: CardState[]) {
   const zoom = useContext(CardZoom);
   const t = useT();
   const press = useRef<{ timer: number; x: number; y: number; pointer: number } | null>(null);
@@ -47,7 +70,7 @@ export function useCardInspection(card: CardState | null | undefined) {
   const inspect = (source: HTMLElement) => {
     if (!card || card.hidden) return;
     source.focus({ preventScroll: true });
-    zoom(card);
+    zoom(card, sequence);
   };
   return {
     'aria-description': t('inspectCardHint'),
@@ -82,5 +105,3 @@ export function useCardInspection(card: CardState | null | undefined) {
     onPointerLeave: clearPress,
   };
 }
-
-

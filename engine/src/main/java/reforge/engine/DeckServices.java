@@ -119,6 +119,56 @@ final class DeckServices {
     }
 
     /**
+     * EUR for one printing (or by English name when set/number are blank): {@code eur}, {@code exact}, plus
+     * the Forge {@code set}/{@code number} used. Uses the same Scryfall cache as deck prices.
+     */
+    static JsonObject cardPrice(String name, String set, String number) {
+        String setCode = set == null ? "" : set;
+        String num = number == null ? "" : number;
+        Printing p = setCode.isBlank() || num.isBlank()
+                ? new Printing(name, "", "")
+                : new Printing(name, setCode, num);
+        priceOne(p);
+        JsonElement cached = setCode.isBlank() || num.isBlank()
+                ? fresh("n:" + name.toLowerCase(Locale.ROOT))
+                : fresh("p:" + p.key());
+        JsonObject o = cached != null && cached.isJsonObject() ? cached.getAsJsonObject().deepCopy() : price(null, false);
+        o.addProperty("name", name);
+        if (!setCode.isBlank()) o.addProperty("set", setCode);
+        if (!num.isBlank()) o.addProperty("number", num);
+        return o;
+    }
+
+    private static void priceOne(Printing p) {
+        if (!p.set().isBlank() && !p.number().isBlank() && fresh("p:" + p.key()) != null) return;
+        if ((p.set().isBlank() || p.number().isBlank()) && fresh("n:" + p.name().toLowerCase(Locale.ROOT)) != null) return;
+        JsonArray ids = new JsonArray();
+        JsonObject id = new JsonObject();
+        if (!p.set().isBlank() && !p.number().isBlank()) {
+            id.addProperty("set", scryfallSet(p.set()));
+            id.addProperty("collector_number", p.number());
+        } else {
+            id.addProperty("name", p.name());
+        }
+        ids.add(id);
+        List<JsonObject> found = collection(ids);
+        if (found.isEmpty()) {
+            if (!p.set().isBlank() && !p.number().isBlank()) store("p:" + p.key(), price(null, false));
+            else store("n:" + p.name().toLowerCase(Locale.ROOT), price(null, false));
+            save();
+            return;
+        }
+        JsonObject card = found.get(0);
+        Double eur = eur(card);
+        if (!p.set().isBlank() && !p.number().isBlank()) {
+            store("p:" + p.key(), price(eur, true));
+        } else {
+            store("n:" + p.name().toLowerCase(Locale.ROOT), price(eur, false));
+        }
+        save();
+    }
+
+    /**
      * EUR of every printing in the deck: {@code prices: [{set, number, eur, exact}]} with Forge's set codes.
      * {@code exact} is false when Scryfall did not know the printing and the card's default printing priced it;
      * {@code eur} is null when Scryfall has no Cardmarket price.
@@ -518,6 +568,106 @@ final class DeckServices {
 
     private static void lines(String text, JsonArray into) {
         for (String line : text.split("\\n+")) if (!line.isBlank()) into.add(line.trim());
+    }
+
+    // ---- card search ----------------------------------------------------------------------------------------
+
+    /** One page of a Scryfall card search. Forge cards keep their local picture; the rest use the Scryfall scan. */
+    static JsonObject cardSearch(String query, int page) {
+        if (query == null || query.isBlank() || query.length() > 900) throw new Unavailable("Empty search");
+        int p = Math.max(1, Math.min(page, 20));
+        String url = SCRYFALL + "/cards/search?unique=cards&q=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
+                + (p > 1 ? "&page=" + p : "");
+        JsonElement raw = request(url, null);
+        JsonArray cards = new JsonArray();
+        int total = 0;
+        boolean hasMore = false;
+        if (raw != null && raw.isJsonObject()) {
+            JsonObject body = raw.getAsJsonObject();
+            if (body.has("total_cards") && body.get("total_cards").isJsonPrimitive()) total = body.get("total_cards").getAsInt();
+            hasMore = body.has("has_more") && body.get("has_more").getAsBoolean();
+            if (body.has("data") && body.get("data").isJsonArray()) {
+                for (JsonElement el : body.getAsJsonArray("data")) {
+                    if (el.isJsonObject()) cards.add(searchHit(el.getAsJsonObject()));
+                }
+            }
+        }
+        JsonObject o = new JsonObject();
+        o.addProperty("total", total);
+        o.addProperty("offset", (p - 1) * 175);
+        o.addProperty("hasMore", hasMore);
+        o.add("cards", cards);
+        return o;
+    }
+
+    private static JsonObject searchHit(JsonObject card) {
+        String name = card.has("name") ? card.get("name").getAsString() : "";
+        PaperCard known = name.isBlank() ? null : FModel.getMagicDb().getCommonCards().getCard(name);
+        JsonObject o = known == null ? new JsonObject() : CardCatalog.card(known);
+        if (known == null) {
+            o.addProperty("nameEn", name);
+            o.addProperty("name", name);
+            o.addProperty("set", text(card, "set").toUpperCase(Locale.ROOT));
+            o.addProperty("number", text(card, "collector_number"));
+            o.addProperty("cost", text(card, "mana_cost"));
+            o.addProperty("cmc", card.has("cmc") && card.get("cmc").isJsonPrimitive() ? card.get("cmc").getAsInt() : 0);
+            o.addProperty("type", text(card, "type_line"));
+            o.addProperty("typeEn", text(card, "type_line"));
+            o.addProperty("textEn", text(card, "oracle_text"));
+            o.addProperty("group", "other");
+            o.addProperty("canCommand", false);
+            o.addProperty("canPartner", false);
+            o.addProperty("commanderLegal", false);
+            o.addProperty("identity", colorBits(card, "color_identity"));
+            o.addProperty("colors", colorBits(card, "colors"));
+            o.addProperty("imageKey", "");
+        }
+        String picture = scryfallPicture(card);
+        if (picture != null && (known == null || !o.has("imageKey") || o.get("imageKey").getAsString().isBlank())) {
+            o.addProperty("imageUrl", picture);
+        }
+        Double eur = eur(card);
+        if (eur != null) o.addProperty("eur", eur);
+        return o;
+    }
+
+    private static String text(JsonObject o, String key) {
+        return o.has(key) && o.get(key).isJsonPrimitive() ? o.get(key).getAsString() : "";
+    }
+
+    private static int colorBits(JsonObject card, String key) {
+        if (!card.has(key) || !card.get(key).isJsonArray()) return 0;
+        int bits = 0;
+        for (JsonElement el : card.getAsJsonArray(key)) {
+            bits |= switch (el.getAsString()) {
+                case "W" -> 1;
+                case "U" -> 2;
+                case "B" -> 4;
+                case "R" -> 8;
+                case "G" -> 16;
+                case "C" -> 32;
+                default -> 0;
+            };
+        }
+        return bits;
+    }
+
+    /** A normal-size scan hosted by Scryfall, or null. */
+    private static String scryfallPicture(JsonObject card) {
+        JsonObject uris = card.has("image_uris") && card.get("image_uris").isJsonObject() ? card.getAsJsonObject("image_uris") : null;
+        if (uris == null && card.has("card_faces") && card.get("card_faces").isJsonArray() && !card.getAsJsonArray("card_faces").isEmpty()) {
+            JsonElement face = card.getAsJsonArray("card_faces").get(0);
+            if (face.isJsonObject() && face.getAsJsonObject().has("image_uris")) uris = face.getAsJsonObject().getAsJsonObject("image_uris");
+        }
+        if (uris == null || !uris.has("normal")) return null;
+        String url = uris.get("normal").getAsString();
+        try {
+            URI uri = URI.create(url);
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || !"cards.scryfall.io".equalsIgnoreCase(uri.getHost())) return null;
+            return url;
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     // ---- HTTP and cache -------------------------------------------------------------------------------------

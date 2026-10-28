@@ -121,6 +121,92 @@ export function demoteCommander(text: string, nameEn: string, from: { set?: stri
   return tidy(out.join('\n'));
 }
 
+type Section = 'commander' | 'deck' | 'sideboard' | 'maybeboard';
+
+function parseSections(text: string): Record<Section, Parsed[]> {
+  const out: Record<Section, Parsed[]> = { commander: [], deck: [], sideboard: [], maybeboard: [] };
+  let section: Section = 'deck';
+  for (const line of text.split('\n')) {
+    if (isSection(line)) {
+      const name = sectionName(line);
+      if (name === 'commander' || name === 'deck' || name === 'sideboard' || name === 'maybeboard') section = name;
+      continue;
+    }
+    const p = parse(line);
+    if (p) out[section].push(p);
+  }
+  return out;
+}
+
+function writeSections(sections: Record<Section, Parsed[]>): string {
+  const parts: string[] = [];
+  for (const [title, cards] of [
+    ['Commander', sections.commander],
+    ['Deck', sections.deck],
+    ['Sideboard', sections.sideboard],
+    ['Maybeboard', sections.maybeboard],
+  ] as const) {
+    const stacked = stackCards(cards);
+    if (!stacked.length) continue;
+    if (parts.length) parts.push('');
+    parts.push(title, ...stacked.map(written));
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Makes one copy the commander. Existing commanders move into the deck first unless `join` is set
+ * (a compatible partner). The printing stays the same.
+ */
+export function promoteCommander(
+  text: string,
+  nameEn: string,
+  from: { set?: string; number?: string },
+  only: string,
+  join = false,
+): string {
+  const fromSec: Section = only === 'commander' || only === 'sideboard' || only === 'maybeboard' ? only : 'deck';
+  const sections = parseSections(text);
+  const src = sections[fromSec];
+  const i = src.findIndex((p) => p.name === nameEn && p.set === from.set && p.number === from.number);
+  if (i < 0) return text;
+  const card: Parsed = { ...src[i], qty: 1 };
+  if (src[i].qty > 1) src[i] = { ...src[i], qty: src[i].qty - 1 };
+  else src.splice(i, 1);
+  if (!join && sections.commander.length) {
+    sections.deck.push(...sections.commander);
+    sections.commander = [];
+  }
+  sections.commander.push(card);
+  return writeSections(sections);
+}
+
+function stackCards(cards: Parsed[]) {
+  const map = new Map<string, Parsed>();
+  for (const p of cards) {
+    const key = `${p.name}\0${p.set ?? ''}\0${p.number ?? ''}`;
+    const prev = map.get(key);
+    if (prev) prev.qty += p.qty;
+    else map.set(key, { ...p });
+  }
+  return [...map.values()];
+}
+
+/**
+ * Adds every card from `incoming` into the matching sections of `current`.
+ * Commanders in the import go into the deck so the current commanders stay.
+ * Matching printings stack quantities.
+ */
+export function mergeDecklists(current: string, incoming: string): string {
+  const base = parseSections(current);
+  const add = parseSections(incoming);
+  for (const p of add.commander) base.deck.push(p);
+  for (const section of ['deck', 'sideboard', 'maybeboard'] as const) {
+    for (const p of add[section]) base[section].push(p);
+  }
+  return writeSections(base);
+}
+
 /** Adds one copy of each card to the main deck and takes one copy of each cut out of it. */
 export function addAndCut(text: string, add: string[], cut: string[]): string {
   const lines = text.split('\n');

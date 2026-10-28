@@ -184,7 +184,7 @@ public final class EngineServer extends WebSocketServer {
                 String problem = DeckImporter.rename(string(msg, "name"), string(msg, "to"));
                 c.session.send(problem == null ? decks() : error(problem));
             });
-            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings" -> services(c, msg);
+            case "deckPrices", "cheaperPrintings", "deckCombos", "comboDetail", "deckLines", "cardsByName", "deckSpellbook", "cardRulings", "cardSearch", "cardPrice" -> services(c, msg);
             case "importCentral" -> c.actions.execute(() -> {
                 // The old Central library: once automatically on desktop ("migration"), or a JSON export by hand.
                 try {
@@ -202,8 +202,10 @@ public final class EngineServer extends WebSocketServer {
                 List<String> tags = new ArrayList<>();
                 if (msg.has("tags")) msg.getAsJsonArray("tags").forEach(t -> tags.add(t.getAsString()));
                 String name = string(msg, "name");
+                Integer calculated = msg.has("calculatedBracket") && msg.get("calculatedBracket").isJsonPrimitive()
+                        ? msg.get("calculatedBracket").getAsInt() : null;
                 String problem = DeckImporter.setMeta(name, tags, string(msg, "notes"),
-                        msg.has("bracketIntent") ? msg.get("bracketIntent").getAsInt() : 0);
+                        msg.has("bracketIntent") ? msg.get("bracketIntent").getAsInt() : 0, calculated);
                 c.session.send(problem == null ? DeckImporter.detail(name) : error(problem));
             });
             case "deleteDeck" -> c.actions.execute(() -> {
@@ -554,7 +556,10 @@ public final class EngineServer extends WebSocketServer {
         DeckServices.WORK.execute(() -> {
             JsonObject reply;
             try {
-                if (type.equals("comboDetail")) {
+                if ("cardSearch".equals(type)) {
+                    int page = msg.has("page") && msg.get("page").isJsonPrimitive() ? msg.get("page").getAsInt() : 1;
+                    reply = DeckServices.cardSearch(string(msg, "query"), page);
+                } else if (type.equals("comboDetail")) {
                     reply = DeckServices.comboDetail(string(msg, "href"));
                     reply.addProperty("href", string(msg, "href"));
                 } else if (type.equals("cardRulings")) {
@@ -574,6 +579,8 @@ public final class EngineServer extends WebSocketServer {
                     }
                     reply = new JsonObject();
                     reply.add("cards", cards);
+                } else if (type.equals("cardPrice")) {
+                    reply = DeckServices.cardPrice(name, string(msg, "set"), string(msg, "number"));
                 } else if (type.equals("deckLines")) {
                     // Another deck's lines (own or precon) without replacing the deck open on screen.
                     reply = DeckImporter.detail(DeckSelection.find(name, string(msg, "source")), name);

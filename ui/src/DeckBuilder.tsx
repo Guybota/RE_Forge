@@ -8,7 +8,7 @@ import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
 import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
-import { manaSymbols } from './table/cards';
+import { ManaCost, ManaSymbol } from './ManaSymbol';
 import { ArtIcon, CrownIcon } from './table/icons';
 import type { Engine } from './useEngine';
 
@@ -185,8 +185,10 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
             <input className="input builder__query" type="search" aria-label={t('searchCards')} placeholder={t('searchCards')} value={query} onChange={(e) => setQuery(e.target.value)} />
             <span className="builder__colors">
               {COLORS.map((c) => (
-                <button key={c.key} type="button" className={`pip pip--${c.key === 'C' ? 'n' : c.key} builder__color`} aria-pressed={(colors & c.bit) !== 0}
-                  aria-label={t(c.label)} title={t(c.label)} onClick={() => setColors(colors ^ c.bit)} />
+                <button key={c.key} type="button" className="mana-swatch builder__color" aria-pressed={(colors & c.bit) !== 0}
+                  aria-label={t(c.label)} title={t(c.label)} onClick={() => setColors(colors ^ c.bit)}>
+                  <ManaSymbol symbol={c.key} cost />
+                </button>
               ))}
             </span>
             <select className="input" aria-label={t('cardTypeFilter')} value={cardType} onChange={(e) => setCardType(e.target.value)}>
@@ -226,7 +228,7 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
           <ul className="builder__results">
             {shownResults.map((c) => (
               <li key={c.nameEn}>
-                <InspectableCard as="button" card={cardForInspection(c)} className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
+                <InspectableCard as="button" card={cardForInspection(c)} sequence={shownResults.map(cardForInspection)} className="builder__result" aria-label={t(partnerName ? 'addPartnerCard' : pickCommander ? 'setCommander' : 'addCard', { name: c.name })}
                   onClick={() => add(c)} onMouseEnter={() => setHovered(c)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(c)}>
                   <img src={cardImage(c.imageKey, 'full') ?? undefined} alt="" loading="lazy" decoding="async" />
                   <span>{c.name}</span>
@@ -267,13 +269,11 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
                 </div>
                 {lines.length > 0 && <ul className="import__lines builder__lines">
                   {lines.map((e) => (
-                    <InspectableCard as="li" card={cardForInspection(e)} key={`${e.imageKey}:${e.commander}:${e.board}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(e)}>
+                    <InspectableCard as="li" card={cardForInspection(e)} sequence={filteredEntries.map(cardForInspection)} key={`${e.imageKey}:${e.commander}:${e.board}`} className="builder__line" onMouseEnter={() => setHovered(e)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(e)}>
                       <button type="button" className="builder__step" aria-label={t('removeCard', { name: e.name })} onClick={() => setQty(e, -1)}>−</button>
                       <span className="import__qty">{e.qty}</span>
                       <span className="builder__name" title={`${e.name} · ${e.set} #${e.number}`}>{e.name}</span>
-                      <span className="builder__cost" aria-hidden="true">
-                        {manaSymbols(e.cost).map((s, i) => <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>)}
-                      </span>
+                      <ManaCost cost={e.cost} className="builder__cost" />
                       {!e.commander && <button type="button" className="builder__step" aria-label={t('addCard', { name: e.name })}
                         disabled={e.qty >= 1 && !BASICS.has(e.nameEn)} title={e.qty >= 1 && !BASICS.has(e.nameEn) ? t('singleton') : undefined}
                         onClick={() => setQty(e, 1)}>+</button>}

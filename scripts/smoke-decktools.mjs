@@ -9,7 +9,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addAndCut, demoteCommander, moveCopy, removeCopy, swapPrinting } from '../ui/src/deckText.ts';
+import { addAndCut, demoteCommander, mergeDecklists, moveCopy, promoteCommander, removeCopy, swapPrinting } from '../ui/src/deckText.ts';
 import { deckFromLines, visualFromCatalog } from '../ui/src/deckTools/cardVisual.ts';
 import { estimateBracket } from '../ui/src/deckTools/bracket.ts';
 import { checkCommanderDeck } from '../ui/src/deckTools/commander-check.ts';
@@ -200,22 +200,27 @@ async function run(port) {
   const rohanText = readFileSync(path.join(root, 'scripts/fixtures/riders-of-rohan-arena.txt'), 'utf8');
   await ask({ type: 'saveDeck', text: rohanText, name: 'Rohan' }, 'decks');
   const notes = 'Linha 1\nLinha \\ 2, com vírgula';
-  let detail = await ask({ type: 'setDeckMeta', name: 'Rohan', tags: ['Cavalaria', ' Casual ', 'casual'], notes, bracketIntent: 3 }, 'deckDetail');
+  let detail = await ask({ type: 'setDeckMeta', name: 'Rohan', tags: ['Cavalaria', ' Casual ', 'casual'], notes, bracketIntent: 3, calculatedBracket: 4 }, 'deckDetail');
   assert.deepEqual(detail.tags, ['Casual', 'Cavalaria'], 'trimmed, case-insensitive, sorted by Forge');
   assert.equal(detail.notes, notes, 'line breaks and backslashes round-trip');
   assert.equal(detail.bracketIntent, 3);
+  assert.equal(detail.calculatedBracket, 4, 'Analyze deck stamps a calculated bracket');
   await ask({ type: 'saveDeck', text: rohanText.replace('1 Arcane Signet', '1 Mind Stone'), name: 'Rohan 2', from: 'Rohan' }, 'decks');
   detail = await ask({ type: 'getDeck', name: 'Rohan 2' }, 'deckDetail');
-  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [['Casual', 'Cavalaria'], notes, 3], 'edit keeps the metadata');
+  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent, detail.calculatedBracket], [['Casual', 'Cavalaria'], notes, 3, 4], 'edit keeps the metadata');
   await ask({ type: 'renameDeck', name: 'Rohan 2', to: 'Rohan 3' }, 'decks');
   detail = await ask({ type: 'getDeck', name: 'Rohan 3' }, 'deckDetail');
   assert.equal(detail.bracketIntent, 3, 'rename keeps the metadata');
+  assert.equal(detail.calculatedBracket, 4, 'rename keeps the calculated bracket');
   const restart = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: ['a,b'], notes: '', bracketIntent: 0 }, 'error');
   assert.match(restart.message, /Invalid tag/);
   assert.match((await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: ['reforge-won-1'], notes: '', bracketIntent: 0 }, 'error')).message, /Invalid tag/,
     'internal tags cannot be set');
   detail = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: [], notes: '', bracketIntent: 0 }, 'deckDetail');
-  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [[], '', 0], 'cleared');
+  assert.deepEqual([detail.tags, detail.notes, detail.bracketIntent], [[], '', 0], 'cleared intent');
+  assert.equal(detail.calculatedBracket, 4, 'notes save without calculatedBracket leaves the stamp');
+  detail = await ask({ type: 'setDeckMeta', name: 'Rohan 3', tags: [], notes: '', bracketIntent: 0, calculatedBracket: 0 }, 'deckDetail');
+  assert.equal(detail.calculatedBracket, 0, 'calculated bracket cleared');
 
   // Decklist text edits used by "apply cheaper printings" and "add combo".
   const sample = 'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n1 Sol Ring (LEA) 269\n\nSideboard\n1 Sol Ring (LEA) 269';
@@ -224,6 +229,9 @@ async function run(port) {
   assert.equal(addAndCut(sample, ['Rhystic Study'], ['Arcane Signet', 'Sol Ring']),
     'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n1 Rhystic Study\n1 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269',
     'adds to the deck, cuts one copy from the deck only');
+  assert.equal(mergeDecklists(sample, 'Commander\n1 Atraxa, Praetors\' Voice\n\nDeck\n1 Sol Ring (LEA) 269\n1 Rhystic Study\n\nMaybeboard\n1 Opt'),
+    'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n2 Sol Ring (LEA) 269\n1 Atraxa, Praetors\' Voice\n1 Rhystic Study\n\nSideboard\n1 Sol Ring (LEA) 269\n\nMaybeboard\n1 Opt',
+    'adds cards into matching sections; imported commanders join the deck');
   assert.equal(removeCopy(sample, 'Sol Ring', { set: 'LEA', number: '269' }, 'deck'),
     'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269',
     'one copy leaves the deck, the sideboard copy stays');
@@ -232,6 +240,12 @@ async function run(port) {
   assert.equal(demoteCommander(sample, 'Éowyn, Shieldmaiden', { set: 'LTC', number: '1' }),
     'Deck\n1 Éowyn, Shieldmaiden (LTC) 1\n2 Arcane Signet (ELD) 331\n1 Sol Ring (LEA) 269\n\nSideboard\n1 Sol Ring (LEA) 269',
     'a commander moves into the deck');
+  assert.equal(promoteCommander(sample, 'Sol Ring', { set: 'LEA', number: '269' }, 'deck'),
+    'Commander\n1 Sol Ring (LEA) 269\n\nDeck\n2 Arcane Signet (ELD) 331\n1 Éowyn, Shieldmaiden (LTC) 1\n\nSideboard\n1 Sol Ring (LEA) 269',
+    'a deck card becomes the commander and the old one returns to the deck');
+  assert.equal(promoteCommander(sample, 'Sol Ring', { set: 'LEA', number: '269' }, 'sideboard', true),
+    'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n1 Sol Ring (LEA) 269\n\nDeck\n2 Arcane Signet (ELD) 331\n1 Sol Ring (LEA) 269',
+    'a partner joins the command zone from the sideboard');
   assert.equal(moveCopy(sample, 'Sol Ring', { set: 'LEA', number: '269' }, 'deck', 'maybeboard'),
     'Commander\n1 Éowyn, Shieldmaiden (LTC) 1\n\nDeck\n2 Arcane Signet (ELD) 331\n\nSideboard\n1 Sol Ring (LEA) 269\n\nMaybeboard\n1 Sol Ring (LEA) 269',
     'one copy moves to a new maybeboard');
@@ -306,6 +320,14 @@ async function run(port) {
   const unruled = await ask({ type: 'cardRulings', requestId: 16, name: 'Grizzly Bears' }, 'cardRulings', 'servicesError');
   assert.deepEqual(unruled.rulings, [], 'unknown to Scryfall: no rulings, not an error');
   assert.equal((await ask({ type: 'cardRulings', requestId: 17, name: 'Not A Card' }, 'cardRulings', 'servicesError')).type, 'servicesError');
+  const priced = await ask({ type: 'cardPrice', requestId: 18, name: 'Sol Ring', set: 'c21', number: '263' }, 'cardPrice', 'servicesError');
+  assert.equal(priced.type, 'cardPrice');
+  assert.equal(priced.eur, 10);
+  assert.equal(priced.exact, true);
+  const byName = await ask({ type: 'cardPrice', requestId: 19, name: 'Arcane Signet' }, 'cardPrice', 'servicesError');
+  assert.equal(byName.type, 'cardPrice');
+  assert.equal(byName.eur, 3);
+  assert.equal(byName.exact, false);
   const noTab = await ask({ type: 'deckCombos', requestId: 7, name: 'Crafted' }, 'deckCombos', 'servicesError');
   assert.equal(noTab.type, 'servicesError', 'Crafted is not saved');
   await ask({ type: 'saveDeck', text: "Commander\n1 Atraxa, Praetors' Voice\n\nDeck\n1 Sol Ring", name: 'Atraxa' }, 'decks');

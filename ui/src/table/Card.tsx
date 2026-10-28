@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
-import { colorKey, manaSymbols } from './cards';
+import { ManaCost } from '../ManaSymbol';
+import { colorKey } from './cards';
 import { useCardInspection } from './useCardInspection';
 import { useT } from '../i18n';
 
@@ -96,9 +97,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
         <span className="card__name">{card.name}</span>
         {size !== 'land' && (
           <span className="card__cost">
-            {manaSymbols(card.cost).map((s, i) => (
-              <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>
-            ))}
+            <ManaCost cost={card.cost} className="card__cost-icons" />
           </span>
         )}
       </span>

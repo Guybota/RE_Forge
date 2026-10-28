@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { deckStatistics, drawProbability, matchesDeckFilter, type DeckEntry, type DeckFilter } from './deckAnalysis';
 import { useT, type MessageKey } from './i18n';
+import { ManaSymbol } from './ManaSymbol';
 
 const COLOR_LABELS: MessageKey[] = ['colorW', 'colorU', 'colorB', 'colorR', 'colorG', 'colorC'];
 export function DeckStatistics({ entries, filter, onFilter, includeCommanders, onIncludeCommanders }: { entries: DeckEntry[]; filter: DeckFilter; onFilter: (filter: DeckFilter) => void; includeCommanders: boolean; onIncludeCommanders: (include: boolean) => void }) {
@@ -36,7 +37,7 @@ export function DeckStatistics({ entries, filter, onFilter, includeCommanders, o
       <div className="deck-stats__colors">{stats.colors.map((c, i) => <div key={c.key} className="deck-stats__color" style={{ '--mana-color': `var(--c-${c.key})` } as React.CSSProperties}>
         <button type="button" className="deck-stats__color-pick" title={t('colorCardsHint')} aria-label={t(COLOR_LABELS[i])} aria-pressed={filter?.kind === 'color' && filter.value === c.bit}
           onClick={() => onFilter(filter?.kind === 'color' && filter.value === c.bit ? null : { kind: 'color', value: c.bit })}>
-          <span className={`pip pip--${c.key === 'C' ? 'n' : c.key}`} aria-hidden="true">{c.key === 'C' ? '◇' : ''}</span>
+          <ManaSymbol symbol={c.key} cost />
           <strong>{percent(c.cards, stats.spellCount)}</strong><span>{t(COLOR_LABELS[i])}</span>
         </button>
         <span title={t('symbolsHint')}>{t('manaSymbolsShare', { n: c.symbols, percent: percent(c.symbols, stats.symbolCount) })}</span>

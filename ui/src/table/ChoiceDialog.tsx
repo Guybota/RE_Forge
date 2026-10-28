@@ -3,6 +3,7 @@ import type { CardState, Choice, GameState } from '../engine';
 import type { Engine } from '../useEngine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
+import { SymbolText } from '../ManaSymbol';
 import { LibraryChoice } from './LibraryChoice';
 
 type Props = {
@@ -67,7 +68,7 @@ function ChoicePreview({ card }: { card: CardState }) {
   const [failed, setFailed] = useState<string | null>(null);
   const image = cardImage(card.imageKey, 'full');
   if (image && failed !== image) return <img src={image} alt={card.name ?? ''} onError={() => setFailed(image)} />;
-  return <><h3>{card.name}</h3><p>{card.type}</p><p>{card.text}</p></>;
+  return <><h3>{card.name}</h3><p>{card.type}</p>{card.text && <p><SymbolText text={card.text} /></p>}</>;
 }
 
 function Reveal({ labels, onDone, hover }: { labels: string[]; onDone: () => void; hover: (i: number) => void }) {

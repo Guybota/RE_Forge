@@ -39,6 +39,8 @@ html[data-density='comfortable'] { --reading-target: 52px; }
 .card__counters span { font-size: calc((10px) * var(--text-scale, 1)); }
 .pip { font-size: calc((8px) * var(--text-scale, 1)); }
 .card--hand .pip { font-size: calc((10px) * var(--text-scale, 1)); }
+.card__cost-icons .ms { font-size: calc((11px) * var(--text-scale, 1)); }
+.card--hand .card__cost-icons .ms { font-size: calc((13px) * var(--text-scale, 1)); }
 .bar__turn { font-size: calc((15px) * var(--text-scale, 1)); }
 .bar__phases { font-size: calc((12px) * var(--text-scale, 1)); }
 .side h2 { font-size: calc((20px) * var(--text-scale, 1)); }
@@ -93,6 +95,7 @@ html[data-density='comfortable'] { --reading-target: 52px; }
 .builder__result { font-size: calc((12px) * var(--text-scale, 1)); }
 .builder__bar small { font-size: calc((11px) * var(--text-scale, 1)); }
 .builder__cost .pip { font-size: calc((9px) * var(--text-scale, 1)); }
+.builder__cost .ms { font-size: calc((12px) * var(--text-scale, 1)); }
 .builder__edition { font-size: calc((10px) * var(--text-scale, 1)); }
 .deck-stats h2 { font-size: calc((20px) * var(--text-scale, 1)); }
 .deck-stats__stack strong { font-size: calc((12px) * var(--text-scale, 1)); }

@@ -1,13 +1,20 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { commanderThemeLabels, deckThemeKeys } from './cardThemes';
+import { ManaSymbol } from './ManaSymbol';
 import { DeckCards, type BestPrice, type FacePrice } from './DeckCards';
-import { reply, useRequest } from './deckRequests';
+import { DeckIntoImport } from './DeckIntoImport';
+import { nextRequestId, reply, useRequest } from './deckRequests';
 import { deckKey } from './deckSelection';
-import { demoteCommander, moveCopy, removeCopy, swapPrinting } from './deckText';
+import { deckFromLines } from './deckTools/cardVisual';
+import pt from './deckTools/pt.json';
+import { say, setDeckToolsLanguage } from './deckTools/say';
+import { demoteCommander, moveCopy, promoteCommander, removeCopy, swapPrinting } from './deckText';
 import type { DeckDetail, DeckLists, DeckPreview, DeckSummary } from './engine';
 import { PrintingsDialog } from './PrintingsDialog';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
 import { InspectableCard } from './table/CardInspection';
+import { PencilIcon } from './table/icons';
 import { cardForInspection } from './table/useCardInspection';
 import type { Engine } from './useEngine';
 
@@ -40,14 +47,19 @@ type Props = {
 export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }: Props) {
   const t = useT();
   const { send, decks } = engine;
+  const toolsLang = engine.info?.language ?? document.documentElement.lang;
+  setDeckToolsLanguage(toolsLang.startsWith('pt') ? pt : null);
   const start = openedFrom(initialDeck, decks);
   const [library, setLibrary] = useState<'mine' | 'precon'>(start.library);
   const names = library === 'mine' ? decks.mine : decks.precons;
   const [opened, setOpened] = useState<string | null>(start.opened);
   const appliedInitial = useRef(start.opened != null);
   const [name, setName] = useState(opened ?? '');
+  const [editingName, setEditingName] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [view, setView] = useState<(typeof VIEWS)[number]['id']>('list');
   const [query, setQuery] = useState('');
   const [year, setYear] = useState(0);
@@ -82,6 +94,9 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
     return map;
   }, [cheaperReply]);
   const [printingOf, setPrintingOf] = useState<DeckPreview['lines'][number] | null>(null);
+  const [themeByDeck, setThemeByDeck] = useState<Record<string, string[]>>({});
+  const themeJob = useRef<{ id: number; name: string; cards: number } | null>(null);
+  const themeQueue = useRef<DeckSummary[]>([]);
   useEffect(() => { if (printingOf?.nameEn) send({ type: 'getPrintings', name: printingOf.nameEn }); }, [printingOf, send]);
   const saveList = (text: string) => {
     if (!detail || !owned) return;
@@ -99,9 +114,63 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
 
   useEffect(() => {
     setName(opened ?? '');
+    setEditingName(false);
     setCopied(false);
+    setImporting(false);
+    setConfirmingDelete(false);
     if (owned && opened) send({ type: 'getDeck', name: opened });
   }, [opened, owned, send]);
+
+  // Cache theme chips for the shelf: session first, then one owned deck at a time via deckLines.
+  useEffect(() => {
+    if (!owned || opened) { themeQueue.current = []; themeJob.current = null; return; }
+    const mine = listed(decks, 'mine');
+    const fromCache: Record<string, string[]> = {};
+    const pending: DeckSummary[] = [];
+    for (const deck of mine) {
+      const cacheKey = `reforge-theme-keys:${deck.name}:${deck.cards ?? 0}`;
+      const hit = sessionStorage.getItem(cacheKey);
+      if (hit) {
+        try { fromCache[deck.name] = JSON.parse(hit) as string[]; continue; } catch { /* queue */ }
+      }
+      pending.push(deck);
+    }
+    if (Object.keys(fromCache).length) setThemeByDeck((map) => ({ ...fromCache, ...map }));
+    themeQueue.current = pending;
+    if (!themeJob.current && pending.length) {
+      const deck = themeQueue.current.shift()!;
+      const id = nextRequestId();
+      themeJob.current = { id, name: deck.name, cards: deck.cards ?? 0 };
+      send({ type: 'deckLines', requestId: id, name: deck.name, source: 'mine' });
+    }
+  }, [owned, opened, decks.mine.join('|'), decks.summaries, send]);
+
+  useEffect(() => {
+    const job = themeJob.current;
+    const answer = engine.deckServices.deckLines;
+    if (!owned || opened || !job || !answer || answer.requestId !== job.id) return;
+    themeJob.current = null;
+    if (answer.type === 'deckLines') {
+      const { deck } = deckFromLines(answer.name, answer.lines, answer.identity);
+      const tags = deckThemeKeys(deck);
+      sessionStorage.setItem(`reforge-theme-keys:${job.name}:${job.cards}`, JSON.stringify(tags));
+      setThemeByDeck((map) => ({ ...map, [job.name]: tags }));
+    }
+    if (themeQueue.current.length) {
+      const deck = themeQueue.current.shift()!;
+      const id = nextRequestId();
+      themeJob.current = { id, name: deck.name, cards: deck.cards ?? 0 };
+      send({ type: 'deckLines', requestId: id, name: deck.name, source: 'mine' });
+    }
+  }, [engine.deckServices.deckLines, owned, opened, send]);
+
+  useEffect(() => {
+    if (!detail || !owned) return;
+    const { deck } = deckFromLines(detail.name, detail.lines, detail.identity);
+    const tags = deckThemeKeys(deck);
+    sessionStorage.setItem(`reforge-theme-keys:${detail.name}:${detail.cards ?? 0}`, JSON.stringify(tags));
+    setThemeByDeck((map) => ({ ...map, [detail.name]: tags }));
+  }, [detail, owned]);
 
   // A renamed deck stays open. A deleted one returns to the shelf.
   useEffect(() => {
@@ -109,36 +178,69 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
       setLibrary('mine');
       setOpened(renaming);
       setRenaming(null);
+      setEditingName(false);
     } else if (opened && !names.includes(opened)) {
       setOpened(null);
     }
   }, [decks, names, renaming, opened]);
   useEffect(() => {
-    if (engine.error) { setRenaming(null); setName(opened ?? ''); }
+    if (engine.error) { setRenaming(null); setName(opened ?? ''); setEditingName(false); }
   }, [engine.error, opened]);
 
   const rename = () => {
     const to = name.trim();
-    if (!opened || !to || to === opened) { setName(opened ?? ''); return; }
+    if (!opened || !to || to === opened) { setName(opened ?? ''); setEditingName(false); return; }
     setRenaming(to);
     send({ type: 'renameDeck', name: opened, to });
   };
   const showShelf = (source: 'mine' | 'precon') => { setLibrary(source); setOpened(null); setView('list'); setQuery(''); setYear(0); setColors(0); };
+  const title = opened ? (owned ? opened : deckTitle(opened)) : t('decks');
 
   return (
     <main className="import decks">
       <header className="import__head">
-        <button type="button" className="btn btn--ghost" onClick={() => opened ? setOpened(null) : onBack()}>{t('back')}</button>
-        <h1>{t('decks')}</h1>
-        {decks.mine.length > 0 && <span className="decks__new">
+        <button type="button" className="btn btn--ghost" onClick={() => opened ? setOpened(null) : onBack()}>{t(opened ? 'back' : 'home')}</button>
+        {opened ? (
+          <div className="decks__title">
+            {owned && editingName ? (
+              <input className="input decks__name-edit" aria-label={t('deckName')} value={name} autoFocus
+                onChange={(e) => setName(e.target.value)}
+                onBlur={rename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                  if (e.key === 'Escape') { setName(opened); setEditingName(false); }
+                }} />
+            ) : (
+              <>
+                <h1 title={title}>{title}</h1>
+                {owned && <button type="button" className="btn btn--ghost decks__rename" aria-label={t('renameDeck')}
+                  title={t('renameDeck')} onClick={() => { setName(opened); setEditingName(true); }}>
+                  <PencilIcon />
+                </button>}
+              </>
+            )}
+          </div>
+        ) : <h1>{t('decks')}</h1>}
+        {opened ? (
+          <span className="decks__actions">
+            <button type="button" className="btn btn--primary" onClick={() => onPlay(deckKey({ source: library, name: opened }))}>{t('playDeck')}</button>
+            {owned && <button type="button" className="btn btn--ghost" disabled={!detail} onClick={() => detail && onBuild(detail)}>{t('editDeck')}</button>}
+            {owned && <button type="button" className="btn btn--ghost" disabled={!detail} onClick={() => setImporting(true)}>{t('import')}</button>}
+            <button type="button" className="btn btn--ghost" disabled={!detail} title={t('exportHint')} onClick={async () => {
+              if (!detail) return;
+              try { await navigator.clipboard.writeText(detail.text); setCopied(true); } catch { setCopied(false); }
+            }}>{t(copied ? 'copied' : 'exportDeck')}</button>
+            {owned && <button type="button" className="btn btn--ghost decks__delete" onClick={() => setConfirmingDelete(true)}>{t('deleteDeck')}</button>}
+          </span>
+        ) : decks.mine.length > 0 && <span className="decks__new">
           <button type="button" className="btn btn--ghost" onClick={onImport}>{t('import')}</button>
           <button type="button" className="btn btn--primary" onClick={() => onBuild()}>{t('newDeck')}</button>
         </span>}
       </header>
-      <div className="decks__sources" role="group" aria-label={t('deckSource')}>
+      {!opened && <div className="decks__sources" role="group" aria-label={t('deckSource')}>
         <button type="button" className="btn btn--ghost" aria-pressed={owned} onClick={() => showShelf('mine')}>{t('myDecks')}</button>
         <button type="button" className="btn btn--ghost" aria-pressed={!owned} onClick={() => showShelf('precon')}>{t('precons')}</button>
-      </div>
+      </div>}
       {owned && decks.mine.length === 0 ? (
         <div className="decks__empty">
           <button type="button" className="btn btn--primary btn--big" onClick={() => onBuild()}>{t('newDeck')}</button>
@@ -146,29 +248,30 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
         </div>
       ) : opened ? (
             <section className="decks__detail" aria-label={opened}>
-              <div className="decks__head">
-                {owned ? <input className="input decks__name" aria-label={t('deckName')} value={name} onChange={(e) => setName(e.target.value)}
-                  onBlur={rename} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setName(opened); }} />
-                  : <h2 className="decks__name">{deckTitle(opened)}</h2>}
-                {!owned && <p className="muted decks__readonly">{t('preconReadOnly')}</p>}
-                <button type="button" className="btn btn--primary" onClick={() => onPlay(deckKey({ source: library, name: opened }))}>{t('playDeck')}</button>
-                {owned && <button type="button" className="btn btn--ghost" disabled={!detail} onClick={() => detail && onBuild(detail)}>{t('editDeck')}</button>}
-                <button type="button" className="btn btn--ghost" disabled={!detail} title={t('exportHint')} onClick={async () => {
-                  if (!detail) return;
-                  try { await navigator.clipboard.writeText(detail.text); setCopied(true); } catch { setCopied(false); }
-                }}>{t(copied ? 'copied' : 'exportDeck')}</button>
-                {owned && <button type="button" className="btn btn--ghost decks__delete" onClick={() => {
-                  if (window.confirm(t('confirmDelete', { name: opened }))) send({ type: 'deleteDeck', name: opened });
-                }}>{t('deleteDeck')}</button>}
-              </div>
+              {!owned && <p className="muted decks__readonly">{t('preconReadOnly')}</p>}
               {engine.error && <p className="error" role="alert">{engine.error}</p>}
               <nav className="builder__views" aria-label={t('deckViews')}>
-                {VIEWS.filter((v) => owned || v.id !== 'notes').map((v) => <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id} onClick={() => setView(v.id)}>{t(v.label)}</button>)}
+                {VIEWS.filter((v) => owned || v.id !== 'notes').map((v) => {
+                  const needsAnalyze = v.id === 'analysis' && owned && detail != null && detail.calculatedBracket === 0;
+                  return <button key={v.id} type="button" className="btn btn--ghost" aria-pressed={view === v.id}
+                    aria-label={needsAnalyze ? `${t(v.label)}. ${t('analyzePending')}` : undefined}
+                    title={needsAnalyze ? t('analyzePending') : undefined}
+                    onClick={() => setView(v.id)}>{t(v.label)}
+                    {needsAnalyze && <span className="decks__view-mark" aria-hidden="true" />}
+                  </button>;
+                })}
               </nav>
               {detail && view === 'list' && <DeckCards preview={detail} faces prices={prices} best={best} editable={owned}
+                inspectFrom={{ name: detail.name, source: library }}
                 onChangePrinting={owned ? setPrintingOf : undefined}
                 onRemove={owned ? (line) => line.nameEn && saveList(removeCopy(detail.text, line.nameEn, line, sectionOf(line))) : undefined}
                 onDemote={owned ? (line) => line.nameEn && saveList(demoteCommander(detail.text, line.nameEn, line)) : undefined}
+                onPromote={owned ? (line) => {
+                  if (!line.nameEn) return;
+                  const cmds = detail.lines.filter((l) => l.group === 'commander');
+                  const join = cmds.length === 1 && !!cmds[0].canPartner && !!line.canPartner;
+                  saveList(promoteCommander(detail.text, line.nameEn, line, sectionOf(line), join));
+                } : undefined}
                 onMove={owned ? (line, to) => line.nameEn && saveList(moveCopy(detail.text, line.nameEn, line, sectionOf(line), to)) : undefined} />}
               {printingOf?.nameEn && <PrintingsDialog title={printingOf.name ?? printingOf.nameEn} printings={engine.printings?.name === printingOf.nameEn ? engine.printings.printings : null}
                 current={printingOf.imageKey ?? ''} onClose={() => setPrintingOf(null)} onRetry={() => send({ type: 'getPrintings', name: printingOf.nameEn! })}
@@ -177,13 +280,16 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                   setPrintingOf(null);
                 }} />}
               <Suspense fallback={<p className="muted" role="status">{t('connecting')}</p>}>
-              {detail && view === 'analysis' && <DeckAnalysis detail={detail} />}
+              {detail && view === 'analysis' && <DeckAnalysis detail={detail} engine={owned ? engine : null} />}
               {detail && view === 'prices' && <DeckPrices key={detail.name} detail={detail} engine={engine} source={library} />}
               {detail && view === 'combos' && <DeckCombos key={detail.name} detail={detail} engine={engine} source={library} />}
               {detail && view === 'improve' && <DeckImprove key={detail.name} detail={detail} engine={engine} source={library} onCreated={(created) => { setLibrary('mine'); setRenaming(created); setView('list'); }} />}
               {detail && view === 'compare' && <DeckCompare key={detail.name} detail={detail} engine={engine} />}
               {detail && view === 'notes' && <DeckNotes key={[detail.name, detail.tags.join(','), detail.bracketIntent, detail.notes].join('\n')} detail={detail} engine={engine} />}
               </Suspense>
+              {importing && owned && detail && <DeckIntoImport engine={engine} deckName={detail.name} currentText={detail.text} onClose={() => setImporting(false)} />}
+              {confirmingDelete && opened && <DeleteDeckDialog name={opened} onCancel={() => setConfirmingDelete(false)}
+                onConfirm={() => { send({ type: 'deleteDeck', name: opened }); setConfirmingDelete(false); }} />}
             </section>
       ) : (
         <div className="deck-shelf">
@@ -212,7 +318,14 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
                 <div className="deck-shelf__set" key={set.key}>
                   {set.name && <header className="deck-shelf__edition"><h3>{set.name}</h3>{set.code && <span>{set.code}</span>}</header>}
                   <ul className="deck-exhibits">
-                    {set.decks.map((deck) => <Poster key={deck.name} deck={deck} onOpen={() => { setOpened(deck.name); setView('list'); }} />)}
+                    {set.decks.map((deck) => {
+                      const keys = themeByDeck[deck.name];
+                      const themes = keys?.length
+                        ? keys.map((key) => say(key))
+                        : commanderThemeLabels((deck.commanders ?? []).map((c) => c.nameEn).filter(Boolean));
+                      return <Poster key={deck.name} deck={deck} themes={themes}
+                        onOpen={() => { setOpened(deck.name); setView('list'); }} />;
+                    })}
                   </ul>
                 </div>
               ))}
@@ -221,6 +334,29 @@ export function Decks({ engine, initialDeck, onBack, onPlay, onImport, onBuild }
         </div>
       )}
     </main>
+  );
+}
+
+function DeleteDeckDialog({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => void }) {
+  const t = useT();
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+  return (
+    <dialog ref={ref} className="choice game-menu zone decks__delete-dialog" aria-labelledby="delete-deck-title"
+      onCancel={(e) => { e.preventDefault(); onCancel(); }}>
+      <header className="game-menu__head">
+        <h2 id="delete-deck-title" className="choice__title">{t('confirmDelete', { name })}</h2>
+      </header>
+      <p className="decks__delete-copy">{t('confirmDeleteHint')}</p>
+      <div className="decks__delete-actions">
+        <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('cancel')}</button>
+        <button type="button" className="btn btn--primary decks__delete" onClick={onConfirm}>{t('deleteDeck')}</button>
+      </div>
+    </dialog>
   );
 }
 
@@ -293,7 +429,7 @@ function openedFrom(initial: string | undefined, decks: DeckLists): { library: '
   return named('mine', initial) ?? named('precon', initial) ?? { library: 'mine', opened: null };
 }
 
-function Poster({ deck, onOpen }: { deck: DeckSummary; onOpen: () => void }) {
+function Poster({ deck, themes, onOpen }: { deck: DeckSummary; themes: string[]; onOpen: () => void }) {
   const t = useT();
   const main = deck.commanders?.[0];
   const src = main?.imageKey ? cardImage(main.imageKey, 'crop') : null;
@@ -311,11 +447,12 @@ function Poster({ deck, onOpen }: { deck: DeckSummary; onOpen: () => void }) {
         {src ? <img src={src} alt="" loading="lazy" /> : <span className="deck-poster__blank" />}
         <span className="deck-poster__shade" />
         <span className="deck-poster__pips">
-          {pips.map((color) => <span key={color.key} className={`pip pip--${color.key === 'C' ? 'n' : color.key}`} title={t(color.label)} />)}
+          {pips.map((color) => <ManaSymbol key={color.key} symbol={color.key === 'C' ? 'C' : color.key} cost className="deck-poster__mana" />)}
         </span>
         <span className="deck-poster__copy">
           <strong>{deckTitle(deck.name)}</strong>
           {commanders && <span>{commanders}</span>}
+          {themes.length > 0 && <span className="deck-poster__tags">{themes.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</span>}
           {footer && <span className="deck-poster__meta">{footer}</span>}
         </span>
       </InspectableCard>

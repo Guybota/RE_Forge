@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CatalogCard, LimitedEvent, LimitedMode, PoolCard } from '../engine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
-import { manaSymbols } from '../table/cards';
+import { ManaCost, ManaSymbol } from '../ManaSymbol';
 import { InspectableCard } from '../table/CardInspection';
 import { cardForInspection } from '../table/useCardInspection';
 import type { Engine } from '../useEngine';
@@ -124,7 +124,7 @@ function DeckLine({ card, onClick, label }: { card: PoolCard; onClick?: () => vo
   const content = <>
     <span className="import__qty">{card.qty}</span>
     <span className="modes__line-name">{card.name}</span>
-    <span className="builder__cost">{manaSymbols(card.cost).map((s, i) => <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>)}</span>
+    <ManaCost cost={card.cost} className="builder__cost" />
   </>;
   return <li className="modes__line"><InspectableCard as={onClick ? 'button' : 'div'} card={cardForInspection(card)} aria-label={label} onClick={onClick}>{content}</InspectableCard></li>;
 }
@@ -194,7 +194,7 @@ function EventView({ engine, event }: { engine: Engine; event: LimitedEvent }) {
         <ul className="modes__opponents">
           {event.opponents.map((o) => <li key={o.index}>
             <span>{t('opponentN', { n: o.index + 1 })}</span>
-            <span className="builder__cost" aria-hidden="true">{COLOR_ORDER.map((bit, i) => o.colors & bit ? <span key={bit} className={`pip pip--${PIPS[i]}`} /> : null)}</span>
+            <span className="builder__cost" aria-hidden="true">{COLOR_ORDER.map((bit, i) => o.colors & bit ? <ManaSymbol key={bit} symbol={PIPS[i]} cost /> : null)}</span>
             {o.result && <span className={o.result === 'won' ? 'modes__won' : 'modes__lost'}>{t(o.result === 'won' ? 'resultWon' : 'resultLost')}</span>}
             <button type="button" className="btn btn--ghost" disabled={!playable} aria-label={t('playOpponentNamed', { n: o.index + 1 })}
               onClick={() => engine.send({ type: 'limited', action: 'play', id: event.id, opponent: o.index, bestOf })}>{t('playOpponent')}</button>

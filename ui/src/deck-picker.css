@@ -19,8 +19,8 @@
 .deck-picker__sources button[aria-pressed='true'] { color: var(--on-table); border-color: var(--on-table); }
 .deck-picker__filter-line { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .deck-picker__colors { display: flex; flex-wrap: wrap; gap: 6px; }
-.deck-picker__colors button { color: var(--on-table); background: transparent; border: 1px solid var(--table-line); border-radius: var(--radius-control); width: var(--reading-target, 44px); height: var(--reading-target, 44px); font: inherit; cursor: pointer; }
-.deck-picker__colors button[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.deck-picker__colors .mana-swatch { width: var(--reading-target, 44px); height: var(--reading-target, 44px); }
+.deck-picker__colors .mana-swatch .ms { font-size: 20px; }
 .deck-picker__count { font-size: 0.85rem; color: var(--on-table-muted); }
 .deck-picker__results { max-height: max(240px, calc(100dvh - 320px)); overflow: auto; scrollbar-gutter: stable; padding: 3px; }
 .deck-picker__list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--table-line); }
@@ -41,7 +41,7 @@
 .deck-artwork img { width: 100%; height: 100%; object-fit: cover; }
 .deck-artwork > svg { width: 30px; height: 30px; }
 .deck-identity { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap; }
-.deck-identity__pip { background: var(--panel); color: var(--panel-ink); border: 1px solid var(--panel-line); border-radius: var(--radius-control); min-width: 20px; height: 20px; display: grid; place-items: center; font-size: 11px; }
+.deck-identity .ms, .deck-identity__mana { font-size: 14px; }
 .deck-picker__empty { padding: 20px 0; color: var(--on-table-muted); display: grid; gap: 16px; justify-items: start; }
 .deck-picker__empty p { margin: 0; }
 .quick-match__preview { --focus: var(--focus-panel); min-width: 0; overflow: hidden; border-radius: var(--panel-radius); background: var(--panel); color: var(--panel-ink); color-scheme: light; }

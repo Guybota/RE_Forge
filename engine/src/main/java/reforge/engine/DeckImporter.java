@@ -300,18 +300,22 @@ final class DeckImporter {
     }
 
     static final String BRACKET_TAG = "reforge-bracket-";
+    /** Bracket stamped by "Analisar deck" on the Analysis tab (Central's calculatedBracket). */
+    static final String CALC_BRACKET_TAG = "reforge-calc-bracket-";
 
     /**
      * The player's own tags, notes and intended bracket (1–5, 0 = none). Forge keeps the comment on one line, so
      * line breaks are stored as a backslash and "n" (backslashes doubled). Our internal "reforge-" tags (Limited results, bracket) are kept apart.
+     * {@code calculated} null leaves a stamped calculated bracket alone; 0 clears it; 1–5 stamps it.
      * Returns an error message or null.
      */
-    static String setMeta(String name, List<String> tags, String notes, int bracket) {
+    static String setMeta(String name, List<String> tags, String notes, int bracket, Integer calculated) {
         Deck deck = mine().get(name);
         if (deck == null) return "Unknown deck: " + name;
         if (tags.size() > 20) return "Too many tags";
         if (notes != null && notes.length() > 4000) return "Notes are too long";
         if (bracket < 0 || bracket > 5) return "Invalid bracket";
+        if (calculated != null && (calculated < 0 || calculated > 5)) return "Invalid bracket";
         Set<String> clean = new LinkedHashSet<>();
         for (String tag : tags) {
             String t = tag == null ? "" : tag.trim();
@@ -319,9 +323,11 @@ final class DeckImporter {
             if (t.length() > 40 || t.contains(",") || t.toLowerCase(Locale.ROOT).startsWith("reforge-")) return "Invalid tag: " + t;
             clean.add(t);
         }
-        deck.getTags().removeIf(t -> !t.startsWith("reforge-") || t.startsWith(BRACKET_TAG));
+        deck.getTags().removeIf(t -> !t.startsWith("reforge-") || t.startsWith(BRACKET_TAG)
+                || (calculated != null && t.startsWith(CALC_BRACKET_TAG)));
         deck.getTags().addAll(clean);
         if (bracket > 0) deck.getTags().add(BRACKET_TAG + bracket);
+        if (calculated != null && calculated > 0) deck.getTags().add(CALC_BRACKET_TAG + calculated);
         String comment = notes == null ? "" : notes.strip().replace("\\", "\\\\").replace("\r", "").replace("\n", "\\n");
         deck.setComment(comment.isEmpty() ? null : comment);
         List<String> maybe = storedMaybeboard(deck);
@@ -363,8 +369,11 @@ final class DeckImporter {
                     if (!tag.isEmpty() && tag.length() <= 40 && !tag.toLowerCase(Locale.ROOT).startsWith("reforge-") && tags.size() < 20) tags.add(tag);
                 }
                 int bracket = d.has("bracketIntent") && d.get("bracketIntent").isJsonPrimitive() ? d.get("bracketIntent").getAsInt() : 0;
+                int calculated = d.has("calculatedBracket") && d.get("calculatedBracket").isJsonPrimitive() ? d.get("calculatedBracket").getAsInt() : 0;
                 String notes = text(d, "notes");
-                setMeta(name, tags, notes.length() > 4000 ? notes.substring(0, 4000) : notes, bracket >= 1 && bracket <= 5 ? bracket : 0);
+                setMeta(name, tags, notes.length() > 4000 ? notes.substring(0, 4000) : notes,
+                        bracket >= 1 && bracket <= 5 ? bracket : 0,
+                        calculated >= 1 && calculated <= 5 ? calculated : 0);
                 JsonObject done = new JsonObject();
                 done.addProperty("from", from);
                 done.addProperty("name", name);
@@ -454,13 +463,15 @@ final class DeckImporter {
         o.addProperty("name", name);
         o.addProperty("text", text.toString());
         JsonArray tags = new JsonArray();
-        int bracket = 0;
+        int bracket = 0, calculated = 0;
         for (String tag : deck.getTags()) {
             if (tag.matches(BRACKET_TAG + "[1-5]")) bracket = tag.charAt(tag.length() - 1) - '0';
+            else if (tag.matches(CALC_BRACKET_TAG + "[1-5]")) calculated = tag.charAt(tag.length() - 1) - '0';
             else if (!tag.startsWith("reforge-")) tags.add(tag);
         }
         o.add("tags", tags);
         o.addProperty("bracketIntent", bracket);
+        o.addProperty("calculatedBracket", calculated);
         o.addProperty("notes", unescapeNotes(deck.getComment()));
         return o;
     }

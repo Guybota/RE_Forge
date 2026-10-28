@@ -80,6 +80,8 @@ export type CardState = {
   id: number;
   hidden?: boolean;
   name?: string;
+  /** English name; when set, inspection opens the rich catalog modal instead of the in-game zoom. */
+  nameEn?: string;
   cost?: string;
   /** Type line in the chosen language, for display. */
   type?: string;
@@ -87,10 +89,15 @@ export type CardState = {
   typeEn?: string;
   colors?: string;
   set?: string;
+  number?: string;
   /** Forge's CardRarity name, e.g. 'MythicRare'. */
   rarity?: string;
   imageKey?: string;
+  imageUrl?: string;
   text?: string;
+  textEn?: string;
+  commanderLegal?: boolean;
+  canCommand?: boolean;
   power?: number;
   toughness?: number;
   loyalty?: string;
@@ -110,6 +117,12 @@ export type CardState = {
   counters?: Record<string, number>;
   /** Forge's keywords, in English: `id` is the enum name, `detail` what follows the name (e.g. "{2}" of "Ward {2}"). */
   keywords?: { id: string; title: string; detail: string; reminder: string }[];
+  /** When inspecting from an open deck, load that commander's EDHREC combos that include this card. */
+  deckName?: string;
+  deckSource?: 'mine' | 'precon';
+  /** Cardmarket EUR already known (deck face prices / Scryfall search); the inspect modal prefers this. */
+  eur?: number | null;
+  priceExact?: boolean;
 };
 
 export type PlayerState = {
@@ -291,8 +304,12 @@ export type CatalogCard = {
   /** Potential front-face mana production, W1 U2 B4 R8 G16 C32. */
   manaProduction: number;
   commanderMana: boolean;
+  /** A Scryfall scan, used when Forge has no printing for this card. */
+  imageUrl?: string;
+  /** Cardmarket EUR from Scryfall, when the search hit carried prices. */
+  eur?: number | null;
 };
-export type CardResults = { type: 'cardResults'; requestId: number; total: number; offset: number; cards: CatalogCard[] };
+export type CardResults = { type: 'cardResults' | 'cardSearch'; requestId: number; total: number; offset: number; hasMore?: boolean; cards: CatalogCard[] };
 export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string; artIndex: number }[] };
 
 /** One of the player's decks: its decklist (with printings) and the grouped preview. */
@@ -301,7 +318,9 @@ export type DeckText = { type: 'deckText'; text: string; name?: string };
 
 export type DeckDetail = Omit<DeckPreview, 'type'> & { type: 'deckDetail'; name: string; text: string;
   /** The player's own tags, notes and intended bracket (0 = none), kept in the Forge deck. */
-  tags: string[]; notes: string; bracketIntent: number };
+  tags: string[]; notes: string; bracketIntent: number;
+  /** Bracket stamped by Analyze deck on the Analysis tab (0 = none). */
+  calculatedBracket: number };
 
 /** Deck tools' online lookups (engine's DeckServices). Prices use Forge's set codes; EUR is Cardmarket via Scryfall. */
 export type PrintingPrice = { set: string; number: string; eur?: number | null; exact: boolean };
@@ -317,9 +336,10 @@ export type DeckServicesReply =
   | { type: 'comboDetail'; requestId: number; href: string; prerequisites: string[]; steps: string[] }
   | (Omit<DeckDetail, 'type'> & { type: 'deckLines'; requestId: number; source: 'mine' | 'precon' })
   | { type: 'cardsByName'; requestId: number; cards: CatalogCard[] }
+  | { type: 'cardPrice'; requestId: number; name: string; set?: string; number?: string; eur?: number | null; exact: boolean }
   | { type: 'deckSpellbook'; requestId: number; name: string; combos: { id: string; cardNames: string[]; produces: string[] }[] }
   | { type: 'cardRulings'; requestId: number; name: string; card: CatalogCard; text: string; rulings: { date: string; source: string; comment: string }[] }
-  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'deckSpellbook' | 'cardRulings';
+  | { type: 'servicesError'; requestId: number; service: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'comboDetail' | 'deckLines' | 'cardsByName' | 'cardPrice' | 'deckSpellbook' | 'cardRulings';
       unavailable: boolean; message: string };
 
 /** Decks brought in from a Central library (the desktop migration, or a JSON export opened by hand). */
@@ -372,13 +392,15 @@ export type ClientMessage =
   | { type: 'fetchDeck'; url: string }
   | { type: 'deleteDeck'; name: string }
   | { type: 'getDeck'; name: string }
-  | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number }
+  | { type: 'setDeckMeta'; name: string; tags: string[]; notes: string; bracketIntent: number; calculatedBracket?: number }
   | { type: 'deckPrices' | 'cheaperPrintings' | 'deckCombos' | 'deckSpellbook'; requestId: number; name: string; source?: 'mine' | 'precon' }
   | { type: 'deckLines'; requestId: number; name: string; source: 'mine' | 'precon' }
   | { type: 'cardsByName'; requestId: number; names: string[] }
+  | { type: 'cardPrice'; requestId: number; name: string; set?: string; number?: string }
   | { type: 'cardRulings'; requestId: number; name: string }
   | { type: 'importCentral'; json: string; migration?: boolean }
   | { type: 'comboDetail'; requestId: number; href: string }
+  | { type: 'cardSearch'; requestId: number; query: string; page?: number }
   | { type: 'searchCards'; query?: string; colors?: number; identity?: number; cmc?: number; cardType?: string; commanders?: boolean; partnerOf?: string; requestId?: number; offset?: number;
       /** Advanced: words of the rules text / type line (English or translated) and one compared number. */
       rules?: string; typeText?: string; /** Every card, not only Commander-legal ones (rules lookup). */ allCards?: boolean; stat?: 'mv' | 'pow' | 'tou' | 'loy'; statOp?: '=' | '<' | '<=' | '>' | '>=' | '!='; statValue?: number }
@@ -470,9 +492,9 @@ export function connectEngine(port: number, h: EngineHandlers): EngineConnection
       case 'deckDetail': h.onDeckDetail(msg); break;
       case 'centralImport': h.onCentralImport(msg); break;
       case 'deckPrices': case 'cheaperProgress': case 'cheaperPrintings': case 'deckCombos': case 'comboDetail': case 'servicesError':
-      case 'deckLines': case 'cardsByName': case 'deckSpellbook': case 'cardRulings':
+      case 'deckLines': case 'cardsByName': case 'cardPrice': case 'deckSpellbook': case 'cardRulings':
         h.onDeckServices(msg); break;
-      case 'cardResults': h.onCardResults(msg); break;
+      case 'cardResults': case 'cardSearch': h.onCardResults(msg); break;
       case 'printings': h.onPrintings(msg); break;
       case 'state': h.onState(msg); break;
       case 'choice': h.onChoice(msg); break;
