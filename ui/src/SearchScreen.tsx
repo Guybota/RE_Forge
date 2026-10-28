@@ -10,6 +10,7 @@ import { Unavailable } from './DeckOnline';
 import type { CatalogCard, DeckServicesReply } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
+import { ManaSymbol } from './ManaSymbol';
 import { cardForInspection } from './table/useCardInspection';
 import type { Engine } from './useEngine';
 
@@ -295,9 +296,13 @@ function ColorPicks({ colors, colorless, label, title, onColor, onColorless }: {
   return (
     <div className="search-colors" role="group" aria-label={label} title={title}>
       {COLOR_LETTERS.map((letter) => (
-        <button key={letter} type="button" className={`pip pip--${letter}`} aria-pressed={colors.includes(letter)} aria-label={t(COLOR_LABEL[letter])} title={t(COLOR_LABEL[letter])} onClick={() => onColor(letter)}>{letter}</button>
+        <button key={letter} type="button" className="mana-swatch" aria-pressed={colors.includes(letter)} aria-label={t(COLOR_LABEL[letter])} title={t(COLOR_LABEL[letter])} onClick={() => onColor(letter)}>
+          <ManaSymbol symbol={letter} cost />
+        </button>
       ))}
-      <button type="button" className="pip pip--n" aria-pressed={colorless} aria-label={t('colorC')} title={t('colorC')} onClick={onColorless}>C</button>
+      <button type="button" className="mana-swatch" aria-pressed={colorless} aria-label={t('colorC')} title={t('colorC')} onClick={onColorless}>
+        <ManaSymbol symbol="C" cost />
+      </button>
     </div>
   );
 }
@@ -306,7 +311,12 @@ function SymbolPad({ onPick }: { onPick: (symbol: string) => void }) {
   const t = useT();
   return (
     <div className="search-symbols" role="group" aria-label={t('searchAddSymbol')}>
-      {MANA_SYMBOLS.map((symbol) => <button key={symbol} type="button" className="btn btn--ghost" onClick={() => onPick(symbol)}>{symbol}</button>)}
+      {MANA_SYMBOLS.map((symbol) => (
+        <button key={symbol} type="button" className="btn btn--ghost search-symbols__btn" aria-label={symbol} title={symbol}
+          onClick={() => onPick(symbol)}>
+          <ManaSymbol symbol={symbol.replace(/^\{|\}$/g, '')} />
+        </button>
+      ))}
     </div>
   );
 }

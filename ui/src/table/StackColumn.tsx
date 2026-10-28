@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CardState, GameState } from '../engine';
 import { useT } from '../i18n';
 import { cardImage } from '../images';
+import { SymbolText } from '../ManaSymbol';
 import { animationOn, getAnimationSettings } from './animationPrefs';
 import { InspectableCard } from './CardInspection';
 
@@ -59,7 +60,7 @@ export function StackColumn({ game, allCards, names, onHover }: {
                 onMouseEnter={card ? () => onHover(card) : undefined} onMouseLeave={card ? () => onHover(null) : undefined}
                 onFocus={card ? () => onHover(card) : undefined} onBlur={() => onHover(null)}>
                 {s.isSpell && art ? <img src={art} alt={s.text} />
-                  : <div className="stack-col__ability">{art && <img src={art} alt="" />}<p>{s.text}</p></div>}
+                  : <div className="stack-col__ability">{art && <img src={art} alt="" />}<p><SymbolText text={s.text} /></p></div>}
                 {owner && <span className="stack-col__owner">{owner}</span>}
               </InspectableCard>
             );

@@ -4,6 +4,7 @@ import { CardBeside } from './DeckCards';
 import type { CatalogCard } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
+import { ManaSymbol } from './ManaSymbol';
 import { cardForInspection } from './table/useCardInspection';
 import type { Engine } from './useEngine';
 
@@ -89,8 +90,10 @@ export function RulesScreen({ engine, onBack }: { engine: Engine; onBack: () => 
             <input className="input" type="search" aria-label={t('rulesLookup')} placeholder={t('rulesLookup')} value={query} onChange={(e) => setQuery(e.target.value)} />
             <span className="builder__colors">
               {COLORS.map((c) => (
-                <button key={c.key} type="button" className={`pip pip--${c.key === 'C' ? 'n' : c.key} builder__color`} aria-pressed={(colors & c.bit) !== 0}
-                  aria-label={t(c.label)} title={t(c.label)} onClick={() => setColors(colors ^ c.bit)} />
+                <button key={c.key} type="button" className="mana-swatch builder__color" aria-pressed={(colors & c.bit) !== 0}
+                  aria-label={t(c.label)} title={t(c.label)} onClick={() => setColors(colors ^ c.bit)}>
+                  <ManaSymbol symbol={c.key} cost />
+                </button>
               ))}
             </span>
             <select className="input" aria-label={t('manaValue')} value={cmc} onChange={(e) => setCmc(Number(e.target.value))}>

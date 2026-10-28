@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import type { DeckPreview } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
+import { ManaSymbol } from './ManaSymbol';
 import { CardZoom } from './table/CardZoom';
 import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
@@ -136,8 +137,10 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
         {filtersOpen && <div className="deck-card-filters">
           <span className="search-colors" role="group" aria-label={t('searchColors')}>
             {DECK_COLORS.map((c) => (
-              <button key={c.key} type="button" className={`pip pip--${c.key === 'C' ? 'n' : c.key}`} aria-pressed={(filterColors & c.bit) !== 0} aria-label={t(c.label)} title={t(c.label)}
-                onClick={() => setFilterColors(filterColors ^ c.bit)}>{c.key}</button>
+              <button key={c.key} type="button" className="mana-swatch" aria-pressed={(filterColors & c.bit) !== 0} aria-label={t(c.label)} title={t(c.label)}
+                onClick={() => setFilterColors(filterColors ^ c.bit)}>
+                <ManaSymbol symbol={c.key} cost />
+              </button>
             ))}
           </span>
           <input className="input" type="search" aria-label={t('searchType')} placeholder={t('searchTypePlaceholder')} title={t('searchTypePartialHint')} value={filterType} onChange={(e) => setFilterType(e.target.value)} />

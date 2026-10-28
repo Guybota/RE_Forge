@@ -2,8 +2,8 @@ import { createContext, useEffect, useRef, useState, type ReactNode } from 'reac
 import { CardInspectDialog } from '../CardInspectDialog';
 import type { CardState } from '../engine';
 import { cardImage } from '../images';
+import { ManaCost, SymbolText } from '../ManaSymbol';
 import type { Engine } from '../useEngine';
-import { manaSymbols } from './cards';
 import { isMessageKey, useT } from '../i18n';
 
 /** The printed card when there is a picture (it already shows name, cost and text); the text otherwise. */
@@ -16,9 +16,9 @@ export function Preview({ card }: { card: CardState }) {
   return (
     <>
       <h2>{card.name}</h2>
-      <p className="side__cost">{manaSymbols(card.cost).join(' ')}</p>
+      <p className="side__cost"><ManaCost cost={card.cost} /></p>
       <p className="side__type">{card.type}</p>
-      <p className="side__text">{card.text}</p>
+      {card.text && <p className="side__text"><SymbolText text={card.text} /></p>}
       {card.power !== undefined && <p className="side__pt">{card.power}/{card.toughness}</p>}
     </>
   );
@@ -92,11 +92,11 @@ function CardInfo({ card }: { card: CardState }) {
           const name = `kw_${k.id}`, help = `kwHelp_${k.id}`;
           // Our texts for Ward and Equip quote the cost, so they need one.
           if (!isMessageKey(name) || !isMessageKey(help) || (WITH_COST.has(k.id) && !costLike(k.detail))) {
-            return <div key={k.title}><dt>{k.title}</dt>{k.reminder && <dd>{k.reminder}</dd>}</div>;
+            return <div key={k.title}><dt>{k.title}</dt>{k.reminder && <dd><SymbolText text={k.reminder} /></dd>}</div>;
           }
           return <div key={k.title}>
-            <dt>{costLike(k.detail) ? `${t(name)} ${k.detail}` : t(name)}</dt>
-            <dd>{t(help, { detail: k.detail })}</dd>
+            <dt>{costLike(k.detail) ? <>{t(name)} <SymbolText text={k.detail} /></> : t(name)}</dt>
+            <dd><SymbolText text={t(help, { detail: k.detail })} /></dd>
           </div>;
         })}
       </dl>}

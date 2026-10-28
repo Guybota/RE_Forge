@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CatalogCard, DeckSummary } from './engine';
 import { useT, type MessageKey } from './i18n';
 import { cardImage } from './images';
+import { ManaSymbol } from './ManaSymbol';
 import { deckKey, filterSelectionDecks, loadDeckFavorites, saveDeckFavorites, type DeckSourceFilter } from './deckSelection';
 import { InspectableCard } from './table/CardInspection';
 import { cardForInspection } from './table/useCardInspection';
@@ -30,7 +31,7 @@ export function DeckIdentity({ identity }: { identity?: number }) {
   if (identity === undefined) return null;
   const colors = COLORS.filter(c => identity === 0 ? c.bit === 0 : c.bit > 0 && !!(identity & c.bit));
   return <span className="deck-identity" aria-label={`${t('colorIdentity')}: ${colors.map(c => t(c.label)).join(', ')}`}>
-    {colors.map(c => <span key={c.bit} className={`pip pip--${c.symbol === 'C' ? 'n' : c.symbol}`} aria-hidden="true">{c.symbol}</span>)}
+    {colors.map((c) => <ManaSymbol key={c.bit} symbol={c.symbol} cost className="deck-identity__mana" />)}
   </span>;
 }
 
@@ -57,8 +58,12 @@ export function DeckPicker({ decks, selected, onSelect, loading, disabled }: {
       </div>
       <div className="deck-picker__filter-line">
         <div className="deck-picker__colors" role="group" aria-label={t('colorIdentity')}>
-          {COLORS.map(c => <button key={c.bit} type="button" disabled={disabled} aria-label={t(c.label)}
-            aria-pressed={color === c.bit} onClick={() => setColor(color === c.bit ? -1 : c.bit)}>{c.symbol}</button>)}
+          {COLORS.map((c) => (
+            <button key={c.bit} type="button" className="mana-swatch" disabled={disabled} aria-label={t(c.label)}
+              aria-pressed={color === c.bit} onClick={() => setColor(color === c.bit ? -1 : c.bit)}>
+              <ManaSymbol symbol={c.symbol} cost />
+            </button>
+          ))}
         </div>
         <span className="deck-picker__count" role="status">{loading ? t('deckSelectionLoading') : t(visible.length === 1 ? 'oneDeck' : 'deckCount', { n: visible.length })}</span>
       </div>

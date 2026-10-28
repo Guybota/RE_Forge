@@ -5,12 +5,12 @@ import { Unavailable } from './DeckOnline';
 import pt from './deckTools/pt.json';
 import { setDeckToolsLanguage } from './deckTools/say';
 import type { CardState, EdhrecCombo, Printings } from './engine';
-
-type PrintingFace = Printings['printings'][number];
+import { ManaCost, SymbolText } from './ManaSymbol';
 import { useT } from './i18n';
 import { cardImage } from './images';
-import { manaSymbols } from './table/cards';
 import type { Engine } from './useEngine';
+
+type PrintingFace = Printings['printings'][number];
 
 const euros = (n: number) => new Intl.NumberFormat(document.documentElement.lang || undefined, { style: 'currency', currency: 'EUR' }).format(n);
 const edhrecCard = (nameEn: string) =>
@@ -118,37 +118,38 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
     <dialog ref={ref} className="card-inspect" aria-labelledby="card-inspect-title"
       onCancel={(e) => { e.preventDefault(); onClose(); }}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}>
-      {canStep && <>
-        <button type="button" className="btn btn--ghost card-inspect__step card-inspect__step--prev" aria-label={t('previousCard')}
-          disabled={index! <= 0} onClick={() => onStep!(-1)} />
-        <button type="button" className="btn btn--ghost card-inspect__step card-inspect__step--next" aria-label={t('nextCard')}
-          disabled={index! >= total! - 1} onClick={() => onStep!(1)} />
-      </>}
       <div className="card-inspect__body" onClick={(e) => e.stopPropagation()}>
-        <div className="card-inspect__art">
-          {picture ? <img key={picture} src={picture} alt={card.name ?? nameEn} /> : <div className="card-inspect__blank"><span>{card.name ?? nameEn}</span></div>}
+        <div className="card-inspect__art-col">
+          <header className="card-inspect__art-head">
+            <h2 id="card-inspect-title">{card.name ?? nameEn}</h2>
+            <button type="button" className="btn btn--ghost card-inspect__close-mobile" onClick={onClose}>{t('close')}</button>
+          </header>
+          <div className="card-inspect__art">
+            {picture ? <img key={picture} src={picture} alt={card.name ?? nameEn} /> : <div className="card-inspect__blank"><span>{card.name ?? nameEn}</span></div>}
+          </div>
+          {canStep && (
+            <div className="card-inspect__nav" role="group" aria-label={t('cardOf', { n: index! + 1, total: total! })}>
+              <button type="button" className="btn btn--ghost card-inspect__step card-inspect__step--prev" aria-label={t('previousCard')}
+                disabled={index! <= 0} onClick={() => onStep!(-1)} />
+              <span className="muted">{t('cardOf', { n: index! + 1, total: total! })}</span>
+              <button type="button" className="btn btn--ghost card-inspect__step card-inspect__step--next" aria-label={t('nextCard')}
+                disabled={index! >= total! - 1} onClick={() => onStep!(1)} />
+            </div>
+          )}
         </div>
         <div className="card-inspect__panel" ref={panelRef}>
           <header className="card-inspect__head">
-            <h2 id="card-inspect-title">{card.name ?? nameEn}</h2>
-            <button type="button" className="btn btn--ghost" onClick={onClose}>{t('close')}</button>
+            <ManaCost cost={card.cost} />
+            <button type="button" className="btn btn--ghost card-inspect__close-desk" onClick={onClose}>{t('close')}</button>
           </header>
-          <p className="card-inspect__type">
-            <span className="builder__cost" aria-label={card.cost}>
-              {manaSymbols(card.cost).map((s, i) => (
-                <span key={i} className={`pip pip--${/^\d+$/.test(s) ? 'n' : s.replace('/', '')}`}>{/^\d+$|^X$/.test(s) ? s : ''}</span>
-              ))}
-            </span>
-            <span className="muted">{card.type}</span>
-          </p>
-          {oracle && <p className="card-inspect__text">{oracle}</p>}
+          {card.type && <p className="card-inspect__type muted">{card.type}</p>}
+          {oracle && <p className="card-inspect__text"><SymbolText text={oracle} /></p>}
           {card.commanderLegal != null && (
             <p className={card.commanderLegal ? 'muted' : 'deck-analysis__warn'}>
               {t(card.commanderLegal ? 'rulesCommanderLegal' : 'rulesCommanderBanned')}
               {card.canCommand && ` · ${t('rulesCanCommand')}`}
             </p>
           )}
-          {canStep && <p className="muted">{t('cardOf', { n: index! + 1, total: total! })}</p>}
           {tags.length > 0 && (
             <ul className="card-inspect__tags" aria-label={t('inspectThemes')}>
               {tags.map((tag) => <li key={tag}>{tag}</li>)}
@@ -220,7 +221,7 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
               : !rulings ? <p className="muted" role="status">{t('connecting')}</p>
               : rulings.rulings.length === 0 ? <p className="muted">{t('rulesNoRulings')}</p>
               : <ul className="rules__rulings" lang="en">{rulings.rulings.map((r, i) => (
-                  <li key={i}><span className="muted">{dateLabel(r.date)}{r.source === 'wotc' ? ' · Wizards of the Coast' : ''}</span><p>{r.comment}</p></li>
+                  <li key={i}><span className="muted">{dateLabel(r.date)}{r.source === 'wotc' ? ' · Wizards of the Coast' : ''}</span><p><SymbolText text={r.comment} /></p></li>
                 ))}</ul>}
           </details>
         </div>

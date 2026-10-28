@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { commanderThemeLabels, deckThemeKeys } from './cardThemes';
-import { say } from './deckTools/say';
+import { ManaSymbol } from './ManaSymbol';
 import { DeckCards, type BestPrice, type FacePrice } from './DeckCards';
 import { DeckIntoImport } from './DeckIntoImport';
 import { nextRequestId, reply, useRequest } from './deckRequests';
 import { deckKey } from './deckSelection';
 import { deckFromLines } from './deckTools/cardVisual';
 import pt from './deckTools/pt.json';
-import { setDeckToolsLanguage } from './deckTools/say';
+import { say, setDeckToolsLanguage } from './deckTools/say';
 import { demoteCommander, moveCopy, promoteCommander, removeCopy, swapPrinting } from './deckText';
 import type { DeckDetail, DeckLists, DeckPreview, DeckSummary } from './engine';
 import { PrintingsDialog } from './PrintingsDialog';
@@ -447,7 +447,7 @@ function Poster({ deck, themes, onOpen }: { deck: DeckSummary; themes: string[];
         {src ? <img src={src} alt="" loading="lazy" /> : <span className="deck-poster__blank" />}
         <span className="deck-poster__shade" />
         <span className="deck-poster__pips">
-          {pips.map((color) => <span key={color.key} className={`pip pip--${color.key === 'C' ? 'n' : color.key}`} title={t(color.label)}>{color.key}</span>)}
+          {pips.map((color) => <ManaSymbol key={color.key} symbol={color.key === 'C' ? 'C' : color.key} cost className="deck-poster__mana" />)}
         </span>
         <span className="deck-poster__copy">
           <strong>{deckTitle(deck.name)}</strong>
