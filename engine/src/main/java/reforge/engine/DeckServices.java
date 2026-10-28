@@ -626,6 +626,8 @@ final class DeckServices {
         if (picture != null && (known == null || !o.has("imageKey") || o.get("imageKey").getAsString().isBlank())) {
             o.addProperty("imageUrl", picture);
         }
+        Double eur = eur(card);
+        if (eur != null) o.addProperty("eur", eur);
         return o;
     }
 

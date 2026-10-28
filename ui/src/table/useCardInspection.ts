@@ -10,7 +10,7 @@ const textField = (target: EventTarget | null) => target instanceof Element && !
 export function cardForInspection(card: {
   name?: string; nameEn?: string; imageKey?: string; imageUrl?: string; cost?: string; type?: string; typeEn?: string;
   text?: string; textEn?: string; set?: string; number?: string; commanderLegal?: boolean; canCommand?: boolean;
-  deckName?: string; deckSource?: 'mine' | 'precon';
+  deckName?: string; deckSource?: 'mine' | 'precon'; eur?: number | null; priceExact?: boolean;
 }): CardState {
   return {
     id: -1,
@@ -29,6 +29,8 @@ export function cardForInspection(card: {
     canCommand: card.canCommand,
     deckName: card.deckName,
     deckSource: card.deckSource,
+    eur: card.eur,
+    priceExact: card.priceExact,
   };
 }
 

@@ -72,12 +72,20 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
   const rulings = rulingsAnswer?.type === 'cardRulings' && rulingsAnswer.name === nameEn ? rulingsAnswer : null;
   const oracle = rulings?.text || card.text || card.textEn;
 
-  // Price is fetched with the card (not when the section opens): gating used to bump the request id on
-  // close without sending, so a late reply never matched and the section stayed on "connecting".
-  const priceReq = useRequest((requestId) => {
+  // Prefer the EUR already on the face (or in the deck's priced list) - the same data the hover badge uses.
+  const knownPrice = useMemo(() => {
+    if (card.eur != null || card.priceExact != null) return { eur: card.eur ?? null, exact: card.priceExact ?? true };
+    const deck = engine.deckServices.deckPrices;
+    if (deck?.type !== 'deckPrices' || !card.set || !card.number) return null;
+    const row = deck.prices.find((p) => p.set === card.set && p.number === card.number);
+    return row ? { eur: row.eur ?? null, exact: row.exact } : null;
+  }, [card.eur, card.priceExact, card.set, card.number, engine.deckServices.deckPrices]);
+  const priceReq = useGatedRequest(!knownPrice && priceOpen, (requestId) => {
     send({ type: 'cardPrice', requestId, name: nameEn, set: card.set, number: card.number });
   }, [nameEn, card.set, card.number, send]);
-  const price = replyForCard(engine, 'cardPrice', priceReq.requestId, nameEn);
+  const priceFetch = replyForCard(engine, 'cardPrice', priceReq.requestId, nameEn);
+  const price = knownPrice ?? (priceFetch?.type === 'cardPrice' ? { eur: priceFetch.eur ?? null, exact: priceFetch.exact } : null);
+  const priceError = !knownPrice && priceFetch?.type === 'servicesError' ? priceFetch : null;
 
   useEffect(() => {
     if (!versionsOpen) return;
@@ -166,8 +174,8 @@ export function CardInspectDialog({ card, engine, onClose, index, total, onStep,
           <details className="card-inspect__section" open={priceOpen} onToggle={(e) => setPriceOpen((e.target as HTMLDetailsElement).open)}>
             <summary>{t('inspectPrice')}</summary>
             {!priceOpen ? null
-              : price?.type === 'servicesError' ? <Unavailable onRetry={priceReq.retry} />
-              : price?.type !== 'cardPrice' ? <p className="muted" role="status">{t('pricesLoading')}</p>
+              : priceError ? <Unavailable onRetry={priceReq.retry} />
+              : !price ? <p className="muted" role="status">{t('pricesLoading')}</p>
               : <p className="card-inspect__price">
                   {price.eur != null ? <strong>{euros(price.eur)}</strong> : <span className="muted">{t('inspectPriceUnknown')}</span>}
                   {price.eur != null && !price.exact && <span className="muted"> · {t('priceApproxHint')}</span>}

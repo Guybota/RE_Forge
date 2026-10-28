@@ -120,6 +120,9 @@ export type CardState = {
   /** When inspecting from an open deck, load that commander's EDHREC combos that include this card. */
   deckName?: string;
   deckSource?: 'mine' | 'precon';
+  /** Cardmarket EUR already known (deck face prices / Scryfall search); the inspect modal prefers this. */
+  eur?: number | null;
+  priceExact?: boolean;
 };
 
 export type PlayerState = {
@@ -303,6 +306,8 @@ export type CatalogCard = {
   commanderMana: boolean;
   /** A Scryfall scan, used when Forge has no printing for this card. */
   imageUrl?: string;
+  /** Cardmarket EUR from Scryfall, when the search hit carried prices. */
+  eur?: number | null;
 };
 export type CardResults = { type: 'cardResults' | 'cardSearch'; requestId: number; total: number; offset: number; hasMore?: boolean; cards: CatalogCard[] };
 export type Printings = { type: 'printings'; name: string; printings: { set: string; setName: string; number: string; imageKey: string; artIndex: number }[] };

@@ -89,11 +89,17 @@ export function DeckCards({ preview, onCommander, onReplace, faces = false, pric
 }) {
   const t = useT();
   const zoom = useContext(CardZoom);
-  const inspect = (l: Line) => cardForInspection({
-    ...l,
-    deckName: inspectFrom?.name,
-    deckSource: inspectFrom?.source,
-  });
+  const inspect = (l: Line) => {
+    const key = printingKey(l);
+    const price = key ? prices?.get(key) : undefined;
+    return cardForInspection({
+      ...l,
+      deckName: inspectFrom?.name,
+      deckSource: inspectFrom?.source,
+      eur: price?.eur,
+      priceExact: price?.exact,
+    });
+  };
   const [cardQuery, setCardQuery] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterColors, setFilterColors] = useState(0);
