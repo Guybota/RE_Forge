@@ -81,7 +81,8 @@ export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedN
   }, [engine.error]);
 
   const linkError = LINK_ERRORS.find((key) => key === engine.error);
-  const canSave = !!preview?.cards && !!name.trim() && !saving;
+  const nameTaken = !!name.trim() && engine.decks.mine.includes(name.trim());
+  const canSave = !!preview?.cards && !!name.trim() && !saving && !nameTaken;
 
   return (
     <main className={`import ${preview ? 'import--preview' : ''}`}>
@@ -139,10 +140,11 @@ export function ImportDeck({ engine, onDone }: { engine: Engine; onDone: (savedN
           >
             <label className="field-label">
               {t('deckName')}
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} aria-invalid={nameTaken || undefined} />
             </label>
             <button type="submit" className="btn btn--primary" disabled={!canSave}>{t('save')}</button>
-            {engine.error && !linkError && <p className="error">{engine.error}</p>}
+            {nameTaken && <p className="error" role="alert">{t('deckNameTaken')}</p>}
+            {engine.error && !linkError && !nameTaken && <p className="error">{engine.error === 'A deck with that name already exists' ? t('deckNameTaken') : engine.error}</p>}
           </form>
         </div>
         {preview && <DeckCards preview={preview}

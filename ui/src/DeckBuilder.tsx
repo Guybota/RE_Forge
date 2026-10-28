@@ -159,20 +159,25 @@ export function DeckBuilder({ engine, initial, onDone }: { engine: Engine; initi
     .reduce((n, e) => n + e.qty, 0));
   const tallest = Math.max(1, ...curve);
   const picture = hovered ? cardImage(hovered.imageKey, 'full') : null;
+  const trimmedName = name.trim();
+  const nameTaken = !!trimmedName && engine.decks.mine.includes(trimmedName) && trimmedName !== initial?.name;
 
   return (
     <main className="builder">
       <header className="import__head">
         <button type="button" className="btn btn--ghost" onClick={() => { if (!dirty || window.confirm(t('discardChanges'))) onDone(null); }}>{t('back')}</button>
-        <input className="input decks__name" aria-label={t('deckName')} placeholder={t('deckName')} value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} />
+        <input className="input decks__name" aria-label={t('deckName')} placeholder={t('deckName')} value={name}
+          aria-invalid={nameTaken || undefined}
+          onChange={(e) => { setName(e.target.value); setDirty(true); }} />
         <span className={`builder__count ${problem ? 'danger' : ''}`} title={problem}>{count}/100</span>
-        <button type="button" className="btn btn--primary" disabled={!name.trim() || !count || saving} onClick={() => {
+        <button type="button" className="btn btn--primary" disabled={!trimmedName || !count || saving || nameTaken} onClick={() => {
           decksAtSave.current = engine.decks;
           setSaving(true);
-          send({ type: 'saveDeck', text, name: name.trim(), from: initial?.name });
+          send({ type: 'saveDeck', text, name: trimmedName, from: initial?.name });
         }}>{t('save')}</button>
       </header>
-      {engine.error && <p className="error" role="alert">{engine.error}</p>}
+      {nameTaken && <p className="error" role="alert">{t('deckNameTaken')}</p>}
+      {engine.error && !nameTaken && <p className="error" role="alert">{engine.error === 'A deck with that name already exists' ? t('deckNameTaken') : engine.error}</p>}
 
       <nav className="builder__views" aria-label={t('deck')}>
         <button type="button" className="btn btn--ghost" aria-pressed={view === 'cards'} onClick={() => { setView('cards'); setStatsFilter(null); }}>{t('catalogTab')}</button>

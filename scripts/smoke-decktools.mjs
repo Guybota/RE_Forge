@@ -254,7 +254,7 @@ async function run(port) {
     'a maybeboard copy joins the sideboard');
 
   // Prices: exact printings, unknown printing priced by name, a card without a price, cached afterwards.
-  await ask({ type: 'saveDeck', text: rohanText, name: 'Rohan' }, 'decks');
+  await ask({ type: 'saveDeck', text: rohanText, name: 'Rohan', from: 'Rohan' }, 'decks');
   const rohanDetail = await ask({ type: 'getDeck', name: 'Rohan' }, 'deckDetail');
   const line = (n) => rohanDetail.lines.find((l) => l.nameEn === n);
   services.unknown = `${line('Arcane Signet').set.toLowerCase()}/${line('Arcane Signet').number}`;

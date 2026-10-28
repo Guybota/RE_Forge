@@ -28,9 +28,15 @@ export default function App() {
   useEffect(installAppearanceSettings, []);
   const engine = useEngine();
   const [picking, setPicking] = useState<'language' | 'skin' | 'decks' | 'search' | 'rules' | 'import' | 'builder' | 'online' | 'commander' | 'quest' | 'adventure' | 'draft' | 'sealed' | 'puzzles' | null>(null);
-  // The deck last saved, edited or chosen to play: preselected on the decks and home screens.
+  // The deck last saved, edited or chosen to play: preselected on Quick Match, not on the Decks shelf.
   const [lastDeck, setLastDeck] = useState<string | undefined>();
+  /** Open this deck when entering Decks (after import/builder); undefined shows the shelf. */
+  const [decksFocus, setDecksFocus] = useState<string | undefined>();
   const [building, setBuilding] = useState<DeckDetail | undefined>();
+  const go = (destination: typeof picking) => {
+    if (destination === 'decks') setDecksFocus(undefined);
+    setPicking(destination);
+  };
   // Before the engine says which language was chosen, follow the system's.
   const language = engine.info?.language ?? navigator.language;
   const t = useMemo(() => translator(language), [language]);
@@ -72,10 +78,11 @@ export default function App() {
   } else if (picking === 'puzzles') {
     screen = <PuzzleScreen engine={engine} onBack={() => setPicking(null)} />;
   } else if (picking === 'commander') {
-    screen = <QuickMatch key={lastDeck} engine={engine} onPick={setPicking} initialDeck={lastDeck} onBack={() => setPicking(null)} />;
+    screen = <QuickMatch key={lastDeck} engine={engine} onPick={go} initialDeck={lastDeck} onBack={() => setPicking(null)} />;
   } else if (picking === 'import' || picking === 'builder') {
     const done = (saved: string | null) => {
-      if (saved) setLastDeck(saved);
+      if (saved) { setLastDeck(saved); setDecksFocus(saved); }
+      else setDecksFocus(undefined);
       setPicking('decks');
     };
     screen = picking === 'import'
@@ -84,8 +91,9 @@ export default function App() {
   } else if (picking === 'decks') {
     screen = (
       <Decks
+        key={decksFocus ?? 'shelf'}
         engine={engine}
-        initialDeck={lastDeck}
+        initialDeck={decksFocus}
         onBack={() => setPicking(null)}
         onPlay={(deck) => { setLastDeck(deck); setPicking('commander'); }}
         onImport={() => setPicking('import')}
@@ -94,7 +102,7 @@ export default function App() {
     );
   } else {
     // key: remount so the deck chosen on the decks screen becomes the selection.
-    screen = <Home engine={engine} onPick={setPicking} />;
+    screen = <Home engine={engine} onPick={go} />;
   }
 
   return <I18n.Provider value={t}><CardZoomProvider engine={engine.status === 'ready' ? engine : null}>{screen}</CardZoomProvider></I18n.Provider>;

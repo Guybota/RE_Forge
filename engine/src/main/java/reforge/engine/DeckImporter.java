@@ -281,14 +281,23 @@ final class DeckImporter {
     }
 
     /** Resolve an external list without writing it into the user's Commander library. */
-    /** Saves a decklist; tags and notes come from {@code from} (the deck being edited) or the deck it replaces. */
+    /**
+     * Saves a decklist; tags and notes come from {@code from} (the deck being edited) or, when updating in place,
+     * the deck with the same name. A new name that already exists is refused so imports and "new deck" never overwrite.
+     */
     static String save(String text, String name, String from) {
         String invalid = invalidName(name);
         if (invalid != null) return invalid;
+        String trimmed = name.trim();
+        String source = from != null && !from.isBlank() ? from.trim() : "";
+        // Creating or renaming onto another deck: refuse. Updating the same name (from empty or from === name) is fine.
+        if (mine().contains(trimmed) && (source.isEmpty() || !source.equals(trimmed))) {
+            return "A deck with that name already exists";
+        }
         MaybeSplit split = splitMaybeboard(text == null ? "" : text);
-        Preview p = preview(split.deck(), name);
+        Preview p = preview(split.deck(), trimmed);
         if (p.deck() == null || p.deck().getMain().isEmpty()) return "No cards recognised";
-        Deck old = mine().get(from != null && !from.isBlank() ? from : name.trim());
+        Deck old = mine().get(!source.isEmpty() ? source : trimmed);
         if (old != null) {
             p.deck().setComment(old.getComment());
             p.deck().getTags().addAll(old.getTags());
