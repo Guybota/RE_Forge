@@ -3,6 +3,7 @@ import type { CardState, PlayerState } from '../engine';
 import { Card } from './Card';
 import { groupCards, isLand } from './cards';
 import { useT } from '../i18n';
+import { ManaCost } from '../ManaSymbol';
 import { MaximizeIcon, RestoreIcon } from './icons';
 
 export type TableContext = {
@@ -136,6 +137,7 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
               {t(zone === 'graveyard' ? 'graveyardShort' : 'exileShort', { n })}
             </button>;
           })}
+          {player.manaPool && <span title={t('manaPool')}><ManaCost cost={player.manaPool} /></span>}
           {player.poison > 0 && <span className="danger">{t('poison', { n: player.poison })}</span>}
           {cmdDamage.map((d) => (
             <span key={d.commanderId} title={t('commanderDamageFrom', { name: ctx.playerNames.get(d.fromPlayerId) ?? '' })}>

@@ -132,6 +132,8 @@ export type PlayerState = {
   name: string;
   life: number;
   poison: number;
+  /** Floating mana as symbols, e.g. "{W}{U}". */
+  manaPool?: string;
   isLocal: boolean;
   isAi: boolean;
   hasLost: boolean;

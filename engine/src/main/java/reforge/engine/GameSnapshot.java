@@ -108,6 +108,13 @@ final class GameSnapshot {
         o.addProperty("hasLost", p.getHasLost());
         o.addProperty("handSize", p.getZoneSize(ZoneType.Hand));
         o.addProperty("librarySize", p.getZoneSize(ZoneType.Library));
+        // Floating mana as symbols ("{W}{W}{C}"), e.g. after a mana ability like Codie's.
+        StringBuilder mana = new StringBuilder();
+        for (byte b : forge.card.mana.ManaAtom.MANATYPES) {
+            String s = "{" + forge.card.MagicColor.toShortString(b) + "}";
+            mana.append(s.repeat(p.getMana(b)));
+        }
+        o.addProperty("manaPool", mana.toString());
         // CardView owns all look/reveal permissions, including Citadel, Future Sight and shared reveals.
         // Never send the rest of the library (or even the identity of an unknown top card).
         CardView top = p.getCards(ZoneType.Library).isEmpty() ? null : p.getCards(ZoneType.Library).get(0);
