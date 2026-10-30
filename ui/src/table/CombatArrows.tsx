@@ -54,7 +54,9 @@ export function CombatArrows({ game, container }: { game: GameState; container: 
       const source = top && ((!top.isSpell && top.sourceCardId !== null && find('data-card-id', top.sourceCardId)) || find('data-stack-id', top.id));
       if (top && source) {
         const from = centre(source, box);
-        const targets = [...top.targetCardIds.map((id) => find('data-card-id', id)), ...top.targetPlayerIds.map((id) => find('data-player-id', id))];
+        const targets = [...top.targetCardIds.map((id) => find('data-card-id', id)),
+          ...top.targetPlayerIds.map((id) => find('data-player-id', id)),
+          ...(top.targetStackIds ?? []).map((id) => find('data-stack-id', id))];
         targets.forEach((el, i) => {
           if (!el || el === source) return;
           const to = centre(el, box);

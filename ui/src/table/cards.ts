@@ -10,6 +10,11 @@ export function manaSymbols(cost: string | undefined): string[] {
 
 /** One letter for the card's colour family: W U B R G, M for several, C for none. */
 export function colorKey(card: CardState): string {
+  // The engine's current colors include devoid and continuous effects. Cost is only a legacy fallback.
+  if (card.colors !== undefined) {
+    const colors = [...new Set(card.colors.split('').filter((c) => 'WUBRG'.includes(c)))];
+    return colors.length > 1 ? 'M' : colors[0] ?? 'C';
+  }
   const letters = new Set(manaSymbols(card.cost).flatMap((s) => s.split('/')).filter((s) => 'WUBRG'.includes(s)));
   if (letters.size === 0 && card.typeEn?.includes('Land')) {
     const basic = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'].findIndex((n) => card.typeEn?.includes(n));
@@ -28,8 +33,11 @@ export const isLand = (c: CardState) => !!c.typeEn?.includes('Land') && !c.typeE
 export function groupCards(cards: CardState[], apart: (c: CardState) => boolean, extra: (c: CardState) => unknown = () => null): CardState[][] {
   const groups = new Map<string, CardState[]>();
   for (const c of cards) {
-    const key = apart(c) ? `#${c.id}` : JSON.stringify([c.name, c.imageKey, c.tapped, c.sick, c.power, c.toughness, c.loyalty,
-      c.defense, c.damage, c.counters, c.token, c.faceDown, c.commander, c.actionable, extra(c)]);
+    // A pile only exposes its first card. Compare every public field, including runtime rules and choices,
+    // so a creature that gained flying or a land with a different chosen type never disappears in that pile.
+    // Unknown identities cannot be assumed interchangeable even if their visible backs look identical.
+    const { id, ...state } = c;
+    const key = apart(c) || c.hidden || c.faceDown ? `#${id}` : JSON.stringify([state, extra(c)]);
     const group = groups.get(key);
     if (group) group.push(c);
     else groups.set(key, [c]);

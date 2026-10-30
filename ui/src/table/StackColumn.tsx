@@ -18,8 +18,9 @@ const SLIDE_MS = 280;
  * item's targets), right click zooms. With "stack" animations on, the column slides, items slide in, and a resolved
  * item slides out before it disappears.
  */
-export function StackColumn({ game, allCards, names, onHover }: {
+export function StackColumn({ game, allCards, names, onHover, onStack }: {
   game: GameState; allCards: CardState[]; names: Map<number, string>; onHover: (card: CardState | null) => void;
+  onStack: (id: number) => void;
 }) {
   const t = useT();
   const [shown, setShown] = useState<Shown[]>([]);
@@ -53,16 +54,24 @@ export function StackColumn({ game, allCards, names, onHover }: {
             const owner = game.players.length > 2 && s.controllerId !== null ? names.get(s.controllerId) : undefined;
             const art = card?.imageKey ? cardImage(card.imageKey, s.isSpell ? 'full' : 'crop') : null;
             const isNext = s.id === next;
+            const selectable = !leaving && game.prompt.selectable.stack.includes(s.id);
+            const chosen = !leaving && game.prompt.chosen.stack.includes(s.id);
+            const target = !leaving && game.stack[0]?.targetStackIds?.includes(s.id);
+            const states = [selectable && t('cardSelectable'), chosen && t('cardSelected'), target && t('cardTarget')].filter(Boolean);
             return (
-              <InspectableCard as="li" card={leaving ? null : card} key={s.id} data-stack-id={leaving ? undefined : s.id} data-hover-card={leaving ? undefined : card?.id}
-                className={`stack-col__item ${isNext ? 'is-next' : ''} ${s.isSpell ? '' : 'is-ability'} ${leaving ? 'is-leaving' : ''}`}
-                aria-current={isNext || undefined} aria-hidden={leaving || undefined} title={isNext ? `${t('resolvesNext')}: ${s.text}` : s.text}
+              <li key={s.id} data-stack-id={leaving ? undefined : s.id} data-hover-card={leaving ? undefined : card?.id}
+                className={`stack-col__item ${isNext ? 'is-next' : ''} ${s.isSpell ? '' : 'is-ability'} ${leaving ? 'is-leaving' : ''} ${selectable ? 'is-selectable' : ''} ${chosen ? 'is-chosen' : ''} ${target ? 'is-target' : ''}`}
+                aria-current={isNext || undefined} aria-hidden={leaving || undefined}
                 onMouseEnter={card ? () => onHover(card) : undefined} onMouseLeave={card ? () => onHover(null) : undefined}
                 onFocus={card ? () => onHover(card) : undefined} onBlur={() => onHover(null)}>
+                <InspectableCard as="button" card={leaving ? null : card} disabled={leaving} className="stack-col__content"
+                  onClick={selectable || chosen ? () => onStack(s.id) : undefined} aria-pressed={chosen}
+                  aria-label={[s.text, ...states].join(', ')} title={isNext ? `${t('resolvesNext')}: ${s.text}` : s.text}>
                 {s.isSpell && art ? <img src={art} alt={s.text} />
                   : <div className="stack-col__ability">{art && <img src={art} alt="" />}<p><SymbolText text={s.text} /></p></div>}
                 {owner && <span className="stack-col__owner">{owner}</span>}
-              </InspectableCard>
+                </InspectableCard>
+              </li>
             );
           })}
         </ol>

@@ -77,6 +77,8 @@ final class WebGuiGame extends NetworkGuiGame {
     private volatile CardView promptCard;
     CardView promptCard() { return promptCard; }
     void clearPromptCard() { promptCard = null; }
+    private volatile List<CardView> revealedCards = List.of();
+    List<CardView> revealedCards() { return revealedCards; }
     private Game coinGame;
     private int openingCoinGameId = -1;
 
@@ -169,6 +171,7 @@ final class WebGuiGame extends NetworkGuiGame {
     void dispose() {
         setFastForward(false);
         disposed = true;
+        revealedCards = List.of();
         super.afterGameEnd();
         session.cancelQuestions();
         pusher.shutdownNow();
@@ -177,6 +180,8 @@ final class WebGuiGame extends NetworkGuiGame {
     @Override protected void afterDeltaApplied() { markDirty(); }
 
     @Override public void setGameView(GameView gameView) {
+        GameView previous = getGameView();
+        if (gameView == null || previous == null || previous.getId() != gameView.getId()) revealedCards = List.of();
         super.setGameView(gameView);
         // Local games deliver the actual toss through their EventBus, before play/draw and mulligans.
         Game game = gameView == null ? null : gameView.getGame();
@@ -292,6 +297,20 @@ final class WebGuiGame extends NetworkGuiGame {
     // Forge marks the cards you can use right now (playable, can attack, can block) as "weakly selectable".
     @Override public void setWeaklySelectable(Iterable<CardView> cards) { super.setWeaklySelectable(cards); markDirty(); }
     @Override public void clearWeaklySelectable() { super.clearWeaklySelectable(); markDirty(); }
+    @Override public boolean canPickStackTargets() { return true; }
+
+    /** Forge can reveal another player's hand in an ordinary OK prompt, without a choice dialog. */
+    @Override public void showRevealedCards(Iterable<CardView> cards) {
+        List<CardView> shown = new ArrayList<>();
+        cards.forEach(shown::add);
+        revealedCards = List.copyOf(shown);
+        markDirty();
+    }
+
+    @Override public void hideRevealedCards() {
+        revealedCards = List.of();
+        markDirty();
+    }
 
     @Override public void flashIncorrectAction() { notice("incorrectAction", null); }
     @Override public void alertUser() { notice("alert", null); }

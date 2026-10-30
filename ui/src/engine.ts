@@ -95,6 +95,8 @@ export type CardState = {
   imageKey?: string;
   imageUrl?: string;
   text?: string;
+  /** Current abilities supplied by Forge, including gained/lost abilities. Empty is meaningful. */
+  gameText?: string;
   textEn?: string;
   commanderLegal?: boolean;
   canCommand?: boolean;
@@ -112,6 +114,23 @@ export type CardState = {
   token?: boolean;
   commander?: boolean;
   faceDown?: boolean;
+  phasedOut?: boolean;
+  exerted?: boolean;
+  detained?: boolean;
+  ringBearer?: boolean;
+  shieldCount?: number;
+  preventNextDamage?: number;
+  chosenType?: string;
+  chosenType2?: string;
+  chosenColors?: string[];
+  chosenNumber?: string;
+  namedCards?: string[];
+  chosenPlayerId?: number;
+  chosenMode?: string;
+  currentRoom?: string;
+  overlayText?: string;
+  classLevel?: number;
+  ringLevel?: number;
   damage?: number;
   attachedToId?: number;
   counters?: Record<string, number>;
@@ -132,6 +151,8 @@ export type PlayerState = {
   name: string;
   life: number;
   poison: number;
+  counters?: Record<string, number>;
+  keywords?: CardState['keywords'];
   /** Floating mana as symbols, e.g. "{W}{U}". */
   manaPool?: string;
   isLocal: boolean;
@@ -190,7 +211,7 @@ export type GameState = {
   fastForward?: boolean;
   winner: string | null;
   players: PlayerState[];
-  stack: { id: number; text: string; isSpell?: boolean; sourceCardId: number | null; card?: CardState; controllerId: number | null; targetCardIds: number[]; targetPlayerIds: number[] }[];
+  stack: { id: number; text: string; isSpell?: boolean; sourceCardId: number | null; card?: CardState; controllerId: number | null; targetCardIds: number[]; targetPlayerIds: number[]; targetStackIds?: number[] }[];
   combat: { attackerId: number; defenderPlayerId?: number; defenderCardId?: number; blockerIds: number[] }[];
   log: string[];
   prompt: {
@@ -203,7 +224,7 @@ export type GameState = {
     priority: boolean;
     selectable: Ids;
     chosen: Ids;
-    /** Selectable cards the table does not show, e.g. a library search. */
+    /** Off-table selections or explicitly revealed cards, e.g. a search or an opponent's hand. */
     cards: CardState[];
   };
 };
@@ -373,7 +394,7 @@ type EngineMessage =
   | Printings
   | { type: 'error'; message: string; code?: string };
 
-export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'undo' | 'attackAll' | 'concede' | 'leave' | 'nextGame';
+export type Action = 'ok' | 'cancel' | 'card' | 'player' | 'stack' | 'undo' | 'attackAll' | 'concede' | 'leave' | 'nextGame';
 
 export type ClientMessage =
   | CampaignRequest

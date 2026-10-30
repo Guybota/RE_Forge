@@ -163,7 +163,7 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
   // Whose move it is: yours while Forge waits on your input, else whoever holds priority (an AI or a remote player).
   // Picking cards (e.g. discarding to hand size) can leave both buttons disabled until enough are chosen.
   const myInput = !!engine.choice || prompt.ok.enabled || prompt.cancel.enabled
-    || prompt.selectable.cards.length > 0 || prompt.selectable.players.length > 0;
+    || prompt.selectable.cards.length > 0 || prompt.selectable.players.length > 0 || prompt.selectable.stack.length > 0;
   const waitingFor = myInput || game.gameOver || me.hasLost ? undefined
     : game.players.find((p) => p.id === game.priorityPlayerId && !p.isLocal);
   const waited = useElapsed(waitingFor?.id);
@@ -301,7 +301,8 @@ export function Table({ engine, game }: { engine: Engine; game: GameState }) {
 
         <PlayerArea player={me} active={myTurn} compact={false} collapsed={!!maximized} attackedBy={attackedBy(me.id)} priority={priorityOf(me)} ctx={ctx} />
       </div>
-      <StackColumn game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered} />
+      <StackColumn game={game} allCards={allCards} names={ctx.playerNames} onHover={setHovered}
+        onStack={(id) => send({ type: 'action', action: 'stack', id })} />
       <footer className="table__bottom">
         <div className="hand" aria-label={t('hand')} data-zone="hand" data-zone-of={me.id}>
           {me.zones.hand.map((c, i, all) => {

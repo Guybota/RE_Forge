@@ -1,0 +1,11 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Codie, Vociferous Codex|Set:STX;Island|Set:M11;Island|Set:M11;Island|Set:M11;Island|Set:M11
+p1battlefield=Forest|Set:M11
+p0hand=Divination|Set:M13;Ornithopter|Set:M11
+p0library=Forest;Llanowar Elves|Set:M11;Lightning Bolt|Set:M11;Plains;Island;Mountain;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

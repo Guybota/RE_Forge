@@ -1,24 +1,26 @@
 import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { CardInspectDialog } from '../CardInspectDialog';
-import type { CardState } from '../engine';
+import type { CardState, GameState } from '../engine';
 import { cardImage } from '../images';
 import { ManaCost, SymbolText } from '../ManaSymbol';
 import type { Engine } from '../useEngine';
 import { isMessageKey, useT } from '../i18n';
+import { CardDetails, CurrentCardText } from './CardDetails';
 
 /** The printed card when there is a picture (it already shows name, cost and text); the text otherwise. */
 export function Preview({ card }: { card: CardState }) {
   const [failed, setFailed] = useState<string | null>(null);
   const src = cardImage(card.imageKey, 'full');
+  const text = card.gameText ?? card.text;
   if (src && failed !== src) {
-    return <img className="side__image" src={src} alt={`${card.name}: ${card.text ?? ''}`} onError={() => setFailed(src)} />;
+    return <img className="side__image" src={src} alt={`${card.name}: ${text ?? ''}`} onError={() => setFailed(src)} />;
   }
   return (
     <>
       <h2>{card.name}</h2>
       <p className="side__cost"><ManaCost cost={card.cost} /></p>
       <p className="side__type">{card.type}</p>
-      {card.text && <p className="side__text"><SymbolText text={card.text} /></p>}
+      {text && <p className="side__text"><SymbolText text={text} /></p>}
       {card.power !== undefined && <p className="side__pt">{card.power}/{card.toughness}</p>}
     </>
   );
@@ -35,6 +37,14 @@ export const CardZoom = createContext<CardZoomOpen>(() => {});
 
 type ZoomState = { card: CardState; sequence: CardState[]; index: number };
 
+/** Revealed prompt copies take precedence over the same card's deliberately hidden zone entry. */
+export function liveInspectionCard(card: CardState, game?: GameState | null): CardState {
+  if (!game || card.nameEn) return card;
+  const cards = [...game.prompt.cards, ...game.players.flatMap((p) => [...Object.values(p.zones).flat(), ...(p.libraryTop ? [p.libraryTop] : [])]),
+    ...game.stack.flatMap((s) => s.card ? [s.card] : [])];
+  return cards.find((c) => c.id === card.id) ?? card;
+}
+
 export function CardZoomProvider({ children, engine }: { children: ReactNode; engine?: Engine | null }) {
   const [zoom, setZoom] = useState<ZoomState | null>(null);
   const open: CardZoomOpen = (card, sequence) => {
@@ -43,6 +53,10 @@ export function CardZoomProvider({ children, engine }: { children: ReactNode; en
     setZoom({ card: seq[index] ?? card, sequence: seq, index });
   };
   const rich = zoom?.card.nameEn && engine;
+  // In-game inspection follows the latest snapshot while open (counters, choices, changed abilities).
+  const game = engine?.game;
+  const current = zoom ? liveInspectionCard(zoom.card, game) : undefined;
+  const playerNames = new Map(game?.players.map((p) => [p.id, p.name]) ?? []);
   const step = (delta: number) => {
     setZoom((current) => {
       if (!current || current.sequence.length < 2) return current;
@@ -64,7 +78,7 @@ export function CardZoomProvider({ children, engine }: { children: ReactNode; en
           onClose={() => setZoom(null)}
         />
       )}
-      {zoom && !rich && <ZoomDialog card={zoom.card} onClose={() => setZoom(null)} />}
+      {zoom && !rich && current && !current.hidden && <ZoomDialog card={current} playerNames={playerNames} onClose={() => setZoom(null)} />}
     </CardZoom.Provider>
   );
 }
@@ -74,23 +88,20 @@ const costLike = (detail: string) => /^[{\d]/.test(detail);
 const WITH_COST = new Set(['WARD', 'EQUIP']);
 
 /** Localized rules and what the card has right now: counters and keyword explanations. */
-function CardInfo({ card }: { card: CardState }) {
+function CardInfo({ card, playerNames }: { card: CardState; playerNames?: Map<number, string> }) {
   const t = useT();
   const counters = Object.entries(card.counters ?? {});
   const keywords = card.keywords ?? [];
   return (
     <aside className="zoom__info" onClick={(e) => e.stopPropagation()}>
+      <CardDetails card={card} playerNames={playerNames} />
       <details className="zoom__description">
         <summary>
           <span className="zoom__show-text">{t('zoomShowText')}</span>
           <span className="zoom__hide-text">{t('zoomHideText')}</span>
         </summary>
         <div className="zoom__description-body">
-          <h2>{card.name}</h2>
-          {card.cost && <p><ManaCost cost={card.cost} /></p>}
-          {card.type && <p className="zoom__type">{card.type}</p>}
-          {card.text && <p className="zoom__text"><SymbolText text={card.text} /></p>}
-          {card.power !== undefined && <p>{card.power}/{card.toughness}</p>}
+          <CurrentCardText card={card} />
         </div>
       </details>
       {counters.length > 0 && <ul className="zoom__counters" aria-label={t('zoomCounters')}>
@@ -117,7 +128,7 @@ function CardInfo({ card }: { card: CardState }) {
 }
 
 // A modal <dialog> so it also sits above other open dialogs (zones, choices, the menu).
-function ZoomDialog({ card, onClose }: { card: CardState; onClose: () => void }) {
+function ZoomDialog({ card, playerNames, onClose }: { card: CardState; playerNames: Map<number, string>; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -130,7 +141,7 @@ function ZoomDialog({ card, onClose }: { card: CardState; onClose: () => void })
       onContextMenu={(e) => { e.preventDefault(); onClose(); }} onCancel={(e) => { e.preventDefault(); onClose(); }}>
       <div className="zoom__body">
         <div className="zoom__card"><Preview key={card.id} card={card} /></div>
-        <CardInfo key={card.id} card={card} />
+        <CardInfo key={card.id} card={card} playerNames={playerNames} />
       </div>
     </dialog>
   );

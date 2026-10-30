@@ -228,6 +228,7 @@
   background: var(--card-back);
   cursor: default;
 }
+.card--back.is-selectable, .card--back.is-actionable { cursor: pointer; }
 
 /* Equipment, auras and fortifications peek out above the permanent they are attached to. */
 .attach { --attach-peek: 20px; position: relative; display: flex; flex-shrink: 0; isolation: isolate;
@@ -734,7 +735,9 @@
   .field__row { display: contents; }
   .player--compact .card--field { width: 54px; height: 75px; }
   .player--compact .card--land, .player--compact .player__command .card--mini { width: 36px; height: 50px; }
-  .player--compact .card__type, .player--compact .card__counters { display: none; }
+  .player--compact .card__type { display: none; }
+  .player--compact .card__counters { left: 2px; bottom: 2px; gap: 1px; max-width: calc(100% - 4px); flex-wrap: wrap; }
+  .player--compact .card__counters span { min-width: 12px; height: 12px; font-size: 8px; }
   .player--compact { padding-block: 4px; gap: 2px; }
   .player--compact .field { padding-top: 0; row-gap: 6px; }
 }
@@ -875,6 +878,10 @@
 .zoom__keywords { margin: 0; display: grid; gap: 10px; }
 .zoom__keywords dt { font-family: var(--font-display); font-weight: var(--display-weight); }
 .zoom__keywords dd { margin: 2px 0 0; color: var(--panel-ink-muted); font-size: 14px; }
+.zoom__state { margin-bottom: 16px; overflow-wrap: anywhere; }
+.zoom__choices { display: grid; gap: 8px; margin: 0; }
+.zoom__choices dt { color: var(--panel-ink-muted); font-size: 0.9em; }
+.zoom__choices dd { margin: 2px 0 0; }
 @media (max-width: 760px) {
   .zoom__body { flex-direction: column; gap: 12px; }
   .zoom__body:has(.zoom__info) .zoom__card { width: min(300px, 80vw, calc(52vh * 0.716)); }
@@ -944,7 +951,12 @@
 .stack-col__item { position: relative; flex: none; width: 100px; border-radius: var(--card-radius); box-shadow: var(--card-shadow); cursor: help; animation: stack-in var(--stack-ms) ease-out both; }
 .stack-col__item.is-next { width: 124px; outline: 3px solid var(--select); outline-offset: 2px; box-shadow: var(--card-shadow-lifted); }
 .stack-col__item.is-leaving { pointer-events: none; animation: stack-out var(--stack-ms) ease-in both; }
-.stack-col__item > img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: var(--card-radius); }
+.stack-col__content { display: block; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; color: inherit; font: inherit; text-align: inherit; cursor: inherit; }
+.stack-col__content > img { display: block; width: 100%; aspect-ratio: 5 / 7; object-fit: cover; border-radius: var(--card-radius); }
+.stack-col__item.is-selectable { outline: 3px dashed var(--focus); outline-offset: 3px; cursor: pointer; }
+.stack-col__item.is-target { outline: 2px dashed var(--on-table); outline-offset: 5px; }
+.stack-col__item.is-chosen { outline: 4px double var(--chosen); outline-offset: 3px; }
+.stack-col__content:focus-visible { outline: 3px solid var(--focus); outline-offset: 7px; }
 .stack-col__ability { overflow: hidden; border-radius: var(--card-radius); background: var(--panel); color: var(--panel-ink); border: 1px solid var(--panel-line); }
 .stack-col__ability img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .stack-col__ability p { margin: 0; padding: 6px 8px; font-size: 12px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }

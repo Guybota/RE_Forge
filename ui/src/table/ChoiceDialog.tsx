@@ -68,7 +68,8 @@ function ChoicePreview({ card }: { card: CardState }) {
   const [failed, setFailed] = useState<string | null>(null);
   const image = cardImage(card.imageKey, 'full');
   if (image && failed !== image) return <img src={image} alt={card.name ?? ''} onError={() => setFailed(image)} />;
-  return <><h3>{card.name}</h3><p>{card.type}</p>{card.text && <p><SymbolText text={card.text} /></p>}</>;
+  const text = card.gameText ?? card.text;
+  return <><h3>{card.name}</h3><p>{card.type}</p>{text && <p><SymbolText text={text} /></p>}</>;
 }
 
 function Reveal({ labels, onDone, hover }: { labels: string[]; onDone: () => void; hover: (i: number) => void }) {

@@ -25,12 +25,9 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
   const [fullFailed, setFullFailed] = useState<string | null>(null);
   const t = useT();
   const zoomProps = useCardInspection(card);
-  const requestedFull = size === 'hand' ? cardImage(card.imageKey, 'full') : null;
+  const requestedFull = !card.hidden && size === 'hand' ? cardImage(card.imageKey, 'full') : null;
   const full = requestedFull !== fullFailed ? requestedFull : null;
 
-  if (card.hidden) {
-    return <div className={`card card--${size} card--back`} aria-label={t('hiddenCard')} />;
-  }
   const classes = [
     'card',
     `card--${size}`,
@@ -42,15 +39,37 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
     target && 'is-target',
     card.actionable && 'is-actionable',
     full && 'card--printed',
+    card.hidden && 'card--back',
     count > 1 && 'card--pile',
   ].filter(Boolean).join(' ');
   const pile = (count > 1 || badge) && <span className="card__count" title={badge?.title} aria-hidden={!badge}>{badge ? badge.text : `×${count}`}</span>;
   const states = [chosen && t('cardSelected'), selectable && t('cardSelectable'), card.actionable && t('cardAvailable'), target && t('cardTarget')].filter(Boolean);
-  const label = [count > 1 ? `${card.name} ×${count}` : card.name, ...states].filter(Boolean).join(', ');
+  const name = card.hidden ? t('hiddenCard') : card.name;
+  const label = [count > 1 ? `${name} ×${count}` : name, ...states].filter(Boolean).join(', ');
   const stateMark = chosen
     ? <span className="card__state" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m3 8 3 3 7-7" /></svg></span>
     : card.actionable && <span className="card__state card__state--available" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m6 3 6 5-6 5Z" /></svg></span>;
 
+  const pt = card.power !== undefined ? `${card.power}/${card.toughness}` : card.loyalty ?? card.defense;
+  const stats = <>
+    {(pt !== undefined || !!card.damage) && size !== 'land' && (
+      <span className="card__pt">{pt}{card.damage ? <em> −{card.damage}</em> : null}</span>
+    )}
+    {card.counters && Object.keys(card.counters).length > 0 && (
+      <span className="card__counters">
+        {Object.entries(card.counters).map(([k, v]) => <span key={k} title={k}>{v}</span>)}
+      </span>
+    )}
+  </>;
+  // A face-down permanent is still a legal game object: keep clicks, focus and arrow anchors while its
+  // identity stays private. The snapshot only provides public characteristics in this case.
+  const Tag = onClick ? 'button' : 'div';
+  if (card.hidden) {
+    return <Tag type={onClick ? 'button' : undefined} role={onClick ? undefined : 'img'} className={classes}
+      data-card-id={card.id} onClick={onClick} aria-label={label} aria-pressed={chosen}>
+      {pile}{stateMark}{stats}
+    </Tag>;
+  }
   if (full) {
     return (
       <button
@@ -72,9 +91,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
     );
   }
   const art = cardImage(card.imageKey, 'crop');
-  const pt = card.power !== undefined ? `${card.power}/${card.toughness}` : card.loyalty ?? card.defense;
   // Without a click handler (e.g. a skin preview inside another button) it's just a picture.
-  const Tag = onClick ? 'button' : 'div';
 
   return (
     <Tag
@@ -105,14 +122,7 @@ export function Card({ card, size, selectable, chosen, target, onClick, onHover,
         {art && <img key={art} src={art} alt="" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.hidden = true; }} />}
       </span>
       {size !== 'land' && size !== 'mini' && <span className="card__type">{card.type}</span>}
-      {(pt !== undefined || !!card.damage) && size !== 'land' && (
-        <span className="card__pt">{pt}{card.damage ? <em> −{card.damage}</em> : null}</span>
-      )}
-      {card.counters && size !== 'land' && (
-        <span className="card__counters">
-          {Object.entries(card.counters).map(([k, v]) => <span key={k} title={k}>{v}</span>)}
-        </span>
-      )}
+      {stats}
     </Tag>
   );
 }

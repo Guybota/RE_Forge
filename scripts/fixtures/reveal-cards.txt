@@ -1,0 +1,12 @@
+activeplayer=p0
+activephase=MAIN1
+turn=3
+p0life=40
+p1life=40
+p0battlefield=Island|Set:M11
+p1battlefield=Forest|Set:M11
+p0hand=Peek
+p1hand=Lightning Bolt|Set:M11;Serra Angel|Set:M11;Forest
+p0library=Llanowar Elves|Set:M11;Plains;Island;Mountain;Swamp
+p1library=Forest;Island;Plains;Mountain;Swamp
+removesummoningsickness=true

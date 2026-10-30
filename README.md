@@ -191,7 +191,8 @@ JSON messages over `ws://127.0.0.1:<port>`, each with a `type`. Shapes are typed
 | engine → UI | `lobby` | Full lobby snapshot: `host`, `localSlot`, `port`, `addresses`, `transport` (`direct`/`relay`), optional `roomCode`, `slots` (kind, name, deck, ready, editable, controllable). Relay lobbies do not publish IP addresses |
 | engine → UI | `chatMessage`, `lobbyClosed` | Chat `source`, `text`, `kind`; lobby closure also clears the game/choice in the UI |
 
-Hidden cards are sent as `{id, hidden: true}`. Card, player and stack ids are separate number spaces.
+Hidden cards in private zones are sent as `{id, hidden: true}`. Hidden battlefield/stack objects may also
+carry public combat characteristics and interaction flags, without identity or rules. Card, player and stack ids are separate number spaces.
 Each player may carry `libraryTop`, only when Forge permits this viewer to see the current top card.
 Snapshots also carry `gameId`, so late states from a previous game cannot interrupt an opening toss.
 Its native `actionable` flag and card id use the same play/inspect path as cards on the board; no other library cards are exposed.
@@ -200,6 +201,12 @@ Scry, Surveil and Explore use a shared destination picker. Native one-card promp
 Answers keep Forge's original contracts: a complete permutation for Scry's `arrange`, an ordered subset for Surveil,
 and the original OK/Cancel action for one-card confirmations.
 Stack entries include `isSpell`, distinguishing casts from activated and triggered abilities for sound cues.
+They include their source `card`, targets from linked subabilities, and `targetStackIds` alongside the separate
+card/player target lists. `action: "stack"` + the stack instance `id` selects an offered spell or ability.
+In-game cards also carry `gameText`, Forge's current ability text (an explicit empty string means no ability text),
+separate from the printed `text`. Public choices and conditions include named cards, chosen types/colors/numbers,
+Class level, phasing, exertion and damage prevention. Player `counters` and `keywords` cover energy/experience
+and protections. `prompt.cards` can also contain explicitly revealed, non-selectable cards until acknowledgement.
 Choice options may include `card` metadata for previews; hidden options have an empty label and no card details.
 An explicit reveal exposes only the listed cards. Invalid answers repeat the choice with a fresh `id` and `invalid: true`.
 

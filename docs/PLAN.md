@@ -19,6 +19,29 @@ Referência visual: o estudo de design (4 estilos, mesa a 4, ecrã de escolha) e
 
 ## Estado (feito)
 
+Auditoria de apresentação de cartas (30/10/2026, `feat/card-presentation-audit`):
+- Revelar a mão adversária por `showRevealedCards` (Peek) já apresenta as cartas no diálogo da mesa,
+  permite inspeção e limpa a revelação após OK. A confirmação não é confundida com passagem de prioridade.
+- Inspeção usa as habilidades atuais do Forge (`gameText`), incluindo perda/ganho por Humility e efeitos
+  sem Oracle próprio. Escolhas persistentes (cartas nomeadas, tipo/cor/número/jogador/modo), nível da Classe,
+  faseamento, esforço, detenção, Anel, regeneração e prevenção de dano passam pela ponte e aparecem no zoom.
+  O zoom acompanha os snapshots enquanto está aberto. Energia, experiência e keywords dos jogadores ficam visíveis.
+- Cartas ocultas mantêm ações, características públicas e âncoras de combate; cartas face-down ficam separadas.
+  Permanentes com habilidades/estados diferentes não se agrupam; cores usam o estado atual, não o custo de mana.
+  Marcadores de terrenos e dos campos compactos já não ficam escondidos.
+- Stack: seleção local por instância (inclui duas habilidades da mesma fonte), teclado, destaques e setas
+  para outras entradas; fontes de habilidades continuam inspecionáveis e alvos das subabilidades são incluídos.
+  Convidados remotos mantêm o diálogo nativo do Forge para escolher alvos da stack.
+- Regressões nativas: Humility/Codie, Needle, Cavern, Caged Sun, Wizard Class, Leyline, marcadores de jogador,
+  cartas face-down e privacidade (pt/en); Peek; Counterspell; Stifle; Wishclaw; Codie até lançar a carta grátis.
+  Comandos: `engine:smoke-card-presentation`, `engine:smoke-reveal`, `engine:smoke-stack-targets`,
+  `engine:smoke-codie`, `ui:smoke-card-presentation`. Todos usam perfis temporários; Forge upstream intacto.
+
+Lacunas identificadas que continuam por tratar: dia/noite sem indicador dedicado; animações de moedas de cartas
+(a moeda inicial tem percurso próprio); inspeção autorizada da identidade original de Morph/Manifest pelo dono;
+anexos a jogadores (Curses) e relações Soulbond/Imprint/cartas exiladas pela fonte; permissões adicionais fora de
+`AbilityText`. Este bloco não certifica o catálogo inteiro nem substitui validação online dessas mecânicas.
+
 Inspeção durante a partida (28/10/2026, `feat/game-card-description`): secção Mostrar/Ocultar texto da carta,
 fechada inicialmente, com nome, custo, tipo e regras no idioma escolhido (texto já traduzido pelo Forge;
 inglês quando não existe tradução). Mantém marcadores e explicações das habilidades. Clicar/selecionar o texto

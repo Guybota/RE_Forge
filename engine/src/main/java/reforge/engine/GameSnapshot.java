@@ -103,6 +103,9 @@ final class GameSnapshot {
         o.addProperty("name", p.getName());
         o.addProperty("life", p.getLife());
         o.addProperty("poison", p.getCounters(CounterEnumType.POISON));
+        addCounters(o, p);
+        JsonArray playerKeywords = keywords(p.getKeywords());
+        if (!playerKeywords.isEmpty()) o.add("keywords", playerKeywords);
         o.addProperty("isLocal", gui.isLocalPlayer(p));
         o.addProperty("isAi", p.isAI());
         o.addProperty("hasLost", p.getHasLost());
@@ -177,6 +180,9 @@ final class GameSnapshot {
         o.addProperty("id", c.getId());
         if (!revealed && !gui.mayView(c)) {
             o.addProperty("hidden", true);
+            // Identity and rules stay private, but face-down permanents still take part in combat
+            // and can be selected. Do not expose these fields for unknown cards in private zones.
+            if (c.getZone() == ZoneType.Battlefield || c.getZone() == ZoneType.Stack) publicCardState(o, c, gui);
             return o;
         }
         CardStateView s = c.getCurrentState();
@@ -190,6 +196,19 @@ final class GameSnapshot {
         if (s.getRarity() != null) o.addProperty("rarity", s.getRarity().name());
         o.addProperty("imageKey", s.getImageKey());
         o.addProperty("text", text(s));
+        // Oracle is the printed card. Its current abilities can differ (Humility, copying,
+        // granted abilities, Class levels). AbilityText is Forge's translated runtime text;
+        // unlike CardView.getText(), it does not append unfiltered remembered card identities.
+        if (c.getId() >= 0) o.addProperty("gameText", gameText(c));
+        publicCardState(o, c, gui);
+        cardDetails(o, c);
+        JsonArray keywords = keywords(s);
+        if (!keywords.isEmpty()) o.add("keywords", keywords);
+        return o;
+    }
+
+    private static void publicCardState(JsonObject o, CardView c, WebGuiGame gui) {
+        CardStateView s = c.getCurrentState();
         if (s.getType() != null && s.getType().isCreature()) {
             o.addProperty("power", s.getPower());
             o.addProperty("toughness", s.getToughness());
@@ -207,16 +226,62 @@ final class GameSnapshot {
         o.addProperty("faceDown", c.isFaceDown());
         o.addProperty("damage", c.getDamage());
         if (c.getAttachedTo() != null) o.addProperty("attachedToId", c.getAttachedTo().getId());
-        JsonArray keywords = keywords(s);
-        if (!keywords.isEmpty()) o.add("keywords", keywords);
-        if (c.getCounters() != null && !c.getCounters().isEmpty()) {
+        if (c.isPhasedOut()) o.addProperty("phasedOut", true);
+        if (c.isExertedThisTurn()) o.addProperty("exerted", true);
+        if (c.isDetained()) o.addProperty("detained", true);
+        if (c.isRingBearer()) o.addProperty("ringBearer", true);
+        if (c.getShieldCount() > 0) o.addProperty("shieldCount", c.getShieldCount());
+        if (c.getPreventNextDamage() > 0) o.addProperty("preventNextDamage", c.getPreventNextDamage());
+        addCounters(o, c);
+    }
+
+    private static void addCounters(JsonObject o, GameEntityView entity) {
+        if (entity.getCounters() != null && !entity.getCounters().isEmpty()) {
             JsonObject counters = new JsonObject();
-            for (CounterType t : c.getCounters().elementSet()) {
-                counters.addProperty(t.getName(), c.getCounters().count(t));
+            for (CounterType t : entity.getCounters().elementSet()) {
+                counters.addProperty(t.getName(), entity.getCounters().count(t));
             }
             o.add("counters", counters);
         }
-        return o;
+    }
+
+    private static String gameText(CardView c) {
+        String value;
+        if (c.isSplitCard() && !c.isFaceDown() && c.getZone() != ZoneType.Stack && c.getZone() != ZoneType.Battlefield) {
+            value = "(" + name(c.getLeftSplitState()) + ") " + c.getLeftSplitState().getAbilityText()
+                    + "\n\n(" + name(c.getRightSplitState()) + ") " + c.getRightSplitState().getAbilityText();
+        } else value = c.getCurrentState().getAbilityText();
+        // Forge uses these spans for inactive abilities; our React text renderer must not show HTML.
+        return value == null ? "" : value.replaceAll("</?span(?:\\s[^>]*)?>", "")
+                .replace("\\r", "\r").replace("\\n", "\n").replace("\r\n", "\n").trim();
+    }
+
+    /** Public, persistent decisions that are separate from a card's printed rules. Secret choices
+     * never enter CardView until Forge reveals them; a face-down card's old decisions remain hidden. */
+    private static void cardDetails(JsonObject o, CardView c) {
+        if (c.isFaceDown()) return;
+        string(o, "chosenType", c.getChosenType());
+        string(o, "chosenType2", c.getChosenType2());
+        strings(o, "chosenColors", c.getChosenColors());
+        string(o, "chosenNumber", c.getChosenNumber());
+        strings(o, "namedCards", c.getNamedCard());
+        if (c.getChosenPlayer() != null) o.addProperty("chosenPlayerId", c.getChosenPlayer().getId());
+        string(o, "chosenMode", c.getChosenMode());
+        string(o, "currentRoom", c.getCurrentRoom());
+        string(o, "overlayText", c.getOverlayText());
+        if (c.getZone() == ZoneType.Battlefield && c.getCurrentState().getType() != null
+                && c.getCurrentState().getType().hasStringType("Class")) o.addProperty("classLevel", c.getClassLevel());
+        if (c.getRingLevel() > 0) o.addProperty("ringLevel", c.getRingLevel());
+    }
+
+    private static void string(JsonObject o, String key, String value) {
+        if (value != null && !value.isEmpty()) o.addProperty(key, value);
+    }
+
+    private static void strings(JsonObject o, String key, Iterable<String> values) {
+        JsonArray out = new JsonArray();
+        if (values != null) for (String value : values) if (value != null && !value.isEmpty()) out.add(value);
+        if (!out.isEmpty()) o.add(key, out);
     }
 
     /**
@@ -224,10 +289,14 @@ final class GameSnapshot {
      * the title ("Ward {2}"), what follows the keyword's name ("{2}") and the formatted reminder text.
      */
     private static JsonArray keywords(CardStateView s) {
+        return keywords(s.getKeywords());
+    }
+
+    private static JsonArray keywords(Iterable<KeywordView> values) {
         JsonArray out = new JsonArray();
-        if (s.getKeywords() == null) return out;
+        if (values == null) return out;
         Set<String> seen = new HashSet<>();
-        for (KeywordView k : s.getKeywords()) {
+        for (KeywordView k : values) {
             if (k.keyword() == null || k.keyword() == Keyword.UNDEFINED || k.title() == null || !seen.add(k.title())) continue;
             String name = k.keyword().toString();
             JsonObject kw = new JsonObject();
@@ -260,14 +329,24 @@ final class GameSnapshot {
             o.addProperty("text", si.getText());
             o.addProperty("isSpell", !si.isAbility());
             o.addProperty("sourceCardId", si.getSourceCard() == null ? null : si.getSourceCard().getId());
-            // The spell's own card, so the UI can show it flying to the stack (card() still hides what may not be seen).
-            if (!si.isAbility() && si.getSourceCard() != null) o.add("card", card(si.getSourceCard(), gui));
+            // Keep the source available even when an ability outlives it on the battlefield.
+            // card() still hides what this viewer may not see.
+            if (si.getSourceCard() != null) o.add("card", card(si.getSourceCard(), gui));
             o.addProperty("controllerId", si.getActivatingPlayer() == null ? null : si.getActivatingPlayer().getId());
-            JsonArray targetCards = new JsonArray(), targetPlayers = new JsonArray();
-            if (si.getTargetCards() != null) si.getTargetCards().forEach(t -> targetCards.add(t.getId()));
-            if (si.getTargetPlayers() != null) si.getTargetPlayers().forEach(t -> targetPlayers.add(t.getId()));
+            Set<Integer> cardTargets = new java.util.LinkedHashSet<>(), playerTargets = new java.util.LinkedHashSet<>(), stackTargets = new java.util.LinkedHashSet<>();
+            // A spell with several linked effects stores the later effects' targets in subinstances.
+            for (StackItemView part = si; part != null; part = part.getSubInstance()) {
+                if (part.getTargetCards() != null) part.getTargetCards().forEach(t -> cardTargets.add(t.getId()));
+                if (part.getTargetPlayers() != null) part.getTargetPlayers().forEach(t -> playerTargets.add(t.getId()));
+                if (part.getTargetStackItems() != null) part.getTargetStackItems().forEach(t -> stackTargets.add(t.getId()));
+            }
+            JsonArray targetCards = new JsonArray(), targetPlayers = new JsonArray(), targetStack = new JsonArray();
+            cardTargets.forEach(targetCards::add);
+            playerTargets.forEach(targetPlayers::add);
+            stackTargets.forEach(targetStack::add);
             o.add("targetCardIds", targetCards);
             o.add("targetPlayerIds", targetPlayers);
+            o.add("targetStackIds", targetStack);
             arr.add(o);
         }
         return arr;
@@ -310,7 +389,7 @@ final class GameSnapshot {
         o.addProperty("message", p.message());
         o.add("ok", button(p.ok(), p.okEnabled()));
         o.add("cancel", button(p.cancel(), p.cancelEnabled()));
-        o.addProperty("priority", isPassPriority(p));
+        o.addProperty("priority", gui.revealedCards().isEmpty() && isPassPriority(p));
         CardView promptCard = gui.promptCard();
         if (promptCard != null && gui.mayView(promptCard) && p.okEnabled() && p.cancelEnabled()) {
             Localizer l = Localizer.getInstance();
@@ -337,13 +416,21 @@ final class GameSnapshot {
         o.add("selectable", selectable);
         o.add("chosen", ids(p.selection().chosen()));
         // Selectable cards the table does not show (a library search, an opponent's hand) travel with the prompt.
-        JsonArray offTable = new JsonArray();
+        Map<Integer, JsonObject> offTable = new java.util.LinkedHashMap<>();
         for (CardView c : p.selection().cards()) {
             ZoneType zone = c.getZone();
             boolean onTable = zone != null && (List.of(PUBLIC_ZONES).contains(zone) || zone == ZoneType.Hand && gui.isLocalPlayer(c.getController()));
-            if (!onTable) offTable.add(card(c, gui));
+            if (!onTable) offTable.put(c.getId(), card(c, gui));
         }
-        o.add("cards", offTable);
+        // Some Forge inputs reveal a hand/card before choosing it directly in its zone. That
+        // permission belongs only to this explicit list, never to the rest of the hidden zone.
+        for (CardView c : gui.revealedCards()) {
+            cards.put(c.getId(), c);
+            offTable.put(c.getId(), describeCard(c, gui, true));
+        }
+        JsonArray promptCards = new JsonArray();
+        offTable.values().forEach(promptCards::add);
+        o.add("cards", promptCards);
         return o;
     }
 

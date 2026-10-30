@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import type { CardState, PlayerState } from '../engine';
 import { Card } from './Card';
 import { groupCards, isLand } from './cards';
-import { useT } from '../i18n';
+import { isMessageKey, useT } from '../i18n';
 import { ManaCost } from '../ManaSymbol';
 import { MaximizeIcon, RestoreIcon } from './icons';
 
@@ -139,6 +139,14 @@ export function PlayerArea({ player, active, compact, focused, collapsed, maximi
           })}
           {player.manaPool && <span title={t('manaPool')}><ManaCost cost={player.manaPool} /></span>}
           {player.poison > 0 && <span className="danger">{t('poison', { n: player.poison })}</span>}
+          {Object.entries(player.counters ?? {}).filter(([name, n]) => name !== 'Poison' && n > 0).map(([name, n]) => {
+            const key = `counter_${name}`;
+            return <span key={name}>{t('counterLine', { name: isMessageKey(key) ? t(key) : name, n })}</span>;
+          })}
+          {player.keywords?.map((keyword) => {
+            const key = `kw_${keyword.id}`;
+            return <span key={keyword.title} title={keyword.reminder}>{isMessageKey(key) && !keyword.detail ? t(key) : keyword.title}</span>;
+          })}
           {cmdDamage.map((d) => (
             <span key={d.commanderId} title={t('commanderDamageFrom', { name: ctx.playerNames.get(d.fromPlayerId) ?? '' })}>
               {t('commanderDamage', { n: d.damage })}

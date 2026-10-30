@@ -19,6 +19,7 @@ import com.google.gson.JsonParseException;
 
 import forge.game.card.CardView;
 import forge.game.player.PlayerView;
+import forge.game.spellability.StackItemView;
 import forge.gamemodes.match.HostedMatch;
 import forge.interfaces.IGameController;
 import forge.model.FModel;
@@ -462,6 +463,18 @@ public final class EngineServer extends WebSocketServer {
             case "player" -> {
                 PlayerView player = gui.playerById(id);
                 if (player != null) controller.selectPlayer(player, null);
+            }
+            case "stack" -> {
+                StackItemView item = null;
+                var view = gui.getGameView();
+                if (view != null && view.getStack() != null) {
+                    for (StackItemView candidate : view.getStack()) {
+                        if (candidate.getId() == id) { item = candidate; break; }
+                    }
+                }
+                // Stack instances have their own ids: two abilities of one source stay distinct.
+                if (item == null) gui.flashIncorrectAction();
+                else controller.selectStackItem(item);
             }
             case "undo" -> controller.undoLastAction();
             // Between games of a match: ready for the next one (Forge starts it once every human is).
